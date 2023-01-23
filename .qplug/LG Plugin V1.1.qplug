@@ -1,0 +1,812 @@
+PluginInfo = {
+	Name = "LG Controller",
+	Version = "1.1",
+	Id = "cb5d0875-0844-445c-8eb1-2bf215179958",
+	Description = "An LG Remote for Over IP Control using WOL",
+	ShowDebug = false
+}
+
+-- optional
+function GetPrettyName(props)
+	return "LG Remote"
+end
+
+function GetColor(props)
+	return {25, 118, 255}
+end
+
+function GetProperties()
+	return props
+end
+
+
+
+function RectifyProperties(props)
+	return props
+end
+
+Colors = {
+    Power = {On = {0, 218, 10}, Off = {255, 32, 32}},
+    Mute = {On = {255, 32, 32}, Off = {119, 119, 119}},
+    VC= {On = {150, 202, 255}, Off = {55, 125, 202}},
+    Others = {208, 208, 208},
+    Navigation = {70,70,70},
+    Input = {255, 255, 255},
+    txt = { l= {255, 255, 255}, d = {0,0,0}},
+    Default = {255,255,255},
+    status = {194,194,194}
+}
+RemoteControls = {
+Power = {l = "", ct = "Button", bt = "Toggle" , q = 1, up = true, ps = "Both", cl = true, nc = Colors.Power.On, oc = Colors.Power.Off, px=23,py=20,sx=44,sy=44,r=100, m = 4 , fs = 10, ict = "Icon", ic = "Power" },
+VolumeUp = {l = "", ct = "Button", bt = "Momentary" , q = 1, up = false, cl = true, nc = Colors.VC.On, oc = Colors.VC.Off, px=23,py=195,sx=44,sy=44,r=2, m = 5, fs = 10, ict = "Icon", ic = "Plus" },
+VolumeDown = {l = "", ct = "Button", bt = "Momentary" , q = 1, up = false, cl = true, nc = Colors.On, oc = Colors.VC.Off, px=23,py=256,sx=44,sy=44,r=2, m = 5, fs = 10, ict = "Icon", ic = "Minus" },
+ChannelUp = {l = "", ct = "Button", bt = "Trigger" , q = 1, up = false, cl = true, nc = Colors.VC.On, oc = Colors.VC.Off, px=111,py=195,sx=44,sy=44,r=2, m = 5, fs = 10, ict = "Icon", ic = "Arrow Up" },
+ChannelDown = {l = "", ct = "Button", bt = "Trigger" , q = 1, up = false, cl = true, nc = Colors.VC.On, oc = Colors.VC.Off, px=111,py=256,sx=44,sy=44,r=2, m = 5, fs = 10, ict = "Icon", ic = "Arrow Down" },
+Mute = {l = "Mute", ct = "Button", bt = "Toggle" , q = 1, up = false, cl = true, nc = Colors.Mute.On, oc = Colors.Mute.Off, px=67,py=227,sx=44,sy=44,r=2, m = 5, fs = 15, ict = "Icon", ic = "" },
+Numpad = {l = "1,10", ct = "Button", bt = "Trigger" , q = 10, up = false, cl = false, nc = Colors.Others, oc = Colors.Others, sx=44,sy=33,r=2, m = 5, fs = 15, ict = "Icon", ic = "" },
+Navigation = {l = "1,9", ct = "Button", bt = "Trigger", up = false, cl = false, nc = Colors.Others, oc = Colors.Others, sx=44,sy=44,r=2, m = 5, fs = 15, ict = "Icon", ic = "" },
+Source = {l = "", ct = "Button", bt = "Toggle" , q = 8, up = false, cl = false, nc = Colors.Others, oc = Colors.Others, sx=54,sy=37,r=2, m = 5, fs = 15, ict = "Icon", ic = "" },
+Channel = {l = "", ct = "Text", bt = "Text Box" , q = 1, up = true, ps = "Both", cl = false, nc = Colors.Default, oc = Colors.Default, px=194,py=140,sx=54,sy=26,r=5, m = 0, fs = 15, ict = "Icon", ic = "" },
+MacAddress = {l = "", ct = "Text", bt = "Text Box" , q = 1, up = false, cl = true, nc = Colors.Default, oc = Colors.Default, px=191,py=247,sx=181,sy=27,r=5, m = 0, fs = 15, ict = "Icon", ic = "" },
+ControlPort = {l = "", ct = "Text", bt = "Text Box" , q = 1, up = false, cl = true, nc = Colors.Default, oc = Colors.Default, px=282,py=274,sx=90,sy=27,r=5, m = 0, fs = 15, ict = "Icon", ic = "" },
+--SetID = {l = "", ct = "Indicator", it= "Text", bt = "Text Box" , q = 1, up = false, cl = true, nc = Colors.status, oc = Colors.status, px=282,py=301,sx=40,sy=27,r=5, m = 0, fs = 15, ict = "Icon", ic = "" },
+Connect = {l = "Connect", ct = "Button", bt = "Toggle" , q = 1, up = false, cl = true, nc = Colors.Others, oc = Colors.Others, px=191,py=367,sx=181,sy=37,r=2, m = 5, fs = 15, ict = "Icon", ic = "" },
+Status = {l = "", ct = "Text", bt = "Text Box" , q = 1, up = false, cl = true, nc = Colors.Default, oc = Colors.Default, px=191,py=427,sx=181,sy=31,r=5, m = 0, fs = 15, ict = "Icon", ic = "" }
+}
+
+NavigationIcon = {"Widget", "Arrow Up", "", "Arrow Left", "", "Arrow Right", "", "Arrow Down", ""}
+NavigationName = {"Widget", "ArrowUp", "Menu", "ArrowLeft", "OK", "ArrowRight", "Back", "ArrowDown", "Exit"}
+NavigationLegend = {"", "", "Menu", "", "OK", "", "Back", "", "Exit"}
+SourceLabels = {"HDMI 1", "HDMI 2", "HDMI 3","HDMI 4", "VGA", "COMP", "DTV", "ATV"}
+
+function GetControls(props)
+    ctl = {}
+    for k,v in pairs (RemoteControls) do
+        if k == "Navigation" then
+            for i = 1,#NavigationName do
+            table.insert(ctl,
+            {
+            Name=NavigationName[i],
+            ControlType=RemoteControls[k].ct,
+            ButtonType=RemoteControls[k].bt,
+            Count=1,
+            UserPin=RemoteControls[k].up,
+            IconType=RemoteControls[k].ict,
+            Icon=NavigationIcon[i],
+            })
+            end
+        else   
+            if RemoteControls[k].it == nil then RemoteControls[k].it = "" end
+            if RemoteControls[k].ps == nil then RemoteControls[k].ps = "" end   
+        table.insert(ctl,
+        {
+        Name=k,
+        ControlType=RemoteControls[k].ct,
+        ButtonType=RemoteControls[k].bt,
+        Count=RemoteControls[k].q,
+        UserPin=RemoteControls[k].up,
+        IconType=RemoteControls[k].ict,
+        Icon=RemoteControls[k].ic,
+        IndicatorType= RemoteControls[k].it,
+        PinStyle = RemoteControls[k].ps
+        })
+        table.insert(ctl,
+        {
+        Name="Volume",
+        ControlType="Knob",
+        ControlUnit="Integer",
+        Min=0,
+        Max=64,
+        Count=1,
+        UserPin=true,
+        PinStyle = "Both"
+        })
+        end
+    end
+	return ctl
+end
+
+function GetControlLayout(props)
+    layout = {}
+
+    layout["Volume"] = {
+      Style = "Fader",
+      Position = {270, 140},
+      Size = {122,26},
+      Color = Colors.VC.On
+  }
+    
+    for k,v in pairs (RemoteControls) do
+        if k == "Numpad" then
+            for i = 1, 10 do
+                n = tostring(i)
+                if i <= 3 then x = 64 y = 1 elseif i <= 6 then x = 97 y =4 elseif i <= 9 then x = 130 y = 7 end
+                if i ~= 10 then
+                layout["Numpad " .. n] = {
+                    Style = RemoteControls[k].ct,
+                    ButtonStyle = RemoteControls[k].bt,
+                    Legend = n,
+                    Position = {23 + 44 * (i - y), x},
+                    Size = {RemoteControls[k].sx, RemoteControls[k].sy},
+                    Color = RemoteControls[k].nc,
+                    TextFontSize = RemoteControls[k].fs,
+                    Radius = RemoteControls[k].r,
+                    Margin = RemoteControls[k].m,
+                    CornerRadius = RemoteControls[k].cr,
+                }
+              elseif i == 10 then
+                layout["Numpad " .. n] = {
+                    Style = RemoteControls[k].ct,
+                    ButtonStyle = RemoteControls[k].bt,
+                    Legend = "0",
+                    Position = {67, 162},
+                    Size = {RemoteControls[k].sx, RemoteControls[k].sy},
+                    Color = RemoteControls[k].nc,
+                    TextFontSize = RemoteControls[k].fs,
+                    Radius = RemoteControls[k].r,
+                    Margin = RemoteControls[k].m,
+                    CornerRadius = RemoteControls[k].cr,
+                }
+                end
+            end
+        elseif k == "Navigation" then
+            for i = 1, 9 do
+                if i <= 3 then y = 318 x = 1 elseif i <= 6 then y = 361 x = 4 elseif i <= 9 then y = 404 x = 7 end
+                  layout[NavigationName[i]] = {
+                      Style = RemoteControls[k].ct,
+                      ButtonStyle = RemoteControls[k].bt,
+                      Legend = NavigationLegend[i],
+                      Position = {23 + 44 * (i - x), y},
+                      Size = {RemoteControls[k].sx, RemoteControls[k].sy},
+                      Color = RemoteControls[k].nc,
+                      TextFontSize = RemoteControls[k].fs,
+                      Radius = RemoteControls[k].r,
+                      Margin = RemoteControls[k].m,
+                      CornerRadius = RemoteControls[k].cr,
+                  }
+            end
+        elseif k == "Source" then
+            for i = 1,RemoteControls[k].q do
+            n = tostring(i)
+            if i <= 4 then y = 40 x = 1 else y = 40 + 35 x = 5 end
+              layout["Source "..n] = {
+              Style = RemoteControls[k].ct,
+              ButtonStyle = RemoteControls[k].bt,
+              Legend = SourceLabels[i],
+              Position = {191 + 50 * (i - x), y},
+              Size = {RemoteControls[k].sx, RemoteControls[k].sy},
+              Color = RemoteControls[k].nc,
+              TextFontSize = RemoteControls[k].fs,
+              Radius = RemoteControls[k].r,
+              Margin = RemoteControls[k].m,
+              CornerRadius = RemoteControls[k].cr,
+              }
+            end
+        else
+	    layout[k] = {
+        Style = RemoteControls[k].ct,
+        ButtonStyle = RemoteControls[k].bt,
+        Legend = RemoteControls[k].l,
+        Position = {RemoteControls[k].px, RemoteControls[k].py},
+        Size = {RemoteControls[k].sx, RemoteControls[k].sy},
+        Color = RemoteControls[k].nc,
+        TextFontSize = RemoteControls[k].fs,
+        Radius = RemoteControls[k].r,
+        Margin = RemoteControls[k].m,
+        CornerRadius = RemoteControls[k].cr,
+        OffColor = RemoteControls[k].oc,
+        UnlinkOffColor = RemoteControls[k].cl
+        }
+        end
+    end
+
+    graphics = {
+        {
+			Type = "GroupBox",
+            StrokeWidth = 6,
+            StrokeColor = {0,0,0},
+			CornerRadius = 8,
+			Fill = {35, 35, 35},
+			Position = {11, 12},
+			Size = {157, 453}
+        },
+        {
+			Type = "GroupBox",
+            StrokeWidth = 1,
+            StrokeColor = {0,0,0},
+			CornerRadius = 8,
+			Fill = {35, 35, 35},
+			Position = {181, 12},
+			Size = {221, 158}
+        },
+        {
+			Type = "GroupBox",
+            StrokeWidth = 2,
+            StrokeColor = {0,0,0},
+			CornerRadius = 8,
+			Fill = {192, 227, 255},
+			Position = {181, 177},
+			Size = {201, 288}
+        },
+		{
+			Type = "Label",
+			Text = "VOL",
+			HTextAlign = "Center",
+			VTextAlign = "Center",
+			Position = {23, 239},
+			Size = {44, 17},
+            TextSize = 15,
+            Color = {255,255,255}
+		},
+		{
+			Type = "Label",
+			Text = "CHAN",
+			HTextAlign = "Center",
+			VTextAlign = "Center",
+			Position = {111, 239},
+			Size = {44, 17},
+            TextSize = 15,
+            Color = {255,255,255}
+		},
+		{
+			Type = "Label",
+			Text = "Source",
+			HTextAlign = "Center",
+			VTextAlign = "Center",
+			Position = {181, 12},
+			Size = {221, 27},
+            TextSize = 15,
+            Color = {255,255,255}
+		},
+		{
+			Type = "Label",
+			Text = "Channel",
+			HTextAlign = "Center",
+			VTextAlign = "Center",
+			Position = {181, 115},
+			Size = {79, 24},
+            TextSize = 15,
+            Color = {255,255,255}
+    },
+    {
+			Type = "Label",
+			Text = "Volume",
+			HTextAlign = "Center",
+			VTextAlign = "Center",
+			Position = {260, 115},
+			Size = {132, 24},
+            TextSize = 15,
+            Color = {255,255,255}
+		},
+		{
+			Type = "Label",
+			Text = "Mac Address: format-XX:XX",
+			HTextAlign = "Center",
+			VTextAlign = "Center",
+			Position = {191, 224},
+			Size = {181, 23},
+            TextSize = 15,
+            Color = {0,0,0}
+		},
+		{
+			Type = "Label",
+			Text = "Please Enter Connection Details Below",
+			HTextAlign = "Center",
+			VTextAlign = "Center",
+			Position = {191, 185},
+			Size = {181, 39},
+            TextSize = 15,
+            Color = {0,0,0}
+		},
+		{
+			Type = "Label",
+			Text = "Control Port:",
+			HTextAlign = "Center",
+			VTextAlign = "Center",
+			Position = {191, 274},
+			Size = {91, 27},
+            TextSize = 15,
+            Color = {0,0,0}
+        },
+    --[[{
+			Type = "Label",
+			Text = "Set ID:",
+			HTextAlign = "Center",
+			VTextAlign = "Center",
+			Position = {191, 301},
+			Size = {91, 27},
+            TextSize = 15,
+            Color = {0,0,0}
+        },]]
+        {
+			Type = "Label",
+			Text = "Each display must have a different control port",
+			HTextAlign = "Center",
+			VTextAlign = "Center",
+			Position = {191, 328},
+			Size = {181, 39},
+            TextSize = 15,
+            Color = {0,0,0}
+        },
+        {
+			Type = "Label",
+			Text = "Status",
+			HTextAlign = "Center",
+			VTextAlign = "Center",
+			Position = {191, 404},
+			Size = {181, 23},
+            TextSize = 15,
+            Color = {0,0,0}
+		}
+    }
+
+	return layout, graphics
+end
+
+function GetPins(props)
+	local pins = {}
+	return pins
+end
+
+function GetComponents(props)
+	return
+end
+
+function GetWiring(props)
+	local wiring = {}
+	return wiring
+end
+
+if Controls then 
+  lcdControlPort = tonumber(Controls.ControlPort.String)
+
+  rapidjson = require("rapidjson")
+  nPollCount = 0
+  nNoReceivedData = 0
+  StringDecoded = ""
+  BufferedLine = ""
+  stringLen = 0
+  Connect = Controls.Connect
+  nConnected = false
+  Power = Controls.Power
+  MacCount = 0
+
+  for k,v in pairs (Controls.Source) do
+    if v.Boolean then
+      break
+    elseif k == #Controls.Source then
+      Controls.Source[1].Boolean = true
+    end
+  end
+  
+  mask = {17, 18, 19, 20}
+  AllChannelNames     = {}
+  AllChannelNumbers   = {}
+  Inputs = {"xb 01 90", "xb 01 91", "xb 01 92", "xb 01 93", "xb 01 60","xb 01 40", "xb 01 00", "xb 01 10"}
+  
+  lcdControl = TcpSocketServer.New()
+  lcdSend = TcpSocketServer.New()
+  wolcon = UdpSocket.New()
+  
+  PollLCD = Timer.New()
+  SendingDataTimer = Timer.New()
+  VolumeTimers = {Timer.New(),Timer.New()}
+  VolumeWait = Timer.New()
+
+  
+  function SendWOL()
+    if Controls.MacAddress.String ~= "" then
+      wolcon:Open()
+      mac1=parseMacAddress(Controls.MacAddress.String)
+      for i=1,4 do
+      mac1 = mac1..mac1
+      end
+      mac2 = string.char(0xff,0xff,0xff,0xff,0xff,0xff)..mac1
+      wolcon:Send("255.255.255.255",9,mac2)
+      print("Wake-On-Lan packet sent")
+      wolcon:Close()
+    end
+  end
+  
+  function parseMacAddress(mac)
+      local bytes = {string.match(mac, '(%x+)[-:](%x+)[-:](%x+)[-:](%x+)[-:](%x+)[-:](%x+)')}
+      if bytes == nil then
+          return
+      end
+      for i = 1, 6 do
+          if bytes[i] == nil then
+              return 
+          end
+          bytes[i] = tonumber(bytes[i], 16)
+          if  bytes[i] < 0 or bytes[i] > 0xFF then
+              return
+          end
+      end
+      local addr = {}
+      for i = 0, 5 do
+          addr[i] = bytes[i + 1]
+      end
+      return string.char(addr[0],addr[1],addr[2],addr[3],addr[4],addr[5])
+  end
+  
+  function CheckMac(ReceivedMac)
+    DeviceMac = string.gsub(ReceivedMac, "-", ":" )
+    if DeviceMac ~= Controls.MacAddress.String and Controls.MacAddress.String ~= "" then
+      MacCount = MacCount + 1
+    elseif Controls.MacAddress.String == "" then
+      Controls.MacAddress.String = DeviceMac
+    end
+    if MacCount == 1 then
+    Status("Warning Mac Address Doesn't Match",2)
+    elseif MacCount == 2 then
+      Status("Changing Mac in 10 Sec",2)
+    elseif MacCount == 11 then
+      Controls.MacAddress.String = DeviceMac
+      MacCount = 0
+    end
+  end
+  
+  function sendData(NewSocketInst, sCommand)
+    if not string.find(sCommand, "ff") then
+      SendingData = true
+      SendingDataTimer:Start(2)
+    end
+      local sPacket
+      local nPacketLength
+      local nBigLength
+      local nSmallLength
+      sPacket = "{\x22type\x22:\x22event\x22,\x22command\x22:\x22cli\x22,\x22data\x22:[{\x22multicmd\x22:[{\x22req\x22:\x22"..sCommand.."\x22}]}]}"
+      nPacketLength = #sPacket
+      if nPacketLength > 255 then
+          nBigLength = nPacketLength / 256
+          nSmallLength = nPacketLength - nBigLength
+      sPacket = "\x81\x7E"..string.char(nBigLength)..string.char(nSmallLength)..sPacket
+      else
+          nBigLength = 0
+          nSmallLength = nPacketLength
+      sPacket = "\x81\x7E\x00"..string.char(nSmallLength)..sPacket
+      end
+      if NewSocketInst.IsConnected then
+      NewSocketInst:Write(sPacket)
+      end
+  end
+  
+  SendingDataTimer.EventHandler = function(v)
+  SendingData = false
+  v:Stop()
+  end
+  
+  function xorString(newString)
+    local i
+    nextChar = 0
+    changedString = ""
+    for i = 1, string.len(newString) do
+      nextChar = string.byte(newString, i)
+      if nextChar == nil then
+          break
+      else
+        if (i%4) == 0 then
+          ByteDecoded = nextChar ~ mask[4]
+        else
+             ByteDecoded = nextChar ~ mask[i%4]
+        end
+      end
+          changedString = changedString..string.char(ByteDecoded)
+    end
+    return changedString
+  end
+  
+  function SocketHandler(NewSocketInstance, event)
+    
+    lcdSend = NewSocketInstance
+    if event == TcpSocket.Events.Data then
+      nNoReceivedData = 0
+      nSend = true
+      nConnected = true
+      if Connect.Boolean then
+        Status("Connected",2)
+      end
+      BufferedLine = NewSocketInstance:Read(NewSocketInstance.BufferLength)
+      if string.find(BufferedLine, "\x81\xFE") then           
+      BufferedLine = string.sub(BufferedLine, string.find(BufferedLine, "\x81\xFE"), -1)
+      stringLen = 0
+        if string.byte(BufferedLine, 3) == nil then
+          stringLen = string.byte(BufferedLine, 4)
+        else
+          stringLen = string.byte(BufferedLine, 4) + (string.byte(BufferedLine, 3) * 256)
+        end
+      mask[1] = string.byte(BufferedLine, 5)
+      mask[2] = string.byte(BufferedLine, 6)
+      mask[3] = string.byte(BufferedLine, 7)
+      mask[4] = string.byte(BufferedLine, 8)
+      BufferedLine = string.sub(BufferedLine, 9, -1)
+      StringDecoded = ""
+      nMaskPos = 1
+      StringDecoded = StringDecoded..xorString(BufferedLine)
+      BufferedLine = ""
+      end
+    end
+
+    if string.len(StringDecoded) > 0 then
+      print("Rx Decoded: ",StringDecoded)
+      reply = rapidjson.decode(StringDecoded)
+      local req = reply.data[1].multicmd[1].req -- reply
+      local res = reply.data[1].multicmd[1].res -- response
+      local mac = reply.info.mac
+      CheckMac(mac)
+      --print(res)
+      if not SendingData then
+        if string.find( res, "b 01 OK9" ) then
+          nCurrentInput = tonumber(string.match(res, "b 01 OK(%d+)x"))
+          Checkinput(nCurrentInput)
+        elseif res == "e 01 OK01x" and Controls.Mute.Boolean then
+          sendData(lcdSend, "ke 01 00")
+        elseif res == "e 01 OK00x" and not Controls.Mute.Boolean then
+          sendData(lcdSend, "ke 01 01")
+        elseif string.find(res, "f 01 OK") and not VolChange then
+          Controls.Volume.Value = tonumber(string.match(res, "f 01 OK(%d+)x"))
+        elseif res == "a 01 OK01x" then
+          if not Power.Boolean then
+          sendData(lcdSend, "ka 01 00")
+          end
+        end    
+      end
+    end
+  end
+  
+  PollLCD.EventHandler = function()
+  nNoReceivedData = nNoReceivedData + 1
+    if not nConnected then
+      if nNoReceivedData == 4 or nNoReceivedData == 6 then
+          SendWOL()
+      elseif nNoReceivedData == 7 then
+        Status("Connection Timed Out",4)
+      elseif nNoReceivedData == 9 then
+        Status("Will Keep Trying to Connect",4)
+        nNoReceivedData = 0
+      end
+    end
+    
+    if nConnected and Power.Boolean and nNoReceivedData > 4 then
+      SendWOL()
+      nNoReceivedData = 0
+    elseif nConnected and not Power.Boolean then
+      nNoReceivedData = 0
+    end
+    
+    if not SendingData and nSend and nConnected then
+      if nPollCount == 0 then
+        sendData(lcdSend, "ka 01 ff")
+        nPollCount = nPollCount + 1
+      elseif nPollCount == 1 then
+        sendData(lcdSend, "xb 01 ff")
+        nPollCount = 2
+      elseif nPollCount == 2 then
+        sendData(lcdSend, "ke 01 ff")
+        nPollCount = 3
+      else
+        sendData(lcdSend, "kf 01 ff")
+        nPollCount = 0
+      end
+    end
+  end
+  
+  function sendChannel(Chan)
+    if Chan then
+      sendData(lcdSend, string.format("ma 01 00 %02X 10", Chan))
+    end
+  end
+  
+  function Status(StatString,c)
+  StatColors = {"#FF0000", "#00FF00", "#FF6A6A6A", "#FFFFB805"}
+  Controls.Status.String = StatString
+  Connect.Color = StatColors[c]
+    if c == 2 then
+    Connect.Legend = "Connected"
+    elseif c == 1 then
+    Connect.Legend = "Connect"
+      Timer.CallAfter(function()
+        Connect.Color = StatColors[3]
+        Controls.Status.String = "Ready to Connect"
+      end,3)
+    end
+  end
+
+  lcdControl.EventHandler = function(SocketInstance)
+    SocketInstance.ReadTimeout = 10
+    SocketInstance.EventHandler = SocketHandler
+  end
+  
+  Connect.EventHandler = function()
+  if Connect.Boolean then
+      ConnectTV()
+    else
+      Status("Closed", 1)
+      PollLCD:Stop()
+      Disconnect()
+    end
+  end
+  
+  function ConnectTV()
+    if string.match(Controls.MacAddress.String, '(%x+)[-:](%x+)[-:](%x+)[-:](%x+)[-:](%x+)[-:](%x+)') or Controls.MacAddress.String == "" and (string.match(Controls.ControlPort.String, "%d+")) then
+      Status("Connecting", 4)
+      SendWOL()
+      lcdControl:Listen(lcdControlPort)
+      PollLCD:Start(2)
+      elseif not(string.match(Controls.MacAddress.String, '(%x+)[-:](%x+)[-:](%x+)[-:](%x+)[-:](%x+)[-:](%x+)')) or not(string.match(Controls.ControlPort.String, "%d+")) then
+      Status("Incorrect Mac Address or Port Number", 3)
+      Connect.Boolean = false
+      Timer.CallAfter(function()
+        Status("Ready to Connect", 3)
+        end,2)
+      end
+  end
+  
+  function Disconnect()
+    lcdControl:Close()
+    PollLCD:Stop()
+    nConnected = false
+    nNoReceivedData = 0
+  end
+  
+  if Controls.Connect.Boolean then
+  ConnectTV()
+  end
+
+  Controls.ControlPort.EventHandler = function()
+    lcdControlPort = tonumber(Controls.ControlPort.String)
+    if Controls.Connect.Boolean then
+      Disconnect()
+      Controls.Connect.Boolean = false
+      Disconnect()
+      Controls.Connect.Boolean = false
+      Status("Port Changed Reconnect", 1)
+      Power.Boolean = false
+    end
+  end
+
+  Controls.MacAddress.EventHandler = function()
+    if Controls.Connect.Boolean then
+      Disconnect()
+      Controls.Connect.Boolean = false
+      Status("Mac Changed Reconnect", 1)
+      Power.Boolean = false
+    end
+  end
+    
+  function ChangeInputs(Input)
+    sendData(lcdSend, Inputs[Input])
+    CurrentInput = Input
+  end
+  
+  function Checkinput(x)
+  cInput = "xb 01 "..x
+    for k,v in pairs(Inputs) do
+      if string.find(v,x) then
+        nCurrentInput = k
+      end
+    end
+    for k,v in pairs (Controls.Source) do
+      if v.Boolean then
+      CurrentInput = k
+      end
+    end
+    if CurrentInput ~= nCurrentInput then
+      ChangeInputs(CurrentInput)
+    end
+  end
+  
+  Power.EventHandler = function()
+      if nConnected then
+          if Power.Boolean then
+          SendWOL()
+          else
+          sendData(lcdSend, "ka 01 00")
+          Status("Screen is off",2)
+          nSend = false
+          end
+      else 
+          Power.Boolean = false
+      end
+  end
+  
+
+  VolumeUpDown = {Controls.VolumeUp, Controls.VolumeDown}
+  ChannelNav = {Controls.ChannelUp, Controls.ChannelDown}
+
+  for k,v in pairs (ChannelNav) do
+    v.EventHandler = function(v)
+      if k == 1 then
+        sendData(lcdSend, "mc 01 00")
+      elseif k == 2 then
+        sendData(lcdSend, "mc 01 01")
+      end
+    end
+  end
+
+  for k,v in pairs (VolumeUpDown) do
+    v.EventHandler = function(v)
+      if nSend then
+        if v.Boolean then
+        VolumeTimers[k]:Start(0.3)
+        else
+        VolumeTimers[k]:Stop()
+        end
+      end
+    end
+  end
+
+  for k,v in pairs(VolumeTimers) do
+    v.EventHandler = function(v)
+      vol = tonumber(string.match(Controls.Volume.Value, "%d+"))
+      if k == 1 and vol < 64 then
+        vol = vol + 2
+      elseif k == 2 and vol > 0 then
+        vol = vol - 2 
+      end
+      sendData(lcdSend, "kf 01 "..vol)
+      Controls.Volume.Value = vol
+    end
+  end
+
+    Controls.Volume.EventHandler = function()
+      SendingData = true
+      if nSend then
+        VolumeWait:Start(0.2)
+      end
+    end
+    
+    VolumeWait.EventHandler = function(v)
+      vol = tonumber(string.match(Controls.Volume.Value, "%d+"))
+      sendData(lcdSend, "kf 01 "..vol)
+      v:Stop()
+    end
+    
+  Controls.Mute.EventHandler = function(v)
+    if v.Boolean then
+      sendData(lcdSend, "ke 01 00")
+    else
+      sendData(lcdSend, "ke 01 01")
+    end
+  end 
+
+  NavControls = {Controls.Widget, Controls.ArrowUp, Controls.Menu, Controls.ArrowLeft, Controls.OK, Controls.ArrowRight, Controls.Back, Controls.ArrowDown, Controls.Exit}
+  NavCommands = {"43", "40", "45", "07", "44", "06", "28", "41", "5B"}
+
+  for k,v in pairs (NavControls) do
+    v.EventHandler = function(v)
+      sendData(lcdSend, "mc 01 "..NavCommands[k])
+    end
+  end
+  
+  for k,v in pairs (Controls.Numpad) do
+      v.EventHandler = function(v)
+          if k == 10 then
+              sendChannel("0")
+          else
+              n = tostring(k)
+              sendChannel(n)
+          end
+      end
+  end
+          
+  for k,v in pairs (Controls.Source) do
+    v.EventHandler = function(v)
+      for i=1,#Controls.Source do
+          if i == k then 
+          ChangeInputs(i)
+          Controls.Source[i].Boolean = true
+          else
+          Controls.Source[i].Boolean = false
+          end
+      end
+    end
+  end
+  
+  
+  Controls.Channel.EventHandler = function()
+  num = tonumber(Controls.Channel.String)
+  sendChannel(num)
+  end
+
+end -- end of runtime Lua code

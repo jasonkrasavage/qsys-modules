@@ -1,0 +1,376 @@
+PluginInfo = {
+	Name = "Roland Matrix",
+	Version = "1.0",
+	Id = "826a96f2-85cc-4972-a4c8-a602657d0bcf",
+	Description = "Control For Roland Matrix Switchers XS-82 - 84",
+	ShowDebug = true
+}
+-- optional
+function GetPrettyName(props)
+	return "Roland Matrix"
+end
+
+function GetColor(props)
+	return {125, 125, 125}
+end
+
+function GetProperties()
+    props = {}
+    table.insert(props, 
+    {
+      Name = "Model",
+      Type = "enum",
+      Choices = {"X84", "X83", "X82"},
+      Value = "X84"
+    })
+
+	return props
+end
+
+
+Colors = {
+  Selected = {255, 188, 113},
+  Standard = {124,124,124},
+  Off = {215,17,0},
+  txt = { l= {255, 255, 255}, d = {0,0,0}},
+  Default = {255,255,255},
+  status = {194,194,194},
+  BackGround = {35,35,35,},
+}
+
+ControlsTable = {
+  Output1 = {ct = "Button", bt = "Toggle" , q = 8, up = false, ps = "None", cl = true, nc = Colors.Selected, oc = Colors.Standard, px=144,py=40,sx=70,sy=40,r=2, p = 0, m = 5 , fs = 10},
+  Output2 = {ct = "Button", bt = "Toggle" , q = 8, up = false, ps = "None", cl = true, nc = Colors.Selected, oc = Colors.Standard, px=144,py=80,sx=70,sy=40,r=2, p = 0, m = 5 , fs = 10},
+  Output3 = {ct = "Button", bt = "Toggle" , q = 8, up = false, ps = "None", cl = true, nc = Colors.Selected, oc = Colors.Standard, px=144,py=120,sx=70,sy=40,r=2, p = 0, m = 5 , fs = 10},
+  Output4 = {ct = "Button", bt = "Toggle" , q = 8, up = false, ps = "None", cl = true, nc = Colors.Selected, oc = Colors.Standard, px=144,py=160,sx=70,sy=40,r=2, p = 0, m = 5 , fs = 10},
+  Input_Select = {ct = "Button", bt = "Toggle" , q = 8, up = false, ps = "None", cl = true, nc = Colors.Selected, oc = Colors.Standard, px=382,py=364,sx=70,sy=40,r=2, p = 0, m = 5 , fs = 10},
+  Output_Select = {ct = "Button", bt = "Toggle" , q = 4, up = false, ps = "None", cl = true, nc = Colors.Selected, oc = Colors.Standard, px=382,py=324,sx=70,sy=40,r=2, p = 0, m = 5 , fs = 10},
+  Output_Off = {ct = "Button", bt = "Toggle" , q = 4, up = false, ps = "None", cl = true, nc = Colors.Standard, oc = Colors.Off, px=739,py=40,sx=70,sy=40,r=2, p = 0, m = 5 , fs = 10},
+  Input_Names = { ct = "Text", bt = "Text Box" , q = 8, up = false, cl = true, nc = Colors.Default, oc = Colors.Default, px=144,py=200,sx=70,sy=40,r=2, m = 5, fs = 10},   
+  Output_Names = { ct = "Text", bt = "Text Box" , q = 4, up = false, cl = true, nc = Colors.Default, oc = Colors.Default, px=838,py=40,sx=70,sy=40,r=2, m = 5, fs = 10},   
+  Port = {ct = "Knob", cu= "Integer", Min = 0,Max = 500000, ft = "Text Field" , q = 1, up = false, cl = true, nc = Colors.status, oc = Colors.status, px=110,py=324,sx=70,sy=27,r=0, m = 2, fs = 10},
+  IP_Address = { ct = "Text", bt = "Text Box" , q = 1, up = false, cl = true, nc = Colors.Default, oc = Colors.Default, px=110,py=351,sx=161,sy=29,r=0, m = 2, fs = 12},   
+  Status = {ct = "Indicator", it= "Status", bt = "Status" , q = 1, up = true, ps = "Output", cl = true, nc = Colors.status, oc = Colors.status, px=110,py=380,sx=161,sy=29,r=0, m = 2, fs = 12},
+  }
+
+function GetControls(props)       
+    ctl = {}
+    for k,v in pairs (ControlsTable) do
+        table.insert(ctl,
+        {
+        Name=k,
+        ControlType=v.ct,
+        ControlUnit=v.cu,
+        Min = v.Min,
+        Max = v.Max,
+        ButtonType=v.bt,
+        Count=v.q,
+        UserPin=v.up,
+        IndicatorType= v.it,
+        PinStyle = v.ps
+        })
+    end
+	return ctl
+end
+
+function GetControlLayout(props)
+    layout = {}
+    graphics = {}
+
+    RModels = {X84 = 4, X83 = 3, X82 = 2}
+    Model = RModels[props["Model"].Value]
+
+    for k,v in pairs(ControlsTable) do
+
+      if v.q == 4 then Number_Ctrl = Model else Number_Ctrl = v.q end
+      if k == "Port" then Style_Key = "ft" else Style_Key = "ct" end
+      if string.find(k, "%d") then Compare = tonumber(string.match(k, "%d")) else Compare = 0 end
+
+      for i = 1, Number_Ctrl do
+
+        if v.q > 1 then Control_Key = k.." "..i else Control_Key = k end
+        if k == "Output_Names" or k == "Output_Off" then Pos = {v.px, v.py + v.sy *(i - 1)} else Pos = {v.px + v.sx *(i - 1) , v.py} end
+
+        if Compare <= Model then
+          layout[Control_Key] = { 
+          Style = v[Style_Key],
+          ButtonStyle = v.bt,
+          Legend = v.l,
+          Position = Pos,
+          Size = {v.sx, v.sy},
+          Color = v.nc,
+          TextFontSize = v.fs,
+          Radius = v.r,
+          Margin = v.m,
+          CornerRadius = v.cr,
+          OffColor = v.oc,
+          UnlinkOffColor = v.cl, 
+          StrokeWidth = 0,
+          ButtonVisualStyle = "Flat"
+          }
+        end
+      end
+
+    end 
+
+      local GroupBox = {
+        Full_Matrix = {sw = 2,sc = Colors.txt.d, cr = 8, fl = Colors.BackGround, px = 12, py = 9 , sx = 948,sy = 266},
+        Settings = {sw = 2,sc = Colors.txt.d, cr = 8, fl = Colors.BackGround, px = 12, py = 293 , sx = 300,sy = 142},
+        Mini_Matrix = {sw = 2,sc = Colors.txt.d, cr = 8, fl = Colors.BackGround, px = 320, py = 293 , sx = 640,sy = 142},
+      }
+
+      for k in pairs(GroupBox) do
+        table.insert(graphics,{Type = "GroupBox",
+        StrokeWidth = GroupBox[k].sw,
+        StrokeColor = GroupBox[k].sc,
+        CornerRadius = GroupBox[k].cr,
+        Fill = GroupBox[k].fl,
+        Position = {GroupBox[k].px, GroupBox[k].py},
+        Size = {GroupBox[k].sx, GroupBox[k].sy}})
+      end
+
+      local Labels = {
+        ["Mini Matrix"] = {ts = 15,sc = Colors.txt.l, px = 320, py = 293 , sx = 640,sy = 31},
+        ["Full Matrix"] = {ts = 15,sc = Colors.txt.l, px = 12, py = 9 , sx = 948,sy = 31},
+        ["Output Off"] = {ts = 15,sc = Colors.txt.l, px = 725, py = 9 , sx = 98,sy = 31},
+        ["Output Names"] = {ts = 15,sc = Colors.txt.l, px = 823, py = 9 , sx = 98,sy = 31},
+        ["Output"] = {ts = 15,sc = Colors.txt.l, px = 46, py = 40 , sx = 98,sy = 40},
+        ["Input Names"] = {ts = 15,sc = Colors.txt.l, px = 46, py = 200 , sx = 98,sy = 40},
+        ["Outputs"] = {ts = 15,sc = Colors.txt.l, px = 320, py = 324 , sx = 62,sy = 40},
+        ["Inputs"] = {ts = 15,sc = Colors.txt.l, px = 320, py = 364 , sx = 62,sy = 40},
+        ["Select Output then Select Inputs"] = {ts = 15,sc = Colors.txt.l, px = 320, py = 404 , sx = 640,sy = 31},
+        ["IP Address:"] = {ts = 15,sc = Colors.txt.l, px = 12, py = 351 , sx = 98,sy = 29},
+        ["Status:"] = {ts = 15,sc = Colors.txt.l, px = 12, py = 380 , sx = 98,sy = 29},
+        ["Port:"] = {ts = 15,sc = Colors.txt.l, px = 12, py = 324 , sx = 98,sy = 29}
+      }
+      
+      for k,v in pairs(Labels) do
+        if k == "Output" then 
+          for i = 1,Model do
+            table.insert(graphics,{Type = "Label",
+            Text = k.." "..i,
+            Color = v.sc,
+            HTextAlign = "Center",
+            VTextAlign = "Center",
+            TextSize = v.ts,
+            Position = {v.px, v.py + 40 *(i - 1)},
+            Size = {v.sx, v.sy}})
+          end
+        else
+          table.insert(graphics,{Type = "Label",
+          Text = k,
+          Color = v.sc,
+          HTextAlign = "Center",
+          VTextAlign = "Center",
+          TextSize = v.ts,
+          Position = {v.px, v.py},
+          Size = {v.sx, v.sy}})
+        end
+      end
+      
+	return layout, graphics
+end
+
+function GetPins(props)
+	local pins = {}
+	return pins
+end
+
+function GetComponents(props)
+	return
+end
+
+function GetWiring(props)
+	local wiring = {}
+	return wiring
+end
+
+if Controls then 
+
+Rolland = TcpSocket.New()
+Poll = Timer.New()
+Poll:Start(2)
+PollCount = 0
+Rolland.ReadTimeout = 0
+Rolland.WriteTimeout = 5
+
+Bool2Num = {[true] = 1, [false] = 2}
+Output_Strings = {"Enabled", "Disabled"}
+
+RollandOutputs = {Controls.Output1,Controls.Output2,Controls.Output3,Controls.Output4}
+
+function NameInputs()
+  for _,v in pairs(RollandOutputs) do
+    for k,i in pairs(v) do
+        i.Legend = Controls.Input_Names[k].String
+    end
+  end
+  for k,v in pairs(Controls.Input_Select) do
+    v.Legend = Controls.Input_Names[k].String
+  end
+end
+
+function NameOutputs()
+  for k,v in pairs(Controls.Output_Select) do
+    v.Legend = Controls.Output_Names[k].String
+  end
+end
+
+NameOutputs()
+
+function UpdateRouting(nOutput,nInput,nOff)
+  for k,v in pairs(RollandOutputs[nOutput]) do
+    if k == nInput then
+      RollandOutputs[nOutput][k].Boolean = true
+    else
+      RollandOutputs[nOutput][k].Boolean = false
+    end
+  end
+  for k,v in pairs(Controls.Output_Off) do
+    if k == nOutput then
+      if nOff == 0 then
+        v.Boolean = true
+      elseif nOff == 1 then
+        v.Boolean = false
+      end
+    end
+  end
+end
+
+NameInputs()
+
+function Connect()
+  if Rolland.IsConnected then Rolland:Disconnect() end
+  if string.match(Controls.IP_Address.String,"%d+%.%d+%.%d+%.%d+") and not Rolland.IsConnected then
+    Rolland:Connect(Controls.IP_Address.String, tonumber(string.format("%01d",Controls.Port.Value)))
+    Controls.Status.Value = 5
+  elseif not string.find(Controls.IP_Address.String,"%d+%.%d+%.%d+%.%d+") then
+    Rolland:Disconnect()
+    Controls.Status.Value = 3
+    Controls.Status.String = "Please Enter Correct IP"
+  end
+end
+
+Connect()
+
+function Send(nData) 
+  if Rolland.IsConnected then
+    Rolland:Write(nData..";\r")
+  end
+end
+
+Rolland.EventHandler = function(sock, evt, err)
+  if evt == TcpSocket.Events.Connected then
+    print( "socket connected" )
+    Controls.Status.Value = 0
+    Controls.Status.String = "Connected"
+  elseif evt == TcpSocket.Events.Reconnect then
+    print( "socket reconnecting..." )
+    Controls.Status.Value = 5
+    Controls.Status.String = "reconnecting"
+  elseif evt == TcpSocket.Events.Data then
+    message = Rolland:Read(Rolland.BufferLength)
+    while (message ~= nil) do
+      print(message)
+      if string.find(message, "CTS") then
+        o = 1 + tonumber(string.match(message,"CTS:(%d),"))
+        i = 1 + tonumber(string.match(message, "CTS:%d,(%d),"))
+        Off = tonumber(string.match(message, "CTS:%d,%d,%d,(%d);"))
+        UpdateRouting(o,i,Off)
+      end
+      message = Rolland:Read(Rolland.BufferLength)
+    end
+  elseif evt == TcpSocket.Events.Closed then
+    print( "socket closed by remote" )
+    Controls.Status.Value = 2
+    Controls.Status.String = "closed by remote"
+  elseif evt == TcpSocket.Events.Error then
+    print( "socket closed due to error", err )
+    Controls.Status.Value = 2
+    Controls.Status.String = "closed by error"
+  elseif evt == TcpSocket.Events.Timeout then
+    print( "socket closed due to timeout" )
+    Controls.Status.Value = 2
+    Controls.Status.String = "closed by timeout"
+  else
+    print( "unknown socket event", evt )
+  end
+end
+
+Poll.EventHandler = function(v)
+  Send("CTS:"..PollCount)
+  PollCount = PollCount + 1
+  if PollCount == 4 then PollCount = 0 end
+end
+
+Controls.IP_Address.EventHandler = Connect
+Controls.Port.EventHandler = Connect
+
+for k,v in pairs(Controls.Input_Names) do
+  v.EventHandler = NameInputs
+end
+
+for k,v in pairs(Controls.Output_Names) do
+  v.EventHandler = NameOutputs
+end
+
+for z,x in pairs(RollandOutputs) do
+  for k,v in pairs(x) do
+    v.EventHandler = function(v)
+      for i = 1,#x do
+        if i == k then 
+          x[i].Boolean = true
+          Send("OAV:"..(z-1)..","..(i-1))
+        else
+          x[i].Boolean = false
+        end
+      end
+    end
+  end
+end
+
+for k,v in pairs(Controls.Output_Off) do
+  --v.Legend = "Output "..k.."\n"..Output_Strings[Bool2Num[v.Boolean]]
+  v.EventHandler = function(v)
+    --v.Legend = "Output "..k.."\n"..Output_Strings[Bool2Num[v.Boolean]]
+    if v.Boolean then
+      Send("OFS:"..(k-1)..",0")
+    else
+      Send("OFS:"..(k-1)..",1")
+    end
+  end
+end
+
+for k,v in pairs(Controls.Output_Select) do
+  v.EventHandler = function(v)
+    for i = 1,#Controls.Output_Select do 
+      if i == k then
+        Controls.Output_Select[i].Boolean = true
+        SOutput = i
+        for bk,bv in pairs(Controls.Input_Select) do
+          bv.Boolean = Controls["Output"..i][bk].Boolean
+        end
+      else
+        Controls.Output_Select[i].Boolean = false
+      end
+    end
+  end
+end
+
+for k,v in pairs(Controls.Input_Select) do
+  v.EventHandler = function(v)
+    for i = 1,#Controls.Input_Select do 
+      if i == k then
+        Controls.Input_Select[i].Boolean = true
+        Controls["Output"..SOutput][i].Boolean = true
+        Send("OAV:"..(SOutput-1)..","..(i-1))
+      else
+        Controls.Input_Select[i].Boolean = false
+        Controls["Output"..SOutput][i].Boolean = false
+      end
+    end
+  end
+end
+
+
+end -- end of runtime Lua code

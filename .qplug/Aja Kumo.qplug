@@ -1,0 +1,920 @@
+PluginInfo = 
+{
+    Name = "AJA~Kumo",
+    Version = "1.2",
+    Id = "b4bb0a59-a34a-4dfe-8895-ca113cf26be0",
+    Description = "Control of Kumo SDI Routers",
+    ShowDebug = false
+}
+
+function GetColor(props)
+    return { 143, 204, 255 }
+end
+
+function GetPrettyName(props)
+    return "AJA Kumo Control"
+end
+ 
+
+props = {}
+
+function GetProperties()
+	table.insert( props, 
+	{
+    Name = "Router Size",
+    Type = "enum",
+    Choices = {'16x4','16x16','32x32','64x64'},
+    Value = '16x16',
+    })
+    
+	return props
+end
+
+local pagenames = 
+    {
+    "XY Router",
+    "List Router",
+    }
+
+function GetPages()
+    pages = {}
+    for ix,name in ipairs(pagenames) do
+        table.insert( pages, { name = pagenames[ix] })
+    end
+    return pages
+end
+
+function GetSize(sProp)
+    local tSrc,tDest = sProp:match('(%d+)x(%d+)')
+
+    tSrc = tonumber(tSrc)
+    tDest = tonumber(tDest)
+
+    return tSrc,tDest
+end
+
+ctrls = {}
+function GetControls(props)
+    local tSrc,tDest = GetSize(props['Router Size'].Value)
+    
+    table.insert (ctrls,
+        {
+        Name = "Address",
+        ControlType = "Text",
+        Count = 1,
+        UserPin = false,
+        })
+    
+    table.insert (ctrls,
+        {
+        Name = "Status",
+        ControlType = "Indicator",
+        IndicatorType = "Status",
+        Count = 1,
+        UserPin = true,
+        PinStyle = 'Output',
+        })
+    
+    table.insert (ctrls,
+        {
+        Name = "Refresh",
+        ControlType = "Button",
+        ButtonType = "Trigger",
+        Count = 1,
+        Icon = 'Refresh',
+        UserPin = false,
+        })   
+
+    table.insert (ctrls,
+        {
+        Name = "MonitorProxy",
+        ControlType = "Text",
+        Count = 1,  
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "RouterName",
+        ControlType = "Indicator",
+        IndicatorType = 'Text',
+        Count = 1,  
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "RouterMode",
+        ControlType = "Indicator",
+        IndicatorType = 'Text',
+        Count = 1,  
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "SrcForDest",
+        ControlType = "Indicator",
+        IndicatorType = 'Text',
+        Count = tDest,
+        UserPin = false,
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "DestSelect",
+        ControlType = "Text",
+        Count = tDest,
+        UserPin = true,
+        PinStyle = 'both',
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "Sources",
+        ControlType = "Button",
+        ButtonType = "Toggle",
+        Count = tSrc+1,
+        }) 
+
+    table.insert (ctrls,
+        {
+        Name = "Destinations",
+        ControlType = "Button",
+        ButtonType = "Toggle",
+        Count = tDest,
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "Take",
+        ControlType = "Button",
+        ButtonType = "Trigger",
+        Count = 1,
+        UserPin = false,
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "Cancel",
+        ControlType = "Button",
+        ButtonType = "Trigger",
+        Count = 1,
+        UserPin = false,
+        })
+
+    return ctrls
+end
+
+layout = {}
+graphics = {}
+
+col = 70
+row = 16
+gutter = 86
+
+function GetControlLayout(props)
+    local tSrc,tDest = GetSize(props['Router Size'].Value)
+    local CurrentPage = pagenames[props["page_index"].Value]
+
+    table.insert(graphics,
+        {
+        Type = "Header",
+        Text = "Address/Status",
+        Position = { 0, row },
+        Size = { 80*8,16 }
+        })
+
+    row = row+32
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "Address",
+        Position = { 0, row },
+        Size = { 76,16 }
+        })
+
+    layout['Address'] =
+            {
+            PrettyName = 'Address',
+            Position = {gutter,row},
+            Size = { 180,16 },        
+            }
+
+    layout['Refresh'] =
+            {
+            PrettyName = 'Refresh Connection',
+            Position = {gutter+180,row},
+            Size = { 36,16 },
+            Margin = 0,        
+            }
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "Status",
+        Position = { gutter+180+36, row },
+        Size = { 76,16 }
+        })
+
+    layout['Status'] =
+        {
+        PrettyName = 'Status',
+        Position = {gutter+180+36+86,row},
+        Size = { 220,16 },        
+        }
+
+    row = row+32
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "Router Name",
+        Position = { 0, row },
+        Size = { 76,16 }
+        })
+
+    layout['RouterName'] =
+            {
+            PrettyName = 'Router Name',
+            Position = {gutter,row},
+            Size = { 216,16 },        
+            }
+
+    table.insert(graphics,
+            {
+            Type = "Text",
+            HTextAlign = "Right",
+            Text = "Router Mode",
+            Position = { gutter+216, row },
+            Size = { 76,16 }
+            })
+    
+    layout['RouterMode'] =
+            {
+            PrettyName = 'Router Mode',
+            Position = {gutter+216+86,row},
+            Size = { 216,16 },        
+            }
+
+    row = row+32
+
+    if CurrentPage == "XY Router" then
+        CreateRouterLayout(row,tSrc,tDest)
+    end
+
+    if CurrentPage == "List Router" then
+        CreateListRouter(row,tSrc,tDest)
+    end
+
+  return layout, graphics
+end
+
+--CONTROL AND GRAPHIC LAYOUT FUNCTIONS
+function CalcNextRow(start,btotal,rowh,rowsp)
+    local nr
+    local tr = math.ceil(btotal/8)
+    local tsp = (tr-1)*rowsp
+    
+    nr = start+(tr*rowh)+tsp
+    return nr
+end
+
+function CreateRouterLayout(start,ti,to)
+    col = 80
+    row = 30
+    
+    local h = 0
+    local v = start
+    local nextrow
+    
+    table.insert(graphics,
+        {
+        Type = "Header",
+        Text = "Sources",
+        Position = { 0, v },
+        Size = { col*8,16 }
+        })
+
+    v = v+32
+
+    --Create Input Matrix
+    nextrow = CalcNextRow(v,ti+1,row,0)
+    
+    for i = 1,ti+1 do
+        local pname = string.format("Source~%i",i)
+        if i > ti then pname = "None" end
+        layout['Sources '..i] = 
+            {
+            PrettyName = pname,
+            Position = { h, v},
+            Size = { col, row },
+            Color = {0, 168, 236 },
+            }
+        h = h + col
+        
+        if i%8 == 0 then
+            v = row+v
+            h = 0
+        end
+    end
+
+    
+    --Create Output Matrix
+    h = 0
+    v = nextrow+20
+
+    table.insert(graphics,
+        {
+        Type = "Header",
+        Text = "Destinations",
+        Position = { 0, v },
+        Size = { col*8,16 }
+        })
+
+    v = v+32
+
+    nextrow = CalcNextRow(v,to,row+20,0)
+    
+    for i = 1,to do
+        layout['Destinations '..i] = 
+            {
+            PrettyName = string.format("Destination~%i",i),
+            Position = { h, v},
+            Size = { col, row },
+            Color = {241, 166, 41 },
+            }
+        
+        layout['SrcForDest '..i] = 
+            {
+            PrettyName = string.format('Current Source for Destination~%i',i),
+            Margin = 2,
+            Radius = 2,
+            Position = { h, 26+v},
+            Size = { col, 24 },
+            }  
+        h = h + col
+        
+        if i%8 == 0 then
+            v = row+v+20
+            h = 0
+        end
+    end 
+    
+    --Create Router Controls
+    h = gutter
+    v = nextrow+20
+
+    table.insert(graphics,
+        {
+        Type = "Header",
+        Text = "Controls",
+        Position = { 0, v },
+        Size = { col*8,16 }
+        })
+
+    v = v+32
+        
+    h = 240
+    layout['Take'] = 
+        {
+        PrettyName = 'Take',
+        Position = { h, v},
+        Size = { col, 30 },
+        Color = {0, 255, 0 },
+        Legend = 'Take',
+        }
+    h = h + col 
+    layout['Cancel'] = 
+        {
+        PrettyName = 'Cancel',
+        Position = { h, v},
+        Size = { col, 30 },
+        Color = {255, 255, 255 },
+        Legend = 'Cancel',
+        }    
+end --end of create xy router page
+
+function CreateListRouter(start,to)
+    col = 80
+    row = 20
+    
+    local h = 0
+    local v = start
+    local nextrow
+    
+    table.insert(graphics,
+        {
+        Type = "Header",
+        Text = "Select Source for Destination (Use These Controls for Snapshots)",
+        Position = { 0, v },
+        Size = { col*8,16 }
+        })
+
+    v = v+32
+
+    for i = 1,to do
+        table.insert(graphics,
+            {
+            Type = "Text",
+            HTextAlign = "Center",
+            Text = tostring(i),
+            Position = { h, v },
+            Size = { col,row }
+            })
+
+        layout['DestSelect '..i] = 
+            {
+            PrettyName = string.format("Source for Destination~%i",i),
+            Position = { h, v+row},
+            Style = 'ComboBox',
+            Size = { col, row },
+            }  
+        h = h + col
+        
+        if i%8 == 0 then
+            v = row+v+26
+            h = 0
+        end
+    end 
+
+
+end --End of create list router page
+
+if Controls then --Start of runtime Lua code
+    json = require('rapidjson')
+
+    local tSrc,tDest = GetSize(Properties['Router Size'].Value)
+    local timeout = Timer.New()
+    local ipa = nil
+    local init = 0
+    local ready = false
+    local connection = {}
+    local sources = {}
+    local destinations = {}
+    local srcNames = {'None'}
+    local cmdStack = {}
+    local cmdHold = false
+    local totalI = 0
+    local totalO = 0
+    local cMode = 0
+    local takeStack = {nil,{}}
+   
+   
+    function validateAddress(addr)
+        if addr == nil or #addr < 2 then
+            ipa =nil
+            return false
+        else
+            ipa = addr
+            return true
+        end
+    end 
+    
+    function refreshCNX(fault)
+        fail()
+        if validateAddress(Controls.Address.String) then
+            if fault == true then SetStatus(2,'No Response')
+            else SetStatus(5,'Connecting') end
+            subscribe()
+        else
+            SetStatus(2,'Invalid Address')
+        end
+    end
+    
+    function fail()
+        init = 0
+        cMode = 0
+        cmdStack = {}
+        connection = {}
+        totalI = 0
+        totalO = 0
+        cmdHold = false
+        ready = false
+        disableAll()
+        for k,v in ipairs(Controls.Sources) do
+            v.Legend = ''
+            if k <= tDest then
+                Controls.Destinations[k].Legend = ''
+                Controls.SrcForDest[k].String = ''
+                Controls.DestSelect[k].String = ''
+                Controls.DestSelect[k].Choices = {}
+            end
+        end
+        srcNames = {'None'}
+    end
+    
+    function SetStatus(state,msg)
+        --print('Set Status '..state)
+        Controls.Status.Value = state
+        if msg ~= nil then Controls.Status.String = msg
+        else Controls.Status.String = '' end
+    end 
+    
+    function disableAll()
+        cancelXY()
+        disableSources(true)
+        disableDests(true)
+        for k,v in ipairs(Controls.DestSelect) do v.IsDisabled = true end
+    end
+    
+    function disableSources(state)
+        for k,v in ipairs(Controls.Sources) do 
+        if ready and k > totalI+1 then
+            v.IsDisabled = true
+        else
+            v.IsDisabled = state end
+        end
+    end
+    
+    function disableDests(state)
+        for k,v in ipairs(Controls.Destinations) do
+            if ready then
+                if k > totalO then
+                    Controls.SrcForDest[k].IsDisabled = true 
+                    v.IsDisabled = true 
+                elseif destinations[k].locked == false then 
+                    Controls.SrcForDest[k].IsDisabled = false
+                    v.IsDisabled = false
+                else 
+                    Controls.SrcForDest[k].IsDisabled = state 
+                    v.IsDisabled = state 
+                end
+            else
+                Controls.SrcForDest[k].IsDisabled = state
+                v.IsDisabled = state
+            end
+        end
+    end
+    
+    function get(cmd)
+        HttpClient.Download { Url = 'http://'..ipa..'/config?action='..cmd, Headers = { ["Content-Type"] = "application/json" } , Timeout = 5, EventHandler = getDone }
+    end
+    
+    function set(cmd)
+        HttpClient.Download { Url = 'http://'..ipa..'/config?action=set&'..cmd, Headers = { ["Content-Type"] = "application/json" } , Timeout = 1, EventHandler = setDone }
+    end
+    
+    function getDone(tbl, code, data, err, headers)
+        
+        if ready and #data == 0 then 
+            timeout:Stop()
+            get('wait_for_config_events&connectionid='..connection.connectionid)
+            timeout:Start(4) 
+            return 
+        end
+        
+        if #data > 0 then
+            timeout:Stop()
+            if init == 0 then --Get Event Connection ID
+                if data:find('connectionid') ~= nil then
+                    connection = json.decode(data)
+                    init = 1
+                    subscribe()
+                else
+                    timeout:Start(5) --Used when the address connects to a non Kumo Web Server
+                end
+            elseif init == 1 then
+                if data:find('SignalSwitching') ~= nil then
+                    local mode = json.decode(data)
+                    setMode(tonumber(mode.value))
+                    Controls.RouterMode.String = mode.value_name
+                    CreateSrcDestTable()
+                    init = 2
+                    subscribe()
+                else
+                    timeout:Start(5) --Probably not a Kumo Router
+                end
+            elseif init == 2 then --Get All Soruce & Destination Data
+                local tbl = json.decode(data)      
+                
+                if tbl.name:find('XPT') ~= nil then
+                    processXPT(tbl)
+                elseif tbl.name:find('SysName') ~= nil then
+                    Controls.RouterName.String = tbl.value
+                    print(tbl.value) 
+                end
+                
+                if #initStack == 0 then
+                    for i = 1,totalI do
+                        updateName('Source',i)
+                    end
+
+                    for i = 1,totalO do
+                        updateName('Destination',i)
+                    end
+                
+                    for i = 1,totalO do
+                        updateLocked(i)
+                        updateRoute(i)
+                        Controls.DestSelect[i].Choices = srcNames
+                    end
+
+                    init = 3
+                    subscribe()
+                    disableSources(false)
+                    print('Initalization complete')
+                else
+                    get(table.remove(initStack))
+                end
+            elseif ready then --Proccess all data responses
+                --print( "HTML Data: "..data )
+                local tbl = json.decode(data)
+                for k,v in ipairs(tbl) do
+                processUpdate(v)
+                end
+                get('wait_for_config_events&connectionid='..connection.connectionid)
+                timeout:Start(4)
+            end
+        end
+    end
+    
+    function setDone(tbl, code, data, err, headers)
+        if err ~= nil then print(err) timeout:Start(0.03) end
+            if #data == 0 then return end
+            --print(data)
+            if data:find('XPT') ~= nil then
+            cmdHold = false
+            popCmd()
+        end
+    end
+    
+    function setMode(mode) --UPDATE IN PLUGIN TO DIVIDE THE TOTAL I/O BY THE ROUTER SIZE
+        print('mode='..mode)
+        if mode == 0 then totalI = tSrc totalO = tDest--Normal
+        elseif mode == 1 then totalI = tSrc/2 totalO = tDest/2--Dual
+        elseif mode == 2 then totalI = tSrc/4 totalO = tDest/4 end --Quad
+        Controls.Sources[totalO+1].Legend = 'None'
+        cMode = mode
+    end
+    
+    function createInitStack()
+        initStack = {}
+        for i = 1,totalO do
+            table.insert(initStack,1,'get&paramid=eParamID_XPT_Destination'..i..'_Status')
+            table.insert(initStack,1,'get&paramid=eParamID_XPT_Destination'..i..'_Line_1')
+            table.insert(initStack,1,'get&paramid=eParamID_XPT_Destination'..i..'_Line_2')
+            table.insert(initStack,1,'get&paramid=eParamID_XPT_Destination'..i..'_Locked')
+        end
+
+        for i = 1,totalI do 
+            table.insert(initStack,1,'get&paramid=eParamID_XPT_Source'..i..'_Line_1')
+            table.insert(initStack,1,'get&paramid=eParamID_XPT_Source'..i..'_Line_2')
+        end
+
+        table.insert(initStack,1,'get&paramid=eParamID_SysName')
+    end
+    
+    function CreateSrcDestTable()
+        destinations = {}
+        sources = {}
+        for i = 1,totalI do
+            sources[i] = {name={'',''}}
+        end
+
+        for i = 1,totalO do 
+            destinations[i] = {src=nil,name={'',''},locked=false}
+        end
+    end
+        
+    function subscribe()
+        if init == 0 then
+            get('connect') --Request Connection ID
+            timeout:Start(5)
+        elseif init == 1 then
+            get('get&paramid=eParamID_SignalSwitching')
+        elseif init == 2 then
+            createInitStack()
+            get(table.remove(initStack))
+        elseif init == 3 then
+            ready = true
+            SetStatus(0)
+            get('wait_for_config_events&connectionid='..connection.connectionid)
+        end
+    end  
+    
+    function processUpdate(tbl)
+        if tbl.param_id:find('XPT') ~= nil and ready then
+            local atype,id,dtype = processXPT(tbl)
+            if atype == nil then return end
+            
+            if dtype:find('Line') ~= nil then
+                updateName(atype,id)
+            elseif dtype:find('Status') ~= nil then
+                updateRoute(id)
+            elseif dtype:find('Locked') ~= nil then
+                updateLocked(id)
+            end
+        elseif tbl.param_id:find('eParamID_SignalSwitching') ~=nil then
+            print('MODE CHANGED')
+            ready = false
+            disableAll()
+            if tonumber(tbl.int_value) ~= cMode then Timer.CallAfter(refreshCNX,1) end      
+        end
+    end
+    
+    function processXPT(tbl)
+        local atype,id,dtype,val
+        if tbl.name ~= nil then
+            --if init ~= 2 then return end
+            atype,id,dtype = tbl.name:match('XPT_(.-)(%d+)_(.+)')
+            val = tbl.value
+            elseif tbl.param_id ~= nil then
+            atype,id,dtype = tbl.param_id:match('XPT_(.-)(%d+)_(.+)')
+            val = tbl.str_value
+        end
+        
+        if atype == nil then return end 
+        id = tonumber(id)
+        if id > totalO then return end
+        
+        if atype == 'Destination' then
+            if dtype == 'Status' then
+                destinations[id].src = tonumber(val)
+            elseif dtype == 'Line_1' then
+                destinations[id].name[1] = val
+            elseif dtype == 'Line_2' then
+                destinations[id].name[2] = val
+            elseif dtype == 'Locked' then
+                if val == '0' or val == 'Unlocked' then destinations[id].locked = false
+                else destinations[id].locked = true end
+            end
+        elseif atype == 'Source' then
+            if dtype == 'Line_1' then
+                sources[id].name[1] = val
+            elseif dtype == 'Line_2' then
+                sources[id].name[2] = val
+            end
+        end
+        
+        return atype,id,dtype
+    end
+    
+    function updateName(iotype,id)
+        if iotype == 'Source' then
+            srcNames[id+1] = id..': '..createName(sources[id].name[1],sources[id].name[2])
+            Controls.Sources[id].Legend = srcNames[id+1]:match(': (.+)')
+            if ready then return end
+            for i = 1,totalO do
+                if destinations[i].src == id and ready then
+                    Controls.DestSelect[i].String = srcNames[id+1]
+                    Controls.SrcForDest[i].String = srcNames[id+1]
+                end 
+                Controls.DestSelect[i].Choices = srcNames
+            end
+        elseif iotype == 'Destination' then
+            Controls.Destinations[id].Legend = createName(destinations[id].name[1],destinations[id].name[2])
+        end
+    end
+    
+    function updateRoute(id)
+        if srcNames[destinations[id].src+1] == nil then return end
+        
+        Controls.DestSelect[id].String = srcNames[destinations[id].src+1]
+        Controls.SrcForDest[id].String = srcNames[destinations[id].src+1]
+    end
+    
+    function updateLocked(id)
+        Controls.Destinations[id].IsDisabled = destinations[id].locked
+        Controls.SrcForDest[id].IsDisabled = destinations[id].locked
+        Controls.DestSelect[id].IsDisabled = destinations[id].locked
+    end
+    
+    function popCmd()
+        if cmdHold then return end
+        
+        if #cmdStack > 0 then
+        cmdHold = true
+        local cmd = table.remove(cmdStack)
+        set(cmd)
+        end
+    
+    end
+    
+    --XY ROUTER
+    function cancelXY()
+        takeStack = {nil,{}}
+        Controls.Take.IsDisabled = true
+        Controls.Cancel.IsDisabled = true
+        for k,v in ipairs(Controls.Sources) do v.Boolean = false end
+        for k,v in ipairs(Controls.Destinations) do v.Boolean = false end
+        disableDests(false)
+    end
+    
+    function takeXY()
+        if takeStack[1] == nil then return end
+        if #takeStack[2] == 0 then return end
+        
+        for k,v in ipairs(takeStack[2]) do
+            route(takeStack[1],v)
+        end
+        cancelXY()   
+    end
+    
+    function selSrc(id)
+        if id == totalI+1 then csrc = 0
+        else csrc = id end
+
+        takeStack[1] = csrc
+        Controls.Cancel.IsDisabled = false
+        
+        
+        for k,v in ipairs(Controls.Sources) do
+            if id == k then v.Boolean = true
+            else v.Boolean = false end
+        end
+        
+        for k,v in ipairs(destinations) do
+            if csrc == v.src then 
+                Controls.Destinations[k].IsDisabled = true
+                Controls.Destinations[k].Boolean = true
+            else 
+                if k <= totalO then Controls.Destinations[k].IsDisabled = false end
+                    if #takeStack[2] > 0 then
+                    for a,b in ipairs(takeStack[2]) do
+                        if b ~= k then Controls.Destinations[k].Boolean = false end
+                    end
+                else
+                    Controls.Destinations[k].Boolean = false
+                end
+            end
+        end
+        
+        if #takeStack[2] > 0 then Controls.Take.IsDisabled = false end
+    end
+    
+    function selDest(id,state)
+        if state then
+            table.insert(takeStack[2],id)
+        else
+            for k,v in ipairs(takeStack[2]) do
+                if v == id then table.remove(takeStack[2],k) break end
+            end
+        end
+        
+        if #takeStack[2] > 0 then Controls.Take.IsDisabled = false
+        else Controls.Take.IsDisabled = true end
+    end
+    
+    
+    function route(src,dest)
+        --print('route '..src..' '..dest)
+        table.insert(cmdStack,1,'paramid=eParamID_XPT_Destination'..dest..'_Status&value='..src)
+        destinations[dest].src = src
+        updateRoute(dest)
+        popCmd()
+    end
+    
+    --UTILITY FUNCTIONS
+    function createName(str1,str2)
+        if str1 == nil then return '' end
+        
+        if #str2 ~= nil then 
+            if #str2 > 0 then return str1..' '..str2
+            else return str1 end
+        else
+            return str1
+        end
+    end
+    
+    
+    --TIMER EVENTS
+    timeout.EventHandler = function()
+        timeout:Stop()
+        print('Timeout')
+        SetStatus(2,'No Response')
+        refreshCNX(true)
+    end
+    
+    
+    --CONTROL EVENTS
+    Controls.Refresh.EventHandler = refreshCNX
+    Controls.Address.EventHandler = refreshCNX
+    Controls.Cancel.EventHandler = cancelXY
+    Controls.Take.EventHandler = takeXY
+    
+    for ix,ct in ipairs(Controls.DestSelect) do
+        ct.EventHandler = function()
+            local src
+            if ct.String == 'None' then src = 0
+            else src = tonumber(ct.String:match('(%d+): ')) end
+            route(src,ix)
+        end
+    end
+    
+    
+    for ix,ct in ipairs(Controls.Sources) do
+        ct.EventHandler = function() selSrc(ix) end
+    end
+    
+    for ix,ct in ipairs(Controls.Destinations) do
+        ct.EventHandler = function() selDest(ix,ct.Boolean) end
+    end
+    
+    
+    --INITALIZATION
+    refreshCNX()
+
+
+end

@@ -1,0 +1,228 @@
+﻿-- TCP Command Buttons with Response Handling
+-- by Joe Peavey
+-- February 2018
+
+PluginInfo =
+{
+  Name = "TCP Command Buttons",
+  Version = "1.2",
+  Id = "e5b3c168-c008-4c03-cc5c-7b7aab4ffdf0",
+  Description = "Plugin to send strings to TCP devices w/ RX to output pin",
+  ShowDebug = true
+}
+
+function GetProperties()
+  return {
+    {Name="Type",Type="enum",Choices={"TCP","UDP","Serial"},Value="TCP"},
+    {Name="Command Count",Type="integer",Min=1,Max=64,Value=8},
+    {Name="Response Output",Type="boolean",Value=false},
+    {Name="Read Timeout",Type="integer",Min=0,Max=6000,Value=0},
+    {Name="Write Timeout",Type="integer",Min=0,Max=6000,Value=0},
+    {Name="Reconnect Timeout",Type="integer",Min=0,Max=6000,Value=5},
+  }
+end
+
+function GetControls(props)
+  local Type=props.Type.Value
+  local ctls = {
+    {Name="Status",ControlType="Indicator",IndicatorType="Status",PinStyle="Output",UserPin=true,Count=1},
+    {Name="code",ControlType="Text",PinStyle="Input"}
+  }
+  if Type=="TCP"or Type=="UDP"then
+    table.insert(ctls,{Name="ip",ControlType="Text",PinStyle="Both",UserPin=true,Count=1})
+    table.insert(ctls,{Name = "port",ControlType = "Knob",ControlUnit = "Integer",Min = 1,Max = 65535,PinStyle = "Both",UserPin = true, Count = 1})
+  else
+    for _,ser in ipairs{"baud_rate","data_bits","parity","stop_bits"}do table.insert(ctls,{Name=ser,ControlType="Text",PinStyle="Both",UserPin=true,Count=1})end
+  end
+  for i=1,tonumber(props["Command Count"].Value) do
+    table.insert(ctls,{Name=string.format("trigger%u",i),ControlType="Button",ButtonType="Trigger",PinStyle="Both",UserPin=true,Count=1})
+    table.insert(ctls,{Name = string.format("string%u",i),ControlType="Text",PinStyle="Both",UserPin=true,Count=1})
+  end
+  if props["Response Output"].Value then
+    for _,t in ipairs{"eom","custom","rxdata","trigout","neweom"}do table.insert(ctls,{Name=t,ControlType="Text",PinStyle="Both",UserPin=true,Count=1})end
+    table.insert(ctls,{Name="trigout",ControlType="Button",ButtonType="Trigger",PinStyle="Output",UserPin=true,Count=1})
+  end
+  return ctls
+end
+
+function GetControlLayout(props)
+  local cmd,Type=props["Command Count"].Value,props.Type.Value
+  layout = {
+    Status={PrettyName="Status",Style="Text",Position={63,0},Size={159,32}},
+    code={Style="None"}
+  }
+  if Type=="TCP"or Type=="UDP"then
+    layout.ip={PrettyName="IP Address",Style="Textbox",Position={63,35},Size={120,16}}
+    layout.port={PrettyName="Port",Style="Textbox",TextBoxStyle="Meter",Position={186,35},Size={36,16}}
+  else
+    for _,ser in ipairs{{n="Baud Rate",s=85,p=63},{n="Data Bits",s=16,p=152},{n="Parity",s=30,p=172},{n="Stop Bits",s=16,p=206}}do
+      layout[(ser.n):gsub(" ","_"):lower()]={PrettyName=ser.n,Style="ComboBox",Position={ser.p,35},Size={ser.s,16}}
+    end
+  end
+  graphics = {
+    {Type="Text",Text="Status",HTextAlign="Left",Position={0,0},Size={60,32}},
+    {Type="Text",Text=Type=="Serial"and"Config"or"IP Address",HTextAlign="Left",Position={0,35},Size={60,16}},
+  }
+  if props["Response Output"].Value then
+  	layout.eom={PrettyName="RX~EOM Type",Style="ComboBox",Position={78,82+cmd*19},Size={78,16}}
+    layout.custom={PrettyName="RX~Custom EOM String",Style="Text",HTextAlign="Left",Position={78,98+cmd*19},Size={78,16}}
+    layout.rxdata={PrettyName="RX~Data",Style="Text",HTextAlign="Left",VTextAlign="Top",WordWrap=true,Position={78,114+cmd*19},Size={144,61}}
+    layout.trigout={PrettyName="RX~Trigger Output",Style="Button",ButtonStyle="Trigger",Margin=1,Position={78,175+cmd*19}}
+    layout.neweom={PrettyName="RX~New EOM",Style="Text",HTextAlign="Left",Position={78,191+cmd*19},Size={75,16}}
+    table.insert(graphics,{Type="Header",Text="Receive Data Setup",Position={0,63+cmd*19},Size={222,19}})
+    table.insert(graphics,{Type="Text",Text="EOM Type",HTextAlign="Right",Position={0,82+cmd*19},Size={76,16}})
+    table.insert(graphics,{Type="Text",Text="Custom EOM",HTextAlign="Right",Position={0,98+cmd*19},Size={76,16}})
+    table.insert(graphics,{Type="Text",Text="RX Data",HTextAlign="Right",Position={0,114+cmd*19},Size={76,61}})
+    table.insert(graphics,{Type="Text",Text="Trigger Out",HTextAlign="Right",Position={0,175+cmd*19},Size={76,16}})
+    table.insert(graphics,{Type="Text",Text="New EOM",HTextAlign="Right",Position={0,191+cmd*19},Size={76,16}})
+  end
+  for i=1,cmd do
+    layout["trigger"..i]={PrettyName=string.format("Command %u~Trigger",i),Style="Button",ButtonStyle="Trigger",Margin=0,Position={0,19*(i-1)+54}}
+    layout["string"..i]={PrettyName=string.format("Command %u~String",i),Style="Text",Position={39,19*(i-1)+54},Size={183,16}}
+  end
+  return layout, graphics
+end
+
+function GetPins(props)
+  local pins={}
+  if props.Type.Value=="Serial"then table.insert(pins,{Name="Serial Port",Direction="output",Domain="serial"})end
+  return pins
+end
+
+
+if Controls then
+
+--[[
+local tcp = TcpSocket.New()
+local IP = Controls.ip
+local Port = Controls.port
+local Status = Controls.status
+local eom = Controls.eom
+local custom = Controls.custom
+local rxdata = Controls.rxdata
+local rxtrig = Controls.trigout
+local neweom = Controls.neweom
+local Trigger, String  = {}, {}
+for i=1,Properties["Command Count"].Value do
+  table.insert(Trigger,Controls[string.format("trigger%u",i)])
+  table.insert(String,Controls[string.format("string%u",i)])
+end
+local rxout = Properties["Response Output"].Value
+local status_state = { OK = 0, COMPROMISED = 1, FAULT = 2, NOTPRESENT = 3, MISSING = 4, INITIALIZING = 5 }
+
+function StatusUpdate( msg, state )
+  Status.Value = state
+  Status.String = msg
+  if DebugDesc or (state>0) then print( msg ) end
+end
+
+function DebugFormat(string) -- Format strings containing non-printable characters so we can see what they are
+  local visual = ""
+  for i=1,#string do
+    local byte = string:sub(i,i)
+    if string.byte(byte) >= 32 and string.byte(byte) <= 126 then
+      visual = visual..byte
+    else
+      visual = visual..string.format("[%02X]",string.byte(byte))
+    end
+  end
+  return visual
+end 
+
+local function RXDisp(rx)
+  print("\""..DebugFormat(rx).."\"")
+  if #neweom.String>0 and eom.String~="Full Buffer" then
+    local eom = load("return \""..neweom.String.."\"")()
+    rx = rx..eom
+  end
+  rxdata:Trigger() -- to let downstream input pin know that control was updated
+  rxtrig:Trigger()
+  rxdata.String = rx
+end
+
+tcp.EventHandler = function(sock, evt, err)
+  if evt == TcpSocket.Events.Connected then
+    print( "socket connected" )
+    StatusUpdate( "Connected", status_state.OK )
+  elseif evt == TcpSocket.Events.Reconnect then
+    print( "socket reconnecting..." )
+    StatusUpdate( "reconnecting", status_state.INITIALIZING )
+  elseif evt == TcpSocket.Events.Data then
+    local line
+    if rxout then
+      if eom.String == "Full Buffer" then
+        line = sock:Read( sock.BufferLength )
+      else
+        local cust
+        if eom.String=="Custom" then cust=load("return \""..custom.String.."\"")() end
+        line = sock:ReadLine( TcpSocket.EOL[eom.String], cust)
+      end
+      RXDisp(line)
+    else
+      line = DebugFormat(sock:Read( sock.BufferLength ))
+    end
+    print( "RX: "..DebugFormat(line) )
+  elseif evt == TcpSocket.Events.Closed then
+    print( "socket closed by remote" )
+    StatusUpdate( "Socket Closed", status_state.FAULT )
+  elseif evt == TcpSocket.Events.Error then
+    print( "socket closed due to error", err )
+    StatusUpdate( "Socket Error: "..err, status_state.FAULT )
+  elseif evt == TcpSocket.Events.Timeout then
+    print( "socket closed due to timeout" )
+    StatusUpdate( "Socket Timeout", status_state.FAULT )
+  end
+end
+
+for i=1,#Trigger  do
+  Trigger[i].EventHandler = function(ctl)
+    local text = String[i].String
+    local format = load("return \""..text.."\"")()
+    print("TX: "..DebugFormat(format))
+    tcp:Write(format)
+  end
+end
+
+function TcpOpen()
+  local validIP = false
+  if string.find(IP.String,"%d+.%d+.%d+.%d+") then -- Validate IP Address
+    local IP1,IP2,IP3,IP4 = string.match(IP.String,"(%d+).(%d+).(%d+).(%d+)")
+    if tonumber(IP1)<255 and tonumber(IP2)<255 and tonumber(IP3)<255 and tonumber(IP4)<255 and tonumber(IP1)>0 then
+      validIP = true
+      IP.Color = "White"
+      Status.Value = 0
+    end
+  end
+  if validIP then
+    tcp.ReadTimeout = Properties["Read Timeout"].Value
+    tcp.WriteTimeout = Properties["Write Timeout"].Value
+    tcp.ReconnectTimeout = Properties["Reconnect Timeout"].Value
+    tcp:Connect(IP.String,Port.Value)
+  end
+end
+
+if IP.String == "" then
+  IP.String = "Enter IP Address"
+  IP.Color = "Red"
+  Status.Value = 2
+  Status.String = "Invalid IP"
+end
+
+eom.EventHandler = function()
+  custom.IsDisabled = eom.String~="Custom"
+  neweom.IsDisabled = eom.String=="Full Buffer"
+end
+
+if rxout then
+  eom.Choices = {"Any","CrLf","CrLfStrict","Lf","Null","Custom","Full Buffer"}
+  if eom.String=="" then eom.String="Any" end
+  custom.IsDisabled = eom.String~="Custom"
+  neweom.IsDisabled = eom.String=="Full Buffer"
+  rxdata.String=""
+end
+
+IP.EventHandler = TcpOpen
+Port.EventHandler = TcpOpen
+TcpOpen()
+]]
+end

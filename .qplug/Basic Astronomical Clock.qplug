@@ -1,0 +1,408 @@
+PluginInfo = 
+{
+    Name = "Logic Architect~Basic Astronomical Clock",
+    Version = "1.0.5",
+    Id = "1ee70bda-c0fc-464e-b83c-5603e0991ecd",
+    Description = "Astronimical Clock Using Standard Sunrise Equation",
+    ShowDebug = true
+}
+
+function GetColor(props)
+  return { 180, 180, 225 }
+end
+
+function GetPrettyName(props)
+  return "Basic Astronomical Clock"
+end
+
+function GetProperties()
+    return props
+end
+
+function GetControls(props)
+  return 
+  {
+    {
+    Name = "CurrentTime",
+    ControlType = "Indicator",
+    IndicatorType = "Text",
+    Count = 1,
+    PinStyle = "Input",
+    UserPin = true,
+    },
+    {
+    Name = "Latitude",
+    ControlType = "Text",
+    Count = 1,
+    PinStyle = "Input",
+    UserPin = true,
+    },
+    {
+    Name = "Longitude",
+    ControlType = "Text",
+    Count = 1,
+    PinStyle = "Input",
+    UserPin = true,
+    },
+    {
+    Name = "Sunrise",
+    ControlType = "Indicator",
+    IndicatorType = "Text",
+    Count = 1,
+    PinStyle = "Output",
+    UserPin = true,
+    },
+    {
+    Name = "Sunset",
+    ControlType = "Indicator",
+    IndicatorType = "Text",
+    Count = 1,
+    PinStyle = "Output",
+    UserPin = true,
+    },
+    {
+    Name = "Morning",
+    ControlType = "Indicator",
+    IndicatorType = "Led",
+    Count = 1,
+    PinStyle = "Output",
+    UserPin = true,
+    },
+    {
+    Name = "Afternoon",
+    ControlType = "Indicator",
+    IndicatorType = "Led",
+    Count = 1,
+    PinStyle = "Output",
+    UserPin = true,
+    },
+    {
+    Name = "Night",
+    ControlType = "Indicator",
+    IndicatorType = "Led",
+    Count = 1,
+    PinStyle = "Output",
+    UserPin = true,
+    },
+  }
+    
+end
+
+
+function GetControlLayout(props)
+    layout = {}
+    graphics = {}
+    
+    
+    local gutter = 100
+    local row = 0
+    local col = 0
+    local hcount = 0
+    local rcount = 1
+    
+    table.insert (graphics,
+        {
+        Type = "Text",
+        Text = "Current Time:",
+        TextSize = 12,
+        Color = { 0, 0, 0}, 
+        HTextAlign = "Right",
+        Position = { 0, row },
+        Size = { 100,20 }
+        })
+    layout["CurrentTime"] = 
+        {
+        PrettyName = "CurrentTime",
+        Position = { gutter, row },
+        Size = { 50 , 20 },
+        }
+    
+    row = 20
+    table.insert (graphics,
+        {
+        Type = "Text",
+        Text = "Latitude:",
+        TextSize = 12,
+        Color = { 0, 0, 0}, 
+        HTextAlign = "Right",
+        Position = { 0, row },
+        Size = { 100,20 }
+        })
+    layout["Latitude"] = 
+        {
+        PrettyName = "Latitude",
+        Position = { gutter, row },
+        Size = { 150, 20 },
+        Color = { 255, 255, 255 },
+        }
+    
+    row = 40    
+    table.insert (graphics,
+        {
+        Type = "Text",
+        Text = "Longitude:",
+        TextSize = 12,
+        Color = { 0, 0, 0}, 
+        HTextAlign = "Right",
+        Position = { 0, row },
+        Size = { 100,20 }
+        })
+    layout["Longitude"] = 
+        {
+        PrettyName = "Longitude",
+        Position = { gutter, row },
+        Size = { 150, 20 },
+        Color = { 255, 255, 255 },
+        }
+    
+    row = 60
+    table.insert (graphics,
+        {
+        Type = "Text",
+        Text = "Sunrise:",
+        TextSize = 12,
+        Color = { 0, 0, 0}, 
+        HTextAlign = "Right",
+        Position = { 0, row },
+        Size = { 100,20 }
+        })
+    layout["Sunrise"] = 
+        {
+        PrettyName = "Sunrise",
+        Position = { gutter, row },
+        Size = { 50, 20 },
+        }
+    
+    row = 80
+    table.insert (graphics,
+        {
+        Type = "Text",
+        Text = "Sunset:",
+        TextSize = 12,
+        Color = { 0, 0, 0}, 
+        HTextAlign = "Right",
+        Position = { 0, row },
+        Size = { 100,20 }
+        })
+    layout["Sunset"] = 
+        {
+        PrettyName = "Sunset",
+        Position = { gutter, row },
+        Size = { 50, 20 },
+        }
+    
+    row = 100
+    table.insert (graphics,
+        {
+        Type = "Text",
+        Text = "Morning",
+        TextSize = 12,
+        Color = { 0, 0, 0}, 
+        HTextAlign = "Center",
+        Position = {gutter, row },
+        Size = { 60,20 }
+        }) 
+    table.insert (graphics,
+        {
+        Type = "Text",
+        Text = "Afternoon",
+        TextSize = 12,
+        Color = { 0, 0, 0}, 
+        HTextAlign = "Center",
+        Position = {gutter+60, row },
+        Size = { 60,20 }
+        })
+    table.insert (graphics,
+        {
+        Type = "Text",
+        Text = "Night",
+        TextSize = 12,
+        Color = { 0, 0, 0}, 
+        HTextAlign = "Center",
+        Position = {gutter+120, row },
+        Size = { 60,20 }
+        })
+    
+    row = 130
+    table.insert (graphics,
+        {
+        Type = "Text",
+        Text = "Status:",
+        TextSize = 12,
+        Color = { 0, 0, 0}, 
+        HTextAlign = "Right",
+        Position = { 0, row },
+        Size = { 100,20 }
+        })
+    layout["Morning"] = 
+        {
+        PrettyName = "Morning",
+        Position = { gutter+20, row },
+        Size = { 20, 20 },
+        Color = { 255, 255, 100 },
+        }
+    layout["Afternoon"] = 
+        {
+        PrettyName = "Afternoon",
+        Position = { gutter+80, row },
+        Size = { 20, 20 },
+        Color = { 255, 100, 0 },
+        }
+    layout["Night"] = 
+        {
+        PrettyName = "Night",
+        Position = { gutter+140, row },
+        Size = { 20, 20 },
+        Color = { 0, 0, 255 },
+        }
+
+
+  return layout, graphics
+end
+
+
+-- Controls only exist when plugin is actually running
+-- we don't want to run this code during initialization 
+-- and property editing
+if Controls then --Start of runtime Lua code
+    local lat = 34.052235
+    local long = -118.243683
+    local check = Timer.New()
+    local sunrise
+    local sunset
+
+    -- sunrise / sunset calculation
+    function rscalc(latitude, longitude, when)
+        local pi = math.pi
+        local doublepi = pi * 2
+        local rads = pi / 180.0
+
+
+       local TZ = function(when)
+         local ts = os.time(when)
+         local utcdate, localdate = os.date('!*t', ts), os.date('*t', ts)
+         localdate.isdst = false
+
+         local diff = os.time(localdate) - os.time(utcdate)
+         return math.floor(diff / 3600)
+       end
+
+       local range = function(x)
+         local a = x / doublepi
+         local b = doublepi * (a - math.floor(a))
+         return b < 0 and (doublepi + b) or b
+       end
+
+       when = when or os.date('*t')
+
+       local y2k = { year = 2000, month = 1, day = 1 }
+       local y2kdays = os.time(when) - os.time(y2k)
+       y2kdays = math.ceil(y2kdays / 86400)
+
+       local meanlongitude = range(280.461 * rads + 0.9856474 * rads * y2kdays)
+       local meananomaly = range(357.528 * rads + 0.9856003 * rads * y2kdays)
+       local lambda = range(meanlongitude + 1.915 * rads * math.sin(meananomaly) + rads / 50 * math.sin(2 * meananomaly))
+
+       local obliq = 23.439 * rads - y2kdays * rads / 2500000
+
+       local alpha = math.atan2(math.cos(obliq) * math.sin(lambda), math.cos(lambda))
+       local declination = math.asin(math.sin(obliq) * math.sin(lambda))
+
+       local LL = meanlongitude - alpha
+       if meanlongitude < pi then
+         LL = LL + doublepi
+       end
+
+       local dfo = pi / 216.45
+
+       if latitude < 0 then
+         dfo = -dfo
+       end
+
+       local fo = math.min(math.tan(declination + dfo) * math.tan(latitude * rads), 1)
+       local ha = 12 * math.asin(fo) / pi + 6
+
+       local timezone = TZ(when)
+       local equation = 12 + timezone + 24 * (1 - LL / doublepi) - longitude / 15
+
+       local sunrise, sunset = equation - ha, equation + ha
+
+       if sunrise > 24 then
+         sunrise = sunrise - 24
+       end
+
+       if sunset > 24 then
+         sunset = sunset - 24
+       end
+
+       return math.floor(sunrise * 60), math.ceil(sunset * 60)
+    end
+
+    --FUNCTIONS
+    
+    
+    function HereComesTheSun() -- when is sunrise and sunset
+        --local when = {year = 2045, month = 10, day = 21} --Optional Could be Used to Get Data in the Future "Whoa...Heavy" "Weight has nothing to do with it" 
+        print("Get Sunrise & Sunset Times")
+        sunrise, sunset = rscalc(lat, long)
+        Controls.Sunrise.String = string.format("%02d:%02d",math.floor(sunrise/60),sunrise%60)
+        Controls.Sunset.String = string.format("%02d:%02d",math.floor(sunset/60),sunset%60)
+    end
+    
+    function checkState(ctrl) --Check if the sun is up and if it s am or pm 
+        --local now = os.date('*t')
+        hour, min = string.match(ctrl.String, "(%d+):(%d+)")
+        
+        hour = tonumber(hour)
+        min = tonumber(min)
+        
+        local now_calc = min + hour*60
+        
+        local result = (now_calc>(sunrise)) and (now_calc<(sunset))
+        print(tostring(result)..hour..":"..min)
+        if result == false then
+            Controls.Morning.Boolean = false
+            Controls.Afternoon.Boolean = false
+            Controls.Night.Boolean = true
+        else
+            if hour < 12 then
+                Controls.Morning.Boolean = true
+                Controls.Afternoon.Boolean = false
+                Controls.Night.Boolean = false
+            else
+                Controls.Morning.Boolean = false
+                Controls.Afternoon.Boolean = true
+                Controls.Night.Boolean = false
+            end
+        end 
+        
+        if hour == 1 and min == 0 then HereComesTheSun() end --get new sunrise sunset at 1am each day
+    end
+
+    --EVENT HANDLERS
+    Controls.CurrentTime.EventHandler = checkState
+    
+    Controls.Latitude.EventHandler = function(ctrl) 
+            if #ctrl.String > 0 then
+                lat = tonumber(ctrl.String) 
+                HereComesTheSun()
+            end
+        end
+    
+    Controls.Longitude.EventHandler = function(ctrl) 
+            if #ctrl.String > 0 then
+                long = tonumber(ctrl.String) 
+                HereComesTheSun()
+            end
+        end
+    
+        
+
+    
+    --Initalization
+    if #Controls.Latitude.String > 0 then lat = tonumber(Controls.Latitude.String) end
+    if #Controls.Longitude.String > 0 then long = tonumber(Controls.Longitude.String) end
+    HereComesTheSun()
+    if #Controls.CurrentTime.String > 0 then checkState(Controls.CurrentTime) end
+    
+end

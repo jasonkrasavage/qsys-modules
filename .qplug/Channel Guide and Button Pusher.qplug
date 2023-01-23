@@ -1,0 +1,436 @@
+PluginInfo = {
+	Name = "Channel Guide",
+	Version = "1.2",
+	Id = "9e540c84-d298-44a3-918a-92169cc64ab7",
+	Description = "Gets OZ Channels, Icons and presses buttons when selected",
+	ShowDebug = true
+}
+-- optional
+function GetPrettyName(props)
+	return "Channels"
+end
+
+function GetColor(props)
+	return {125, 125, 125}
+end
+
+function GetProperties()
+    props = {}
+	return props
+end
+
+
+Colors = {
+  Selected = {255, 188, 113},
+  Standard = {124,124,124},
+  Off = {215,17,0},
+  txt = { l= {255, 255, 255}, d = {0,0,0}},
+  Default = {255,255,255},
+  status = {194,194,194},
+  BackGround = {35,35,35,},
+}
+
+ControlsTable = {
+  Channels_Icons = {l ="", ct = "Button", bt = "Trigger" , q = 84, up = false, ps = "None", cl = true, nc = Colors.status, oc = Colors.Standard, px=30,py=26,sx=60,sy=60,r=2, p = 0, m = 5, fs = 10},
+  Channel_Buttons = {l ="", ct = "Button", bt = "Momentary" , q = 10, up = true, ps = "Output", cl = true, nc = Colors.Selected, oc = Colors.Standard, px=196,py=465,sx=44,sy=42,r=2, p = 0, m = 5 , fs = 14},
+  Get_Channel_Data = {l = "Get\nChannels", ct = "Button", bt = "Trigger" , q = 1, up = true, ps = "Output", cl = true, nc = Colors.Selected, oc = Colors.Standard, px=30,py=631,sx=75,sy=42,r=2, p = 0, m = 2 , fs = 10},
+  Delete_Duplicates = {l = "No\nDuplicates",ct = "Button", bt = "Toggle" , q = 1, up = true, ps = "Output", cl = true, nc = Colors.Selected, oc = Colors.Standard, px=105,py=631,sx=75,sy=42,r=2, p = 0, m = 2 , fs = 10},
+  Channel_Name = {l ="", ct = "Indicator", it= "Text", bt = "Text" , q = 1, up = false, ps = "None", cl = true, nc = Colors.status, oc = Colors.status, px=350,py=549,sx=240,sy=42,r=0, m = 2, fs = 12},
+  Channel_Number = {l ="", ct = "Indicator", it= "Text", bt = "Text" , q = 1, up = true, ps = "Output", cl = true, nc = Colors.status, oc = Colors.status, px=350,py=465,sx=240,sy=42,r=0, m = 2, fs = 12},
+  }
+
+function GetControls(props)       
+    ctl = {}
+    for k,v in pairs (ControlsTable) do
+        table.insert(ctl,
+        {
+        Name=k,
+        ControlType=v.ct,
+        ControlUnit=v.cu,
+        Min = v.Min,
+        Max = v.Max,
+        ButtonType=v.bt,
+        Count=v.q,
+        UserPin=v.up,
+        IndicatorType= v.it,
+        PinStyle = v.ps
+        })
+    end
+
+    table.insert(ctl,         
+    {Name="State",
+    ControlType="Text",
+    TextBoxStyle = "ListBox",
+    ButtonType="ListBox",
+    Count=1,
+    UserPin=false,
+    PinStyle = "None"}
+
+)
+	return ctl
+end
+
+function GetControlLayout(props)
+    layout = {}
+    graphics = {}
+
+    for k,v in pairs(ControlsTable) do
+      for i = 1, v.q do
+        if v.q > 1 then Control_Key = k.." "..i else Control_Key = k end
+          if k == "Channels_Icons" then
+            Label = ""
+            if i <= 14 then 
+              Pos = {v.px + v.sx *(i - 1) , v.py}
+            elseif i <= 14 * 2 then
+              Pos = {v.px + v.sx *(i - 14 - 1) , v.py + v.sy}
+            elseif i <= 14 * 3 then
+              Pos = {v.px + v.sx *(i - (14 * 2) - 1) , v.py + v.sy * 2}
+            elseif i <= 14 * 4 then
+              Pos = {v.px + v.sx *(i - (14 * 3) - 1) , v.py + v.sy * 3}
+            elseif i <= 14 * 5 then
+              Pos = {v.px + v.sx *(i - (14 * 4) - 1) , v.py + v.sy * 4}              
+            elseif i <= 14 * 6 then
+              Pos = {v.px + v.sx *(i - (14 * 5) - 1) , v.py + v.sy * 5}
+            end
+          elseif k == "Channel_Buttons" then
+            if i <= 3 then 
+              Pos = {v.px + v.sx *(i - 1) , v.py}
+              Label = i
+            elseif i <= 6 then 
+              Pos = {v.px + v.sx *(i - 4) , v.py + v.sx}
+              Label = i
+            elseif i <= 9 then 
+              Pos = {v.px + v.sx *(i - 7) , v.py + v.sx * 2}
+              Label = i
+            elseif i == 10 then
+              Pos = {240,v.py + v.sx * 3}
+              Label = 0
+            end
+          else
+            Label = v.l
+            Pos = {v.px, v.py}
+          end
+          layout[Control_Key] = { 
+          Style = v.ct,
+          ButtonStyle = v.bt,
+          Legend = Label,
+          Position = Pos,
+          Size = {v.sx, v.sy},
+          Color = v.nc,
+          TextFontSize = v.fs,
+          Radius = v.r,
+          Margin = v.m,
+          CornerRadius = v.cr,
+          OffColor = v.oc,
+          UnlinkOffColor = v.cl, 
+          StrokeWidth = 0,
+          ButtonVisualStyle = "Flat"
+          }
+
+          layout["State"] = { 
+            Style = "ListBox",
+            ButtonStyle = "ListBox",
+            Position = {30,465},
+            Size = {150,166},
+            Color = Colors.status,
+            TextFontSize = 15,
+            Radius = 5,
+            Margin = 5,
+            CornerRadius = 5,
+            StrokeWidth = 0,
+            ButtonVisualStyle = "Flat",
+            }
+
+      end
+
+    end 
+
+      local GroupBox = {
+        Main = {sw = 2,sc = Colors.txt.d, cr = 8, fl = Colors.BackGround, px = 12, py = 10 , sx = 879,sy = 681},
+      }
+
+      for k in pairs(GroupBox) do
+        table.insert(graphics,{Type = "GroupBox",
+        StrokeWidth = GroupBox[k].sw,
+        StrokeColor = GroupBox[k].sc,
+        CornerRadius = GroupBox[k].cr,
+        Fill = GroupBox[k].fl,
+        Position = {GroupBox[k].px, GroupBox[k].py},
+        Size = {GroupBox[k].sx, GroupBox[k].sy}})
+      end
+
+      local Labels = {
+        ["Select State"] = {ts = 15,sc = Colors.txt.l, px = 30, py = 430 , sx = 150,sy = 35},
+        ["Channel Buttons"] = {ts = 15,sc = Colors.txt.l, px = 196, py = 430 , sx = 132,sy = 35},
+        ["Channel Number"] = {ts = 15,sc = Colors.txt.l, px = 350, py = 430 , sx = 240,sy = 35},
+        ["Channel Names"] = {ts = 15,sc = Colors.txt.l, px = 350, py = 514 , sx = 240,sy = 35},
+      }
+      
+      for k,v in pairs(Labels) do
+          table.insert(graphics,{Type = "Label",
+          Text = k,
+          Color = v.sc,
+          HTextAlign = "Center",
+          VTextAlign = "Center",
+          TextSize = v.ts,
+          Position = {v.px, v.py},
+          Size = {v.sx, v.sy}})
+      end
+      
+	return layout, graphics
+end
+
+function GetPins(props)
+	local pins = {}
+	return pins
+end
+
+function GetComponents(props)
+	return
+end
+
+function GetWiring(props)
+	local wiring = {}
+	return wiring
+end
+
+if Controls then 
+
+  rapidjson = require("rapidjson")
+  AllIconData = {}
+  
+  Presser = Timer.New()
+  Clearer = Timer.New()
+  
+  maxsize = 500000
+  
+  for k,v in pairs(Design.GetStatus()) do
+    if k == "Platform" then
+      if v == "Emulator" then
+      Direc = "design"
+      else
+      Direc = "media"
+      end
+    end
+  end
+  
+  for k,v in pairs(Controls.Channels_Icons) do
+    iconStyle = {
+    DrawChrome = true,
+    IconData = ""}
+    v.Legend = rapidjson.encode(iconStyle)
+  end
+  
+  function Hide_Unused(x)
+    for k,v in pairs(Controls.Channels_Icons) do
+      if k <= x then
+        v.IsDisabled = false
+        v.IsInvisible = false
+      elseif k > x then
+        v.IsDisabled = true
+        v.IsInvisible = true
+      end
+    end
+  end
+  
+  function CheckForFile() --Checks for exsisting file
+  FileEx = false
+    for k,v in pairs(dir.get(Direc.."/")) do
+      for i,m in pairs(v) do
+        if m == "IconData.json" then
+          FileEx = true
+          local JsonFile = rapidjson.load(Direc..'/IconData.json')
+          if JsonFile ~= nil then
+            for k,v in pairs(JsonFile) do
+              Controls.Channels_Icons[k].Legend = rapidjson.encode(v)
+            end
+            Hide_Unused(#JsonFile)
+            print("Restoring from file")
+          else
+            print("No File Exisists")
+            FileEx = false
+          end
+          break
+        end
+      end
+    end
+  end
+  
+  --CheckForFile()
+  
+  for k,v in pairs (Controls.Channel_Buttons) do
+    if k == 10 then 
+      v.Legend = 0
+    else
+      v.Legend = k
+    end
+  end
+  
+  function Get_States_done(tbl, code, data, err, headers)
+  local States = {}
+    if code == 200 then 
+      if string.find(data, 'href="http://xmltv.net/xml_files/') then
+        for nStates in string.gmatch(data, 'href="http://xmltv.net/xml_files/(.-).xml') do
+        table.insert(States, nStates)
+        end
+      Controls.State.Choices = States
+      end
+      Controls.Get_Channel_Data.IsDisabled = false
+      Controls.Delete_Duplicates.IsDisabled = false
+    else
+      Controls.Get_Channel_Data.IsDisabled = true
+      Controls.Delete_Duplicates.IsDisabled = true
+      Controls.State.Choices = {code, err,"Error cannot download files"}
+    end
+  end
+  
+  HttpClient.Download { Url = "https://www.xmltv.net/", Headers = { ["Content-Type"] = "application/json" } , Timeout = 30, EventHandler = Get_States_done } 
+  
+  Controls.Get_Channel_Data.IsDisabled = true
+  Controls.Delete_Duplicates.IsDisabled = true
+         
+            
+  function Encode_Icon(tbl, code, d, e)
+    length = string.len(d)
+    if code == 200 then
+      for k,v in pairs(Controls.Channels_Icons) do
+        cIconStyle = rapidjson.decode(v.Style)
+        if cIconStyle ~= nil and tbl.Url == cIconStyle.URL_Key then
+          if length < maxsize then
+            Icon_Data = Crypto.Base64Encode(d)
+            iconStyle = {
+            Chan_Name = cIconStyle.Chan_Name,
+            Chan_Number = cIconStyle.Chan_Number,
+            DrawChrome = true,
+            IconData = Icon_Data}
+            AllIconData[k] = iconStyle
+            v.Legend = rapidjson.encode(iconStyle)
+          else
+            iconStyle = {
+            Chan_Name = cIconStyle.Chan_Name,
+            Chan_Number = cIconStyle.Chan_Number,
+            DrawChrome = true,
+            Legend = cIconStyle.Chan_Name}
+            AllIconData[k] = iconStyle
+            v.Legend = rapidjson.encode(iconStyle)
+          end
+        end
+      end
+    end
+  end
+    
+  function DumpTable(IconTable)
+    rapidjson.dump(AllIconData, Direc..'/IconData.json')
+  end
+  
+  
+  
+  function Sort_Data(Data)
+  
+    local Channel_Info = {} All_Channels = {} Duplicates = {}
+    IconStyles = {}
+    
+    for AllChannelData in string.gmatch(Data, "(<display%-name>.-)</channel>") do
+      Chan_Num = string.match(AllChannelData, "<lcn>(%d+)</lcn>")
+      cName = string.match(AllChannelData, "<display%-name>(.-)</display%-name>")
+      cURL =  string.match(AllChannelData, "<icon src=\"(.-)\" />")
+      if cName == "7mate HD Brisbane" then
+        cURL = "http://img-store-prod.switch.tv/images/0ff02eaf-7796-4dfc-b403-2d2428f1e518/getimage.php%3FsiteID%3D288%26group%3DSTILL%26tag%3DIMAGE%26videoID%3D1466493"
+      elseif cName == "ABC Kids Listen" then
+        cURL = "https://d24j9r7lck9cin.cloudfront.net/l/f/7/7118.1519190192.png"
+      end
+      Duplicate_Check = table.concat(Duplicates, "||")
+      if Controls.Delete_Duplicates.Boolean then
+        if not string.find(Duplicate_Check, cName) then
+          table.insert(Duplicates, cName)
+          table.insert(All_Channels, Chan_Num)
+          Channel_Info[Chan_Num] = {Chan_Number = Chan_Num, Chan_Name = cName, URL_Key = cURL}
+        end
+      else
+        table.insert(All_Channels, Chan_Num)
+        Channel_Info[Chan_Num] = {Chan_Number = Chan_Num, Chan_Name = cName, URL_Key = cURL}
+      end     
+    end
+    
+    table.sort(All_Channels)
+    Hide_Unused(#All_Channels)
+    
+    for k,v in pairs(All_Channels) do
+      if k <= #Controls.Channels_Icons then
+        Controls.Channels_Icons[k].Style = rapidjson.encode(Channel_Info[v])
+        if Channel_Info[v].URL_Key ~= nil then
+          HttpClient.Download { Url = Channel_Info[v].URL_Key, EventHandler = Encode_Icon }
+        end
+        Timer.CallAfter(function()
+          DumpTable()
+        end,3)
+      end
+    end
+  end
+  
+  function done(tbl, code, data, err, headers)
+    if string.find(data, "<channel id=(.*)</channel>") then
+      Stored_Channels = string.match(data, "<channel id=(.*)</channel>")
+      Sort_Data(Stored_Channels)
+    end
+  end
+  
+  function Download_Channel_Data()
+    for k,v in pairs(Controls.Channels_Icons) do
+      iconStyle = {
+      DrawChrome = true,
+      IconData = ""}
+      v.Legend = rapidjson.encode(iconStyle)
+    end
+    HttpClient.Download { Url = "http://xmltv.net/xml_files/"..Controls.State.String..".xml", Headers = { ["Content-Type"] = "application/json" } , Timeout = 30, EventHandler = done }
+  end
+  
+  function Button_Presser(Channel)
+    Channel_Table = {}
+    c = 0
+    for i = 1,#Channel do
+      if string.sub(Channel, i,i) == "0" then
+      Channel_Table[i] = 10
+      else
+      Channel_Table[i] = tonumber(string.sub(Channel, i,i))
+      end
+    end
+    Presser:Start(0.4)
+  end
+  
+  Clearer.EventHandler = function(v)
+    for k,v in pairs(Controls.Channel_Buttons) do
+      v.Boolean = false
+    end
+    v:Stop()
+  end
+  
+  Presser.EventHandler = function(v)
+    c = c + 1
+    for k,v in pairs(Controls.Channel_Buttons) do
+      if k == Channel_Table[c] then
+        v.Boolean = true
+        Clearer:Start(0.2)
+      else
+        v.Boolean = false
+      end
+    end
+    if c == #Channel_Table then
+      v:Stop()
+    end
+  end
+  
+  for k,v in pairs(Controls.Channels_Icons) do
+    v.EventHandler = function(v)
+      End_IconStyle = rapidjson.decode(v.Style)
+      Controls.Channel_Number.String = End_IconStyle.Chan_Number
+      Controls.Channel_Name.String = End_IconStyle.Chan_Name
+      Button_Presser(End_IconStyle.Chan_Number)
+    end
+  end
+  
+  Controls.State.EventHandler = Download_Channel_Data
+  Controls.Get_Channel_Data.EventHandler = Download_Channel_Data
+  Controls.Delete_Duplicates.EventHandler = Download_Channel_Data
+  Controls.State.String = ""  
+end -- end of runtime Lua code

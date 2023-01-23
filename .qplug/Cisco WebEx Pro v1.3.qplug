@@ -1,0 +1,1291 @@
+-- Cisco WebEx Pro Controls
+-- by Chris James
+-- October 2021
+
+
+PluginInfo = {
+  Name = "Cisco~Cisco WebEx Pro v1.3",
+  Version = "1.3",
+  BuildVersion = "1.0.1.3",
+  Id = "<WebEx><CJv1.3>",
+  Author = "Chris James",
+  Description = "Control plugin for Cisco WebEx Pro Control",
+  IsManaged = true,
+  Model = "WebExPro",
+  Manufacturer = "Cisco",
+  Type = Reflect and Reflect.Types.Conferencing or 0
+}
+
+function GetColor(props)
+  return { 23, 102, 255 }
+end
+
+function GetPrettyName(props)
+  return "Cisco\rWebEx Pro\rControl\rv" .. PluginInfo.Version
+end
+
+-- Optional function used if plugin has multiple pages
+PageNames = { "Setup", "System", "Cameras", "Audio-Video", "Dialer", "Address Book", "Keyboard",}  --List the pages within the plugin
+function GetPages(props)
+  local pages = {}
+  for ix,name in ipairs(PageNames) do
+    table.insert(pages, {name = PageNames[ix]})
+  end
+  return pages
+end
+
+
+
+-- Define User configurable Properties of the plugin
+function GetProperties()
+  local props = {}
+  table.insert(props,{Name = "Debug Print",Type = "enum",Choices = {"None", "Tx/Rx", "Tx", "Rx", "Function Calls", "All"},Value = "None"})
+  table.insert(props,{Name="Connection Mode",Type="enum",Choices={"Ethernet","Serial"},Value="Ethernet"})
+  return props
+end
+
+-- Optional function to update available properties when properties are altered by the user
+function RectifyProperties(props)
+  if props.plugin_show_debug.Value == true then 
+    props["Debug Print"].IsHidden = false 
+  end
+  return props
+end
+
+function GetControls(props)
+  local ctrls = {  
+   --Setup Page 
+	{Name="IPAddress",ControlType="Text",Count=1,UserPin=true,PinStyle="Both"},
+    {Name="ConnectionType",ControlType="Text",TextBoxType="ComboBox",Count=1,UserPin=true,PinStyle="Output"},
+    {Name="UserName",ControlType="Text",Count=1,UserPin=true,PinStyle="Both"},
+    {Name="Password",ControlType="Text",Count=1,UserPin=true,PinStyle="Both"},
+    {Name="ProductID",ControlType="Text",Count=1,UserPin=true,PinStyle="Output"},
+    {Name="DisplayName",ControlType="Text",Count=1,UserPin=true,PinStyle="Output"},
+    {Name="Version",ControlType="Text",Count=1,UserPin=true,PinStyle="Output"},
+    {Name="Status",ControlType="Indicator",IndicatorType=Reflect and "StatusGP" or "Status",Count=1,UserPin=true,PinStyle="Output"},
+  
+  --System Page
+    {Name ="ActivateStandby",ControlType = "Button",ButtonType = "Toggle",Count = 1,UserPin = true,PinStyle = "Both"},   
+	{Name ="DeactivateStandby",ControlType = "Button",ButtonType = "Toggle",Count = 1,UserPin = true,PinStyle = "Both"},
+	{Name="PowerStatus", ControlType="Indicator", IndicatorType="Led", Count=1, UserPin=true, PinStyle="Output", IsReadOnly=true },
+	
+ --Camera Page   
+	{Name ="Camera",ControlType = "Button",ButtonType="Toggle",Count=2,UserPin=true,PinStyle="Input"},
+    {Name="DPadUp",ControlType="Button",ButtonType="Momentary",IconType="Icon",Icon="Arrow Up",Count=1,UserPin=true,PinStyle="Output"},
+    {Name="DPadDown",ControlType="Button",ButtonType="Momentary",IconType="Icon",Icon="Arrow Down",Count=1,UserPin=true,PinStyle="Output"},
+    {Name="DPadLeft",ControlType="Button",ButtonType="Momentary",IconType="Icon",Icon="Arrow Left",Count=1,UserPin=true,PinStyle="Output"},
+    {Name="DPadRight",ControlType="Button",ButtonType="Momentary",IconType="Icon",Icon="Arrow Right",Count=1,UserPin=true,PinStyle="Output"},
+    {Name="DPadHome",ControlType="Button",ButtonType="Momentary",Count=1,UserPin=true,PinStyle="Output"},
+    {Name="ZoomIn",ControlType="Button",ButtonType="Momentary",IconType="Icon",Icon="Plus",Count=1,UserPin=true,PinStyle="Output"},
+    {Name="ZoomOut",ControlType="Button",ButtonType="Momentary",IconType="Icon",Icon="Minus",Count=1,UserPin=true,PinStyle="Output"},
+    {Name="SelfView",ControlType="Button",ButtonType="Momentary",IconType="Icon",Icon="Video",Count=1,UserPin=true,PinStyle="Output"},
+    {Name="FullScreen",ControlType="Button",ButtonType="Momentary",IconType="Icon",Icon="Arrows Out", Count=1,UserPin=true,PinStyle="Output"},
+	
+	{Name="PresetText",ControlType="Text",Count=1,UserPin=true,PinStyle="Output"},
+	{Name="PresetActivate",ControlType="Button",ButtonType="Toggle", Count=1,UserPin=true,PinStyle="Output"},
+	{Name="PresetStore",ControlType="Button",ButtonType="Toggle", Count=1,UserPin=true,PinStyle="Output"},
+	{Name="PresetRequest",ControlType="Button",ButtonType="Toggle", Count=1,UserPin=true,PinStyle="Output"},
+	{Name="PresetRemove",ControlType="Button",ButtonType="Toggle", Count=1,UserPin=true,PinStyle="Output"}, 
+	{Name="PresetList",ControlType="Text",TextBoxType="ListBox",Count=1,UserPin=true,PinStyle="Output"},
+    
+  --Audio-Video Page	
+    {Name ="Input",ControlType = "Button",ButtonType = "Toggle",Count = 4,UserPin = true,PinStyle = "Both"},
+    {Name="StartContent",ControlType="Button",ButtonType="Momentary",IconType="Icon",Icon="Play",Count=1,UserPin=true,PinStyle="Input"},
+    {Name="StopContent",ControlType="Button",ButtonType="Momentary",IconType="Icon",Icon="Stop",Count=1,UserPin=true,PinStyle="Input"},
+    {Name ="Volume",ControlType = "Knob",ControlUnit = "Integer",Min = 0,Max = 99,Count = 1,UserPin = true,PinStyle = "Input"},
+    {Name ="MicGain",ControlType = "Knob",ControlUnit = "Integer",Min = 0,Max = 24,Count = 8,UserPin = true,PinStyle = "Input"},
+    {Name ="VolumeMute",ControlType = "Button",ButtonType = "Toggle",Count = 1,UserPin = true,PinStyle = "Both"},
+    {Name ="MicMute",ControlType = "Button",ButtonType = "Toggle",Count = 1,UserPin = true,PinStyle = "Both"},
+    
+  --Dialer Page	
+    {Name ="Answer",ControlType = "Button",ButtonType = "Momentary",Count = 1,UserPin = true,PinStyle = "Input"},
+    {Name ="Reject",ControlType = "Button",ButtonType = "Momentary",Count = 1,UserPin = true,PinStyle = "Input"},
+    {Name ="EndCall",ControlType = "Button",ButtonType = "Momentary",Count = 1,UserPin = true,PinStyle = "Input"},
+    {Name ="DialCall",ControlType = "Button",ButtonType = "Momentary",Count = 1,UserPin = true,PinStyle = "Input"},
+    {Name="RecentCalls",ControlType="Text",TextBoxType="ListBox",Count=1,UserPin=true,PinStyle="Output"},
+	{Name ="Keypad",ControlType = "Button",ButtonType = "Trigger",Count = 12,UserPin = true,PinStyle = "Input"},
+	{Name ="KeypadBack",ControlType = "Button",ButtonType = "Trigger",Count = 1,UserPin = true,PinStyle = "Input"},
+	{Name="DString",ControlType="Text",TextBoxType="TextBox",Count=1,UserPin=true,PinStyle="Output"},
+    
+  --Address Book
+	{Name="ActiveCall", ControlType="Indicator", IndicatorType="Led", Count=1, UserPin=true, PinStyle="Output", IsReadOnly=true },
+	{Name ="CUCMGet",ControlType = "Button",ButtonType = "Momentary",Count = 1,UserPin = true,PinStyle = "Input"},
+    {Name ="RecentsGet",ControlType = "Button",ButtonType = "Momentary",Count = 1,UserPin = true,PinStyle = "Input"},
+	{Name ="ContactsGet",ControlType = "Button",ButtonType = "Momentary",Count = 1,UserPin = true,PinStyle = "Input"},
+    {Name ="EndSelectedCall",ControlType = "Button",ButtonType = "Momentary",Count = 1,UserPin = true,PinStyle = "Input"},
+    {Name ="DialSelectedCall",ControlType = "Button",ButtonType = "Momentary",Count = 1,UserPin = true,PinStyle = "Input"},
+    {Name="ContactNames",ControlType="Text",TextBoxType="ListBox",Count=1,UserPin=true,PinStyle="Output"},  
+	{Name="SearchString",ControlType="Text",TextBoxType="TextBox",Count=1,UserPin=true,PinStyle="Output"},
+	
+	
+	
+  --Keyboard  
+	{Name ="Keyboard",ControlType = "Button",ButtonType = "Trigger",Count = 47,UserPin = true,PinStyle = "Input"},
+	{Name ="KeyboardClear",ControlType = "Button",ButtonType = "Trigger",Count = 1,UserPin = true,PinStyle = "Input"},
+	{Name ="SendPreset",ControlType = "Button",ButtonType = "Toggle",Count = 1,UserPin = true,PinStyle = "Input"},
+	{Name ="Caps",ControlType = "Button",ButtonType = "Toggle",Count = 1,UserPin = true,PinStyle = "Input"},
+	{Name ="Shift1",ControlType = "Button",ButtonType = "Toggle",Count = 1,UserPin = true,PinStyle = "Input"},
+	{Name ="Shift2",ControlType = "Button",ButtonType = "Toggle",Count = 1,UserPin = true,PinStyle = "Input"},
+	{Name ="Backspace",ControlType = "Button",ButtonType = "Trigger",Count = 1,UserPin = true,PinStyle = "Input"},
+	{Name ="Space",ControlType = "Button",ButtonType = "Trigger",Count = 1,UserPin = true,PinStyle = "Input"},
+	{Name ="Return",ControlType = "Button",ButtonType = "Trigger",Count = 1,UserPin = true,PinStyle = "Input"},
+	{Name="KeyText",ControlType="Text",TextBoxType="TextBox",Count=1,UserPin=true,PinStyle="Output"},
+  }
+  return ctrls
+end
+
+--Layout of controls and graphics for the plugin UI to display
+function GetControlLayout(props)
+  local layout = {}
+  local graphics = {}
+  local CurrentPage = PageNames[props["page_index"].Value]
+  local CiscoLogo = "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+DQo8c3ZnDQogICB4bWxuczpzdmc9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIg0KICAgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIg0KICAgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiDQogICB2ZXJzaW9uPSIxLjEiDQogICB3aWR0aD0iMjE2Ig0KICAgaGVpZ2h0PSIxMTQiDQogICBmaWxsPSIjMDQ5ZmQ5Ig0KICAgaWQ9InN2ZzI0Ij4NCiAgPHBhdGgNCiAgICAgZD0ibSAxMDYuNDgsNzYuMjM4IGMgLTAuMjgyLC0wLjA3NyAtNC42MjEsLTEuMTk2IC05LjIzMiwtMS4xOTYgLTguNzMsMCAtMTMuOTg2LDQuNzE0IC0xMy45ODYsMTEuNzM0IDAsNi4yMTQgNC4zOTcsOS4zMTMgOS42NzQsMTAuOTggMC41ODUsMC4xOTMgMS40NDcsMC40NjMgMi4wMjEsMC42NTMgMi4zNDksMC43MzkgNC4yMjQsMS44MzcgNC4yMjQsMy43MzkgMCwyLjEyNyAtMi4xNjcsMy41MDQgLTYuODc4LDMuNTA0IC00LjE0LDAgLTguMTA5LC0xLjE4NCAtOC45NDUsLTEuMzk1IHYgOC42MzcgYyAwLjQ2NiwwLjA5OSA1LjE4MywxLjAyNSAxMC4yMjIsMS4wMjUgNy4yNDgsMCAxNS41MzksLTMuMTY3IDE1LjUzOSwtMTIuNTk1IDAsLTQuNTczIC0yLjgsLTguNzgzIC04Ljk0NywtMTAuNzM3IEwgOTcuNTU5LDg5Ljc1NSBDIDk2LDg5LjI2MyA5My4yMTcsODguNDY2IDkzLjIxNyw4Ni4xODEgYyAwLC0xLjgwNSAyLjA2MiwtMy4wNzYgNS44NTksLTMuMDc2IDMuMjc2LDAgNy4yNjMsMS4xMDEgNy40MDQsMS4xNDUgeiBtIDgwLjA0MSwxOC4yNDMgYyAwLDUuNDYxIC00LjE4Myw5Ljg3OSAtOS43OTYsOS44NzkgLTUuNjE5LDAgLTkuNzkxLC00LjQxOCAtOS43OTEsLTkuODc5IDAsLTUuNDUgNC4xNzIsLTkuODcgOS43OTEsLTkuODcgNS42MTMsMCA5Ljc5Niw0LjQyIDkuNzk2LDkuODcgbSAtOS43OTYsLTE5LjQyNyBjIC0xMS41NDQsMCAtMTkuODIzLDguNzA3IC0xOS44MjMsMTkuNDI3IDAsMTAuNzM3IDguMjc5LDE5LjQzOCAxOS44MjMsMTkuNDM4IDExLjU0MywwIDE5LjgzNCwtOC43MDEgMTkuODM0LC0xOS40MzggMCwtMTAuNzIgLTguMjkxLC0xOS40MjcgLTE5LjgzNCwtMTkuNDI3IE0gNzAuNTYxLDExMy4yNTEgSCA2MS4wODkgViA3NS43MTkgaCA5LjQ3MiINCiAgICAgaWQ9InBhdGgxMCIgLz4NCiAgPHBhdGgNCiAgICAgZD0ibSA0OC4wNyw3Ni4zOTkgYyAtMC44OSwtMC4yNjQgLTQuMTgsLTEuMzQ1IC04LjYzNiwtMS4zNDUgLTExLjUyNiwwIC0xOS45ODcsOC4yMTggLTE5Ljk4NywxOS40MjcgMCwxMi4wOTMgOS4zNCwxOS40MzggMTkuOTg3LDE5LjQzOCA0LjIzLDAgNy40NTksLTEuMDAyIDguNjM2LC0xLjMzNiB2IC0xMC4wNzUgYyAtMC40MDcsMC4yMjYgLTMuNTAzLDEuOTkyIC03Ljk1NywxLjk5MiAtNi4zMSwwIC0xMC4zOCwtNC40NDEgLTEwLjM4LC0xMC4wMTkgMCwtNS43NDggNC4yNDYsLTEwLjAxMSAxMC4zOCwtMTAuMDExIDQuNTMsMCA3LjU3NiwxLjgwNSA3Ljk1NywyLjAwNCINCiAgICAgaWQ9InBhdGgxMiIgLz4NCiAgPHVzZQ0KICAgICB4bGluazpocmVmPSIjcGF0aDEyIg0KICAgICB0cmFuc2Zvcm09InRyYW5zbGF0ZSg5OC44NikiDQogICAgIGlkPSJ1c2UxNCIgLz4NCiAgPGcNCiAgICAgaWQ9ImcyMiI+DQogICAgPHBhdGgNCiAgICAgICBkPSJtIDYxLjA2MSw0Ljc1OSBjIDAsLTIuNTg3IC0yLjExMywtNC42ODUgLTQuNzAzLC00LjY4NSAtMi41ODksMCAtNC43MDIsMi4wOTggLTQuNzAyLDQuNjg1IHYgNDkuODQgYyAwLDIuNjAyIDIuMTEzLDQuNjk5IDQuNzAyLDQuNjk5IDIuNTksMCA0LjcwMywtMi4wOTcgNC43MDMsLTQuNjk5IHogTSAzNS4yMzIsMjIuNDUxIGMgMCwtMi41ODYgLTIuMTEyLC00LjY4NyAtNC43MDIsLTQuNjg3IC0yLjU5LDAgLTQuNzAyLDIuMTAxIC00LjcwMiw0LjY4NyB2IDIyLjc4NSBjIDAsMi42MDEgMi4xMTIsNC42OTkgNC43MDIsNC42OTkgMi41OSwwIDQuNzAyLC0yLjA5OCA0LjcwMiwtNC42OTkgeiBNIDkuNDA0LDM1LjM4MyBDIDkuNDA0LDMyLjc5NiA3LjI5MiwzMC42OTkgNC43MDIsMzAuNjk5IDIuMTE1LDMwLjY5OSAwLDMyLjc5NiAwLDM1LjM4MyB2IDkuODUzIGMgMCwyLjYwMSAyLjExNSw0LjY5OSA0LjcwMiw0LjY5OSAyLjU5LDAgNC43MDIsLTIuMDk4IDQuNzAyLC00LjY5OSINCiAgICAgICBpZD0icGF0aDE2IiAvPg0KICAgIDx1c2UNCiAgICAgICB4bGluazpocmVmPSIjcGF0aDE2Ig0KICAgICAgIHRyYW5zZm9ybT0ibWF0cml4KC0xLDAsMCwxLDExMi43MTcsMCkiDQogICAgICAgaWQ9InVzZTE4IiAvPg0KICA8L2c+DQogIDx1c2UNCiAgICAgeGxpbms6aHJlZj0iI2cyMiINCiAgICAgdHJhbnNmb3JtPSJtYXRyaXgoLTEsMCwwLDEsMjE2LDApIg0KICAgICBpZD0idXNlMjAiIC8+DQo8L3N2Zz4NCg=="
+  
+  
+if CurrentPage == "Setup" then
+  -- Controls
+    layout["IPAddress"]={PrettyName="Setup~Device's IP Address",Style="Text",Position={124,110},Size={105,16}}
+    layout["ConnectionType"]={PrettyName="Setup~Connection Type",Style="ComboBox",Position={124,133},Size={105,16}}
+    layout["UserName"]={PrettyName="Setup~User Name",Style="Text",Position={124,160},Size={105,16}}
+    layout["Password"]={PrettyName="Setup~Password",Style="Text",Position={124,186},Size={105,16}}
+    layout["ProductID"]={PrettyName="Setup~Product ID",Style="Text",IsReadOnly=true,Position={124,246},Size={105,16}}
+    layout["DisplayName"]={PrettyName="Setup~Unit Name",Style="Text",IsReadOnly=true,Position={124,271},Size={105,16}}
+    layout["Version"]={PrettyName="Setup~Software Version",Style="Text",IsReadOnly=true,Position={124,296},Size={105,16}}
+    layout["Status"]={PrettyName="Setup~Device's Connection Status",Style="Textdisplay",FontSize=14,Color=White,IsReadOnly=true,Position={21,353},Size={231,32}}
+
+    
+    -- Groupbox
+    table.insert(graphics,{Type="GroupBox",Fill={255,255,255},StrokeWidth=0,CornerRadius=0,Position={0,0},Size={273,415}})
+    table.insert(graphics,{Type="GroupBox",Fill={225,225,225},StrokeWidth=0,CornerRadius=0,Position={0,0},Size={273,48}})
+    table.insert(graphics,{Type="GroupBox",Fill={225,225,225},StrokeWidth=0,CornerRadius=0,Position={6,76},Size={261,332}})
+    -- Headers
+    table.insert(graphics,{Type="Header",Text="Connect to Device",Position={16,88},Size={241,6},FontSize=14})
+    table.insert(graphics,{Type="Header",Text="Device Information",Position={16,222},Size={241,6},FontSize=14})
+    table.insert(graphics,{Type="Header",Text="Connection Status",Position={16,332},Size={241,6},FontSize=14})
+    -- Logo
+    table.insert(graphics,{Type="Svg",Image=CiscoLogo,Position={99,4},Size={75,40}})
+    -- Text
+    table.insert(graphics,{Type="Label",Text="Connection Setup",Position={6,54},Size={150,22},Color="Black",FontSize=18,Font="Roboto",FontStyle="Bold",HTextAlign="Left"})
+    table.insert(graphics,{Type="Text",Text="IP Address:",Position={26,110},Size={86,16},Color="Black",FontSize=11,HTextAlign="Right"})
+    table.insert(graphics,{Type="Text",Text="Connection Type:",Position={20,133},Size={92,16},Color="Black",FontSize=11,HTextAlign="Right"})
+    table.insert(graphics,{Type="Text",Text="User Name:",Position={20,160},Size={92,16},Color="Black",FontSize=11,HTextAlign="Right"})
+    table.insert(graphics,{Type="Text",Text="Password:",Position={20,186},Size={92,16},Color="Black",FontSize=11,HTextAlign="Right"})
+    table.insert(graphics,{Type="Text",Text="Product ID:",Position={20,246},Size={92,16},Color="Black",FontSize=11,HTextAlign="Right"})
+    table.insert(graphics,{Type="Text",Text="Unit Name:",Position={20,271},Size={92,16},Color="Black",FontSize=11,HTextAlign="Right"})
+    table.insert(graphics,{Type="Text",Text="Software Version:",Position={20,296},Size={92,16},Color="Black",FontSize=11,HTextAlign="Right"})
+    -- Version Number
+    table.insert(graphics,{Type="Label",Text=string.format("Version %s",PluginInfo.Version),FontSize=9,Position={205,391},Size={60,12},HTextAlign="Right"})
+    
+  end  
+
+if CurrentPage == "System" then
+  -- Controls
+    layout["ActivateStandby"]={PrettyName="System~Activate Standby",Style="Button",Position={143,110},Size={60,30},Color = {255,25,25}}
+    layout["DeactivateStandby"]={PrettyName="System~Deactivate Standby",Style="Button",Position={143,150},Size={60,30},Color = {0,25,200}} 
+	layout["PowerStatus"] = {PrettyName="System~Active", Style="LED", Color={ 0, 25, 200 }, OffColor={ 255, 0, 0 }, UnlinkOffColor=true, CornerRadius=15, Position={240, 52}, Size={20,20} } --PowerStatus
+  -- Groupbox
+    table.insert(graphics,{Type="GroupBox",Fill={255,255,255},StrokeWidth=0,CornerRadius=0,Position={0,0},Size={273,270}})
+    table.insert(graphics,{Type="GroupBox",Fill={225,225,225},StrokeWidth=0,CornerRadius=0,Position={0,0},Size={273,48}})
+    table.insert(graphics,{Type="GroupBox",Fill={225,225,225},StrokeWidth=0,CornerRadius=0,Position={6,76},Size={261,190}})
+  -- Headers
+    table.insert(graphics,{Type="Header",Text="Standby",Position={16,88},Size={241,6},FontSize=14})
+  -- Logo
+    table.insert(graphics,{Type="Svg",Image=CiscoLogo,Position={99,4},Size={75,40}})
+  -- Text
+    table.insert(graphics,{Type="Text",Text="Codec Active",Position={227,20},Size={45,30},Color="Black",FontSize=8,HTextAlign="Center"})
+	table.insert(graphics,{Type="Label",Text="System Control",Position={6,54},Size={150,22},Color="Black",FontSize=18,Font="Roboto",FontStyle="Bold",HTextAlign="Left"})
+    table.insert(graphics,{Type="Text",Text="Standby Active:",Position={10,110},Size={126,30},Color="Black",FontSize=11,HTextAlign="Right"})
+    table.insert(graphics,{Type="Text",Text="Standby Off:",Position={10,150},Size={126,30},Color="Black",FontSize=11,HTextAlign="Right"})
+end
+
+if CurrentPage == "Cameras" then
+  -- Controls
+    layout["Camera 1"]={PrettyName="Cameras~Camera 1",Style="Button", Position={120,110}, Size={60,30}}
+	layout["Camera 2"]={PrettyName="Cameras~Camera 2",Style="Button", Position={200,110}, Size={60,30}}
+    layout["DPadUp"]={PrettyName="Cameras~TiltUp",Style="Button",Position={169,175},Size={36,20},Color = {0,0,0}}
+    layout["DPadDown"]={PrettyName="Cameras~TiltDown",Style="Button",Position={169,235},Size={36,20},Color = {0,0,0}}
+    layout["DPadLeft"]={PrettyName="Cameras~PanLeft",Style="Button",Position={123,205},Size={36,20},Color = {0,0,0}}
+    layout["DPadRight"]={PrettyName="Cameras~PanRight",Style="Button",Position={215,205},Size={36,20},Color = {0,0,0}}
+    layout["DPadHome"]={PrettyName="Cameras~Home",Style="Button",Position={169,205},Size={36,20},Color = {0,0,0}}
+    layout["ZoomIn"]={PrettyName="Cameras~ZoomIn",Style="Button",Position={123,265},Size={36,20},Color = {0,0,0}}
+    layout["ZoomOut"]={PrettyName="Cameras~ZoomOut",Style="Button",Position={169,265},Size={36,20},Color = {0,0,0}}
+    layout["SelfView"]={PrettyName="Cameras~SelfView",Style="Button", Legend="Self View", Position={27,307},Size={82,30},Color = {0,150,150}}
+    layout["FullScreen"]={PrettyName="Cameras~FullScreen",Style="Button",Legend="Full Screen",Position={164,307},Size={82,30},Color = {0,0,0}}
+	
+    layout["PresetText"]={PrettyName="Cameras~Preset Text",Style="Text",FontSize = 14, Position={120,365},Size={137,30}}
+	layout["PresetList"]={PrettyName="Cameras~Preset List",Style="ListBox",FontSize = 14, Position={16,405},Size={241,180}}
+	layout["PresetActivate"]={PrettyName="Cameras~Preset~Activate",Style="Button",Legend="Activate",Position={15,600},Size={60,20}}
+	layout["PresetStore"]={PrettyName="Cameras~Preset~Store",Style="Button",Legend="Store",Position={77,600},Size={60,20}}
+	layout["PresetRequest"]={PrettyName="Cameras~Preset~Request",Style="Button",Legend="Request",Position={139,600},Size={60,20}} --Remove
+	layout["PresetRemove"]={PrettyName="Cameras~Preset~Remove",Style="Button",Legend="Remove",Position={200,600},Size={60,20}} 
+	
+    local keyStr = {"1", "2", "3", "4", "5", "6"}
+    local keyX = {123, 169, 215, 123, 169, 215}
+    local keyY = {530, 530, 530, 590, 590, 590}
+    
+    for i = 1, 6 do
+  			layout["Preset "..i] = {PrettyName = "Preset~"..keyStr[i],Style = "Button",Legend = keyStr[i],Position = { keyX[i], keyY[i] + 15 },Size = { 36, 20 }}
+    end
+    
+  -- Groupbox
+    table.insert(graphics,{Type="GroupBox",Fill={255,255,255},StrokeWidth=0,CornerRadius=0,Position={0,0},Size={273,650}})
+    table.insert(graphics,{Type="GroupBox",Fill={225,225,225},StrokeWidth=0,CornerRadius=0,Position={0,0},Size={273,48}})
+    table.insert(graphics,{Type="GroupBox",Fill={225,225,225},StrokeWidth=0,CornerRadius=0,Position={6,76},Size={261,570}})
+  -- Headers
+    table.insert(graphics,{Type="Header",Text="Camera Select",Position={16,88},Size={241,6},FontSize=14})
+    table.insert(graphics,{Type="Header",Text="Camera D-Pad",Position={16,150},Size={241,6},FontSize=14})
+    table.insert(graphics,{Type="Header",Text="Presets",Position={16,347},Size={241,6},FontSize=14})
+  -- Logo
+    table.insert(graphics,{Type="Svg",Image=CiscoLogo,Position={99,4},Size={75,40}})
+  -- Text
+    table.insert(graphics,{Type="Label",Text="Camera Control",Position={6,54},Size={150,22},Color="Black",FontSize=18,Font="Roboto",FontStyle="Bold",HTextAlign="Left"})
+    table.insert(graphics,{Type="Text",Text="Select Camera:",Position={10,110},Size={100,30},Color="Black",FontSize=11,HTextAlign="Right"})
+    table.insert(graphics,{Type="Text",Text="Camera Pan-Tilt:",Position={10,205},Size={90,20},Color="Black",FontSize=11,HTextAlign="Right"})
+    table.insert(graphics,{Type="Text",Text="Camera Zoom:",Position={10,265},Size={90,20},Color="Black",FontSize=11,HTextAlign="Right"})
+    table.insert(graphics,{Type="Text",Text="Preset Store Name:",Position={16,365},Size={100,30},Color="Black",FontSize=11,HTextAlign="Right"})
+    
+end
+
+if CurrentPage == "Audio-Video" then
+  -- Controls
+    layout["Volume"]={PrettyName="Audio-Video~Volume",Style="Fader",Position={12,110},Size={249,40}}
+    layout["VolumeMute"]={PrettyName="Audio-Video~Mute",Style="Button", Legend="Mute", Position={37,170},Size={200,25},Color = {255,0,0}}
+    
+    local sliderY = {210, 240, 270, 300, 330, 360, 390, 420}
+    
+    for i = 1, 8 do
+        layout["MicGain "..i]={PrettyName="Audio-Video~Mic Gain "..i,Style="Fader",Position = {95,sliderY[i] },Size={150,20}}
+    end
+    
+    layout["MicMute"]={PrettyName="Audio-Video~Mic Mute",Style="Button", Legend="Mute", Position={37,460},Size={200,25},Color = {255,0,0}}
+    
+    local inputStr = {"1", "2", "3", "4"}
+    local inputX = {100, 140, 180, 220}
+    
+    for i = 1, 4 do
+  			layout["Input "..i] = {PrettyName = "Audio-Video~Input "..inputStr[i],Style = "Button",Legend = inputStr[i],Position = { inputX[i], 540},Size = {40,20}}
+    end
+    
+    layout["StartContent"]={PrettyName="Audio-Video~Start",Style="Button", Legend="Start", Position={32,580},Size={82,20},Color = {20,150,20}}
+    layout["StopContent"]={PrettyName="Audio-Video~Stop",Style="Button",Legend="Stop",Position={169,580},Size={82,20},Color = {255,0,0}}
+    
+    
+  -- Groupbox
+    table.insert(graphics,{Type="GroupBox",Fill={255,255,255},StrokeWidth=0,CornerRadius=0,Position={0,0},Size={273,610}})
+    table.insert(graphics,{Type="GroupBox",Fill={225,225,225},StrokeWidth=0,CornerRadius=0,Position={0,0},Size={273,48}})
+    table.insert(graphics,{Type="GroupBox",Fill={225,225,225},StrokeWidth=0,CornerRadius=0,Position={6,76},Size={261,530}})
+  -- Headers
+    table.insert(graphics,{Type="Header",Text="Volumes and Mutes",Position={16,88},Size={241,6},FontSize=14})
+    table.insert(graphics,{Type="Header",Text="Content",Position={16,510},Size={241,16},FontSize=14})
+  -- Logo
+    table.insert(graphics,{Type="Svg",Image=CiscoLogo,Position={99,4},Size={75,40}})
+  -- Text
+    table.insert(graphics,{Type="Label",Text="Audio Video Control",Position={6,54},Size={250,22},Color="Black",FontSize=18,Font="Roboto",FontStyle="Bold",HTextAlign="Left"})
+    table.insert(graphics,{Type="Text",Text="Volume",Position={12,145},Size={249,20},Color="Black",FontSize=11,HTextAlign="Center"})
+    for i = 1, 8 do
+        table.insert(graphics,{Type="Text",Text="Mic Gain "..i..":",Position={12,sliderY[i]},Size={75,20},Color="Black",FontSize=11,HTextAlign="Right"})
+    end
+    table.insert(graphics,{Type="Text",Text="Video Inputs:",Position={10,540},Size={80,20},Color="Black",FontSize=11,HTextAlign="Right"})
+    
+end
+
+
+if CurrentPage == "Dialer" then
+  -- Controls
+    layout["ActiveCall"] = {PrettyName="Dialer~Call Connected", Style="LED", Color={ 0, 255, 0 }, OffColor={ 255, 0, 0 }, UnlinkOffColor=true, CornerRadius=15, Position={240, 52}, Size={20,20} } --PowerStatus
+    layout["Backspace"] = {Style = "Button",Legend = "X", Position = { 227, 320 },Size = { 30, 30 }}
+	layout["RecentCalls"]={PrettyName="Dialer~Recent Calls",Style="ListBox",Position={16,110},Size={241,150}}
+	layout["DString"]={PrettyName="Dialer~Dial String",Style="Text",IsReadOnly=true, TextFontSize = 18, Color = { 204, 204, 204 },Position={46,320},Size={181,30}}
+	layout["DialCall"] = {PrettyName = "Dialer~Answer~Answer",Style = "Button",Legend = "Dial",Position = {40, 540},Size = {80,30}}
+    layout["EndCall"] = {PrettyName = "Dialer~Reject~Reject",Style = "Button",Legend = "End",Position = {160, 540},Size = {80,30}}
+	
+	
+    local keypadStr = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "#", "0", "*"}
+    local keypadX = {80, 120, 160, 80, 120, 160, 80, 120, 160, 80, 120, 160}
+    local keypadY = {360, 360, 360, 400, 400, 400, 440, 440, 440, 480, 480, 480}
+    
+    for i = 1, 12 do
+  			layout["Keypad "..i] = {PrettyName = "Dialer~Keypad~"..keypadStr[i],Style = "Button",Legend = keypadStr[i],Position = { keypadX[i], keypadY[i] },Size = { 40, 40 }}
+    end  
+    
+  -- Groupbox
+    table.insert(graphics,{Type="GroupBox",Fill={255,255,255},StrokeWidth=0,CornerRadius=0,Position={0,0},Size={273,600}})
+    table.insert(graphics,{Type="GroupBox",Fill={225,225,225},StrokeWidth=0,CornerRadius=0,Position={0,0},Size={273,48}})
+    table.insert(graphics,{Type="GroupBox",Fill={225,225,225},StrokeWidth=0,CornerRadius=0,Position={6,76},Size={261,520}})
+  -- Headers
+    table.insert(graphics,{Type="Header",Text="Recent Calls",Position={16,88},Size={241,6},FontSize=14})
+    table.insert(graphics,{Type="Header",Text="Keypad",Position={16,280},Size={241,16},FontSize=14})
+  -- Logo
+    table.insert(graphics,{Type="Svg",Image=CiscoLogo,Position={99,4},Size={75,40}})
+  -- Text
+    table.insert(graphics,{Type="Label",Text="Call Control",Position={6,52},Size={250,22},Color="Black",FontSize=18,Font="Roboto",FontStyle="Bold",HTextAlign="Left"})
+	table.insert(graphics,{Type="Text",Text="Call Connected",Position={227,20},Size={45,30},Color="Black",FontSize=8,HTextAlign="Center"})
+	table.insert(graphics,{Type="Text",Text="Dial String",Position={16,295},Size={241,30},Color="Black",FontSize=12,HTextAlign="Center"})
+    
+    
+end
+
+if CurrentPage == "Address Book" then
+  -- Controls
+    
+    layout["ActiveCall"] = {PrettyName="Dialer~Call Connected", Style="LED", Color={ 0, 255, 0 }, OffColor={ 255, 0, 0 }, UnlinkOffColor=true, CornerRadius=15, Position={240, 52}, Size={20,20} }
+	layout["ContactNames"]={PrettyName="Address Book~Contact Names",Style="ListBox",Position={16,175},Size={241,250}}
+	layout["SearchString"]={PrettyName="Address Book~Search",Style="Text", TextFontSize = 18, Color = { 204, 204, 204 },Position={16,110},Size={241,30}}
+	layout["DialSelectedCall"] = {PrettyName = "Address Book~Dial",Style = "Button",Legend = "Dial",Position = {40, 440},Size = {80,30}}
+    layout["EndSelectedCall"] = {PrettyName = "Address Book~End",Style = "Button",Legend = "End",Position = {160, 440},Size = {80,30}}
+	
+	layout["CUCMGet"] = {PrettyName = "Address Book~CUCM Get",Style = "Button",Legend = "CUCM",Position = {20, 480},Size = {80,30}}
+	layout["RecentsGet"] = {PrettyName = "Address Book~Recents Get",Style = "Button",Legend = "Recent",Position = {100, 480},Size = {80,30}}
+	layout["ContactsGet"] = {PrettyName = "Address Book~Contacts Get",Style = "Button",Legend = "Contacts",Position = {180, 480},Size = {80,30}}
+
+    
+  -- Groupbox
+    table.insert(graphics,{Type="GroupBox",Fill={255,255,255},StrokeWidth=0,CornerRadius=0,Position={0,0},Size={273,600}})
+    table.insert(graphics,{Type="GroupBox",Fill={225,225,225},StrokeWidth=0,CornerRadius=0,Position={0,0},Size={273,48}})
+    table.insert(graphics,{Type="GroupBox",Fill={225,225,225},StrokeWidth=0,CornerRadius=0,Position={6,76},Size={261,520}})
+	
+  -- Headers
+    table.insert(graphics,{Type="Header",Text="Contact Selected",Position={16,88},Size={241,6},FontSize=14})
+    table.insert(graphics,{Type="Header",Text="Contacts",Position={16,150},Size={241,16},FontSize=14})
+  -- Logo
+    table.insert(graphics,{Type="Svg",Image=CiscoLogo,Position={99,4},Size={75,40}})
+  -- Text
+    table.insert(graphics,{Type="Label",Text="Address Book",Position={6,52},Size={250,22},Color="Black",FontSize=18,Font="Roboto",FontStyle="Bold",HTextAlign="Left"})
+	table.insert(graphics,{Type="Text",Text="Call Connected",Position={227,20},Size={45,30},Color="Black",FontSize=8,HTextAlign="Center"})
+    
+    
+end
+
+ 
+	
+if CurrentPage == "Keyboard" then
+  -- Controls
+    
+    local keyboardStr = {"1","2","3","4","5","6","7","8","9","0","-","=","`","q","w","e","r","t","y","u","i","o","p","{","}","\\","a","s","d","f","g","h","j","k","l",";","'","z","x","c","v","b","n","m",",",".","/"}
+    local keypadX = {36, 56, 76, 96, 116, 136, 156, 176, 196, 216, 236, 256, 276, 296, 316}
+    local keypadY = {108, 128, 148, 168, 188}
+    
+	layout["ActiveCall"] = {PrettyName="Dialer~Call Connected", Style="LED", Color={ 0, 255, 0 }, OffColor={ 255, 0, 0 }, UnlinkOffColor=true, CornerRadius=15, Position={360, 52}, Size={20,20} }
+	layout["KeyText"]={PrettyName="Keyboard~Key Text",Style="Text",IsReadOnly=true,TextFontSize = 14, Color = { 204, 204, 204 }, Position={16,84},Size={356 ,20}}
+	layout["KeyboardClear"] = {Style = "Button",Legend = "Clear",Position = { 306, keypadY[2] },Size = { 50, 20 }}
+	layout["SendPreset"] = {Style = "Button",Legend = "Send to Preset",Position = { 315, keypadY[3] },Size = { 50, 40 }}
+	layout["Backspace"] = {Style = "Button",Legend = "Backspace",Position = { 296, keypadY[1] },Size = { 60, 20 }}
+	layout["Caps"] = {Style = "Button",Legend = "Caps",Position = { 16, keypadY[3] },Size = { 40, 20 }}
+	layout["Return"] = {Style = "Button",Legend = "Return",Position = {276, keypadY[3] },Size = { 40, 20 }}
+	layout["Space"] = {Style = "Button",Legend = "Space",Position = {86, keypadY[5] },Size = { 120, 20 }}
+	layout["Shift1"] = {Style = "Button",Legend = "Shift",Position = { 16, keypadY[4] },Size = { 50, 20 }}
+	layout["Shift2"] = {Style = "Button",Legend = "Shift",Position = { 266, keypadY[4] },Size = { 50, 20 }}
+	layout["DialCall"] = {PrettyName = "Dialer~Answer",Style = "Button",Legend = "Dial",Position = {226, keypadY[5]},Size = {80,20}}
+    layout["EndCall"] = {PrettyName = "Dialer~Reject",Style = "Button",Legend = "End",Position = {306, keypadY[5]},Size = {80,20}}
+	
+    for i = 1, 47 do 
+  		if i>=38 then
+			if i<=47 then
+				layout["Keyboard "..i] = {PrettyName = "Dialer~Keyboard~"..keyboardStr[i],Style = "Button",Legend = keyboardStr[i],Position = { keypadX[i-37]+30, keypadY[4] },Size = { 20, 20 }}
+			end
+		elseif i>=27 then
+			if i<=37 then
+				layout["Keyboard "..i] = {PrettyName = "Dialer~Keyboard~"..keyboardStr[i],Style = "Button",Legend = keyboardStr[i],Position = { keypadX[i-26]+20, keypadY[3] },Size = { 20, 20 }}
+			end
+		elseif i>=14 then
+			if i<=26 then
+				layout["Keyboard "..i] = {PrettyName = "Dialer~Keyboard~"..keyboardStr[i],Style = "Button",Legend = keyboardStr[i],Position = { keypadX[i-13]+10, keypadY[2] },Size = { 20, 20 }}
+			end
+		else
+			layout["Keyboard "..i] = {PrettyName = "Dialer~Keyboard~"..keyboardStr[i],Style = "Button",Legend = keyboardStr[i],Position = { keypadX[i], keypadY[1] },Size = { 20, 20 }}
+		end
+    end
+	
+  -- Groupbox
+    
+	table.insert(graphics,{Type="GroupBox",Fill={255,255,255},StrokeWidth=0,CornerRadius=0,Position={0,0},Size={400,220}})
+    table.insert(graphics,{Type="GroupBox",Fill={225,225,225},StrokeWidth=0,CornerRadius=0,Position={0,0},Size={400,48}})
+    table.insert(graphics,{Type="GroupBox",Fill={225,225,225},StrokeWidth=0,CornerRadius=0,Position={6,76},Size={388,140}})
+	
+  -- Logo
+    table.insert(graphics,{Type="Svg",Image=CiscoLogo,Position={160,4},Size={75,40}})
+  -- Text
+    table.insert(graphics,{Type="Label",Text="Keyboard",Position={6,52},Size={250,22},Color="Black",FontSize=18,Font="Roboto",FontStyle="Bold",HTextAlign="Left"})
+	table.insert(graphics,{Type="Text",Text="Call Connected",Position={347,20},Size={45,30},Color="Black",FontSize=8,HTextAlign="Center"})
+    
+    
+end	
+	
+return layout, graphics
+end
+
+function GetPins(props)
+  local pins = {}
+  if props["Connection Mode"].Value=="Serial" then
+    table.insert(pins,{Name = "input", Direction = "input", Domain = "serial"})
+  end
+  return pins
+end
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------Start Control Events and Functions--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------
+if Controls then
+
+-- Control Aliases
+	address = Controls.IPAddress
+	ConnectionType = Controls.ConnectionType
+	username = Controls.UserName
+	password = Controls.Password
+	ProductId = Controls.ProductID
+	DisplayName = Controls.DisplayName
+	Version = Controls.Version
+	Status = Controls.Status
+	sshSock = Ssh.New()
+	keytext = Controls.KeyText
+	idial = Controls.DString
+	ActiveCall = Controls.ActiveCall
+	
+-- Connection Mode
+  ConnectionMode=Properties["Connection Mode"].Value
+
+-- Timers
+	timer = Timer.New()
+	heartbeat = Timer.New()
+	recontimer = Timer.New()
+	calltimer = Timer.New()
+	callendtimer = Timer.New()
+	PressHoldTimer = Timer.New()
+  
+  
+-- Lookup Tables
+	ConnectionTypes={"Telnet","SSH"}
+	StatusState={OK=0,COMPROMISED=1,FAULT=2,NOTPRESENT=3,MISSING=4,INITIALIZING=5}
+	keysl = {"1","2","3","4","5","6","7","8","9","0","-","=","`","q","w","e","r","t","y","u","i","o","p","{","}","\\","a","s","d","f","g","h","j","k","l",";","'","z","x","c","v","b","n","m",",",".","/"}
+	keysu = {"!","@","#","$","%","^","&","*","(",")","_","+","~","Q","W","E","R","T","Y","U","I","O","P","{","}","|","A","S","D","F","G","H","J","K","L",":","\"","Z","X","C","V","B","N","M","<",">","?"}
+	contacts = {}
+	CUCM = {}
+	numbers = {}
+	CUCMnumbers = {}
+	recent = {}
+	names = {}
+	meetings = {}
+	ma = {}
+	am = {}
+	PreIDList = {}
+	Controls.ContactNames.Choices = {}
+	Controls.RecentCalls.Choices = {}
+
+
+-- Constants
+  ConnectionType.Choices=ConnectionTypes
+  EOL="\n"
+  baud=115200
+  databits=8
+  parity="N" 
+
+timer.EventHandler = function()  --
+  --sshSock:Write ("\n")
+  sshSock:Write ("xConfiguration Peripherals Profile ControlSystems: 1\n")
+  --00:19:0F:26:0E:F4  \x22\x30\x30\x3A\x31\x39\x3A\x30\x46\x3A\x32\x36\x3A\x30\x45\x3A\x46\x34\x22
+  sshSock:Write ("xCommand Peripherals Connect ID: \"00:1B:21:E8:56:23\" Name: \"QSC Core\" SerialNumber: \"12345\" Type: ControlSystem\n")
+  sshSock:Write ("xFeedback Register /Status/Standby/State\n")
+  sshSock:Write ("xFeedback Register /Current/Id\n")
+  sshSock:Write ("xFeedback Register /Status/Call\n")
+  sshSock:Write ("xStatus Audio Microphones Mute\n")  
+  sshSock:Write ("xFeedback Register /Status/Audio/Microphones/Mute\n")
+  sshSock:Write ("xFeedback Register /Status/Audio/Volume/Mute\n")
+  sshSock:Write ("xFeedback Register /Status/Audio/Volume\n")
+  sshSock:Write ("xFeedback Register /Status/Conference/Presentation\n")
+  sshSock:Write ("xStatus Conference Presentation\n")
+  sshSock:Write ("xFeedback Register /Status/Video/Input\n")
+  sshSock:Write ("xFeedback Register /Status/Video/Selfview\n")
+  sshSock:Write ("xStatus Audio Microphones Mute\n")
+  sshSock:Write ("xStatus SystemUnit ProductId\n")
+  sshSock:Write ("xStatus SystemUnit Software DisplayName\n")
+  sshSock:Write ("xStatus SystemUnit Software Version\n")
+  sshSock:Write ("xStatus Standby State\n")
+  sshSock:Write ("xCommand Camera Preset List\n")
+  --sshSock:Write ("xFeedback register /Current/Id\n") --00:19:0F:26:0E:F4  \x22\x30\x30\x3A\x31\x39\x3A\x30\x46\x3A\x32\x36\x3A\x30\x45\x3A\x46\x34\x22
+  --sshSock:Write("xCommand CallHistory Recents Filter: All DetailLevel: Basic Order: OccurrenceTime\n")
+  
+  heartbeat:Start(30)  
+  timer:Stop()
+end
+
+-- Connection Modes
+  function SerialMode()
+    if DebugFunct then print("SerialMode() Called") end
+    IPAddress.String,ConnectionType.String,UserName.String,Password.String="Serial Mode","RS-232","Serial Mode","Serial Mode"
+    IPAddress.IsDisabled,ConnectionType.IsDisabled,UserName.IsDisabled,Password.IsDisabled=true,true,true,true
+    CtrlMatch="\"(.+):(.+)\""
+  end
+  
+  function EthernetMode()
+    if DebugFunct then print("EthernetMode() Called") end
+    if IPAddress.String=="Serial Mode" then IPAddress.String="" end
+    if ConnectionType.String=="RS-232" or ConnectionType.String=="" then ConnectionType.String="Select Type" end
+    if UserName.String=="Serial Mode" then UserName.String="" end
+    if Password.String=="Serial Mode" then Password.String="" end
+    IPAddress.IsDisabled,ConnectionType.IsDisabled,UserName.IsDisabled,Password.IsDisabled=false,false,false,false
+    CtrlMatch="(.+):(.+)"
+  end
+  
+
+--[[calltimer.EventHandler = function()
+    if callid ~= nil then
+        Cisco = ("xStatus Call "..callid.." Status\n")
+        print("Call Status Sent: "..Cisco)
+        sshSock:Write(Cisco)
+    end
+    calltimer:Stop()
+end]]--
+
+
+heartbeat.EventHandler = function() 
+    Cisco = ("xCommand Peripherals HeartBeat ID: \"00:1B:21:E8:56:23\"\n")
+    sshSock:Write(Cisco)
+end
+
+recontimer.EventHandler = function()
+  ConnectSSH()
+  recontimer:Stop()
+end
+
+recontimer.EventHandler = function()
+  ConnectSSH()
+  recontimer:Stop()
+end
+
+for i, w in ipairs(Controls.Keyboard) do
+  if Controls.Caps.Boolean == true then
+	w.Legend = keysu[i]
+  elseif Controls.Shift1.Boolean == true then
+	w.Legend = keysu[i]
+  else
+	w.Legend = keysl[i]
+  end
+  w.EventHandler = function()
+	if Controls.SendPreset.Boolean == true then
+		Controls.PresetText.String = Controls.PresetText.String..w.Legend
+		keytext.String = keytext.String..w.Legend
+		Controls.PresetText.String = keytext.String
+		PresetName = Controls.PresetText.String
+	else
+		keytext.String = keytext.String..w.Legend
+		idial.String = keytext.String
+	end
+  end
+end
+
+for i,w in pairs(Controls.Keypad) do
+  if i < 10 then j = i end
+  if i == 10 then j = "0" end
+  if i == 11 then j = "#" end
+  if i == 12 then j = "*" end
+  w.Legend = j
+  w.EventHandler = function()
+    if DTMF == true then
+      Cisco = ("xCommand Call DTMFSend CallID: "..callid.." DTMFString: "..i.."\n")
+      sshSock:Write(Cisco)
+    else
+	  keytext.String = keytext.String..w.Legend
+	  idial.String = keytext.String
+    end
+  end
+end
+
+Controls.Caps.EventHandler = function()  
+	for i, v in ipairs(keysl) do
+		Controls.Keyboard[i].Legend = Controls.Caps.Boolean and keysu[i] or keysl[i]
+	end 
+end
+
+Controls.Space.EventHandler = function() 
+	if Controls.SendPreset.Boolean == true then
+		keytext.String = keytext.String.." "
+		Controls.PresetText.String = keytext.String
+		PresetName = Controls.PresetText.String
+	else
+		keytext.String = keytext.String.." "
+		idial.String = keytext.String
+	end
+end
+
+Controls.KeyboardClear.EventHandler = function() 
+	if Controls.SendPreset.Boolean == true then
+		keytext.String = ""
+		Controls.PresetText.String = keytext.String
+		PresetName = Controls.PresetText.String
+	else
+		keytext.String = ""
+		idial.String = keytext.String
+	end
+end
+
+Controls.Shift1.EventHandler = function() 
+	if Controls.Shift1.Boolean == false then 
+		Controls.Caps.Boolean = false 
+	end
+	Controls.Shift2.Boolean = Controls.Shift1.Boolean
+	for i, v in ipairs(keysl) do
+		Controls.Keyboard[i].Legend = Controls.Shift1.Boolean and keysu[i] or keysl[i]
+	end
+end
+Controls.Shift2.EventHandler = function() 
+	if Controls.Shift2.Boolean == false then 
+		Controls.Caps.Boolean = false 
+	end 
+	Controls.Shift1.Boolean = Controls.Shift2.Boolean
+	for i, v in ipairs(keysl) do
+		Controls.Keyboard[i].Legend = Controls.Shift1.Boolean and keysu[i] or keysl[i]
+	end
+end
+
+Controls.Backspace.EventHandler = function ()
+    if Controls.Backspace.Boolean then 
+      PressHoldTimer:Start(3)
+    else 
+      PressHoldTimer:Stop() 
+	  if Controls.SendPreset.Boolean == true then
+		keytext.String = string.sub(keytext.String,1, -2)
+		Controls.PresetText.String = keytext.String
+		PresetName = Controls.PresetText.String
+	  else
+		keytext.String = string.sub(keytext.String,1, -2)
+		idial.String = keytext.String
+	  end
+      
+    end 
+end
+
+Controls.ContactNames.EventHandler = function(ctl)
+if Controls.CUCMGet.Boolean == true then
+  for i, v in ipairs(CUCM) do
+      if v == ctl.String then
+          print(CUCMnumbers[i])
+          idial = CUCMnumbers[i]
+          Controls.SearchString.String = Controls.ContactNames.Choices[i]
+      end
+  end
+else
+  for i, v in ipairs(contacts) do
+      if v == ctl.String then
+          print(numbers[i])
+          idial = numbers[i]
+          Controls.SearchString.String = Controls.ContactNames.Choices[i]
+      end
+  end
+end
+end
+
+Controls.RecentCalls.EventHandler = function(ctl)
+ for i, v in ipairs(names) do
+    if v == ctl.String then
+        print("Number to Call"..recent[i])
+        idial.String = recent[i]
+    end
+  end
+end
+
+Controls.EndCall.EventHandler = function()
+    Cisco = ("xCommand Call Disconnect CallId:0\n")
+    print(Cisco)
+    sshSock:Write(Cisco)
+    DTMF = false
+    callendtimer:Start(5)
+	ActiveCall.Boolean = false
+    calltimer:Stop()
+    Cisco = ("xCommand CallHistory Recents Filter: All Limit: 15 DetailLevel: Basic Order: OccurrenceTime\n")
+    sshSock:Write(Cisco)
+end
+
+Controls.DialCall.EventHandler = function()
+    dial = idial.String
+    Cisco = ("xCommand Dial Number:"..dial.."\n")
+    idial.String = ""
+    dial = ""
+    DTMF = true
+    print(Cisco)
+    sshSock:Write(Cisco)
+end
+
+Controls.ActivateStandby.EventHandler = function()
+  Cisco = ("xCommand Standby Activate\n")
+  Controls.ActivateStandby.Boolean = true
+  Controls.DeactivateStandby.Boolean = false
+  Controls.PowerStatus.Boolean = false
+  print(Cisco)
+  sshSock:Write(Cisco)
+end
+
+Controls.DeactivateStandby.EventHandler = function()
+  Cisco = ("xCommand Standby Deactivate\n")
+  Controls.ActivateStandby.Boolean = false
+  Controls.DeactivateStandby.Boolean = true
+  Controls.PowerStatus.Boolean = true
+  print(Cisco)
+  sshSock:Write(Cisco)
+end
+
+Controls.MicMute.EventHandler = function()
+  Cisco = ("xCommand Audio Microphones ToggleMute\n")
+  print("xCommand Audio Microphones ToggleMute\n")
+  sshSock:Write(Cisco)
+end
+
+Controls.VolumeMute.EventHandler = function()
+  print("xCommand Audio Volume ToggleMute\n")
+  sshSock:Write("xCommand Audio Volume ToggleMute\n")
+end
+
+Controls.Volume.EventHandler = function() --MicGain
+  a = tostring(Controls.Volume.Value)
+  a = string.sub(a,1, 2)
+  print("Volume: "..a)
+  print("xCommand Audio Volume Set Level: "..a.."\n")
+  sshSock:Write("xCommand Audio Volume Set Level: "..a.."\n")
+end
+
+for i,Ctrl in pairs (Controls.MicGain) do
+	Ctrl.EventHandler = function() --MicGain
+		ma[i] = tostring(Controls.MicGain[i].Value)
+		ma[i] = string.match(ma[i],"%d+") --string.match(a,"%d+")
+		am[i] = tostring(i)
+		print("MicGain "..i..": "..ma[i])
+		print("xConfiguration Audio Input Microphone "..am[i].." Level: "..ma[i].."\n")
+		sshSock:Write("xConfiguration Audio Input Microphone "..am[i].." Level: "..ma[i].."\n")
+	end
+end
+
+function AlloffExcept(n)
+  for i,Ctrl in pairs (Controls.Input) do
+    --if i~= n then Ctrl.Boolean = false     else Ctrl.Boolean = true   end
+    Ctrl.Boolean = i==n
+  end
+end
+
+for i,Ctrl in pairs(Controls.Input) do
+    if i == 1 then
+    Ctrl.Legend = "Camera 1"
+  elseif i == 2 then
+    Ctrl.Legend = "Camera 2"
+  elseif i == 3 then
+    Ctrl.Legend = "Front Wall Plate"
+  elseif i == 4 then
+    Ctrl.Legend = "Cable TV"
+  elseif i == 5 then
+    Ctrl.Legend = "Rear Wall Plate"
+  elseif i == 6 then
+    Ctrl.Legend = "SDI"
+  end
+end
+
+for i,Ctrl in pairs(Controls.Input) do
+  Ctrl.EventHandler = function()  --button eventhandlers
+    AlloffExcept(i)
+    Input = i+1
+    print("Input = "..Input)
+    s = " SendingMode:LocalRemote\n"
+    InputPre = ("xCommand Presentation Start PresentationSource:")
+    Cisco = (InputPre..Input..s)
+    print(Cisco)
+    sshSock:Write(Cisco)
+  end
+end
+
+Controls.StartContent.EventHandler = function()
+    print("Input = "..Input)
+    s = " SendingMode:LocalRemote\n"
+    InputPre = ("xCommand Presentation Start PresentationSource:")
+    Cisco = (InputPre..Input..s)
+    print(Cisco)
+    sshSock:Write(Cisco)
+end
+
+Controls.StopContent.EventHandler = function()
+    InputPre = ("xCommand Presentation Stop PresentationSource:")
+    Cisco = (InputPre..Input.."\n")
+    print(Cisco)
+    sshSock:Write(Cisco)
+end
+
+for i,Control in pairs(Controls.Camera) do
+  Control.Legend = i
+end
+
+Controls.Camera[1].EventHandler = function()
+    icam = 1
+    Controls.Camera[2].Boolean = false
+    Cisco = ("xCommand Video Input SetMainVideoSource SourceId:1\n")
+    print(Cisco)
+    sshSock:Write(Cisco)        
+end
+
+Controls.Camera[2].EventHandler = function()
+    icam = 2
+    Controls.Camera[1].Boolean = false
+    Cisco = ("xCommand Video Input SetMainVideoSource SourceId:2\n")
+    print(Cisco)
+    sshSock:Write(Cisco)        
+end
+
+
+
+Controls.SelfView.EventHandler = function ()
+    if Controls.SelfView.Boolean then
+        Cisco = ("xCommand Video Selfview Set Mode: On\n") 
+        print(Cisco)
+        sshSock:Write(Cisco)
+    else
+        Cisco = ("xCommand Video Selfview Set Mode: Off\n")
+        print(Cisco)
+        sshSock:Write(Cisco)
+    end
+    
+end
+
+Controls.FullScreen.EventHandler = function ()
+    if Controls.FullScreen.Boolean then
+        Cisco = ("xCommand Video Selfview Set FullscreenMode: On\n")
+        print(Cisco)
+        sshSock:Write(Cisco)
+    else
+        Cisco = ("xCommand Video Selfview Set FullscreenMode: Off\n")
+        print(Cisco)
+        sshSock:Write(Cisco)
+    end
+end
+
+Controls.DPadUp.EventHandler = function()
+    if Controls.DPadUp.Boolean then
+        Cisco = ("xCommand Camera Ramp CameraId:"..icam.." Tilt:Up\n")
+        print(Cisco)
+        sshSock:Write(Cisco)        
+    else
+        Cisco = ("xCommand Camera Ramp CameraId:"..icam.." Tilt:Stop\n")
+        print(Cisco)
+        sshSock:Write(Cisco)
+    end
+end
+
+Controls.DPadDown.EventHandler = function()
+    if Controls.DPadDown.Boolean then
+        Cisco = ("xCommand Camera Ramp CameraId:"..icam.." Tilt:Down\n")
+        print(Cisco)
+        sshSock:Write(Cisco)
+    else
+        Cisco = ("xCommand Camera Ramp CameraId:"..icam.." Tilt:Stop\n")
+        print(Cisco)
+        sshSock:Write(Cisco)
+    end
+end
+
+Controls.DPadLeft.EventHandler = function()
+    if Controls.DPadLeft.Boolean then
+        Cisco = ("xCommand Camera Ramp CameraId:"..icam.." Pan:Left\n")
+        print(Cisco)
+        sshSock:Write(Cisco)
+    else
+        Cisco = ("xCommand Camera Ramp CameraId:"..icam.." Pan:Stop\n")
+        print(Cisco)
+        sshSock:Write(Cisco)
+    end
+end
+
+Controls.DPadRight.EventHandler = function()    
+    if Controls.DPadRight.Boolean then
+        Cisco = ("xCommand Camera Ramp CameraId:"..icam.." Pan:Right\n")
+        print(Cisco)
+        sshSock:Write(Cisco)
+    else
+        Cisco = ("xCommand Camera Ramp CameraId:"..icam.." Pan:Stop\n")
+        print(Cisco)
+        sshSock:Write(Cisco)
+    end
+end
+
+Controls.DPadHome.EventHandler = function()    
+    Cisco = ("xCommand Camera Preset ActivateDefaultPosition CameraId:"..icam.." Pan:Right\n")
+    print(Cisco)
+    sshSock:Write(Cisco)
+end
+
+Controls.ZoomIn.EventHandler = function()    
+    if Controls.ZoomIn.Boolean == true then
+        Cisco = ("xCommand Camera Ramp CameraId:"..icam.." Zoom:In\n")
+        print(Cisco)
+        sshSock:Write(Cisco)
+    else
+        Cisco = ("xCommand Camera Ramp CameraId:"..icam.." Zoom:Stop\n")
+        print(Cisco)
+        sshSock:Write(Cisco)
+    end
+end
+
+Controls.ZoomOut.EventHandler = function()    
+    if Controls.ZoomOut.Boolean then
+        Cisco = ("xCommand Camera Ramp CameraId:"..icam.." Zoom:Out\n")
+        print(Cisco)
+        sshSock:Write(Cisco)
+    else
+        Cisco = ("xCommand Camera Ramp CameraId:"..icam.." Zoom:Stop\n")
+        print(Cisco)
+        sshSock:Write(Cisco)
+    end
+end
+
+Controls.PresetText.EventHandler = function()
+	PresetName = Controls.PresetText.String
+	print("Preset Name: "..PresetName)
+end
+
+Controls.PresetActivate.EventHandler = function()
+    Cisco = ("xCommand Camera Preset Activate PresetId: "..pi.."\n")
+    sshSock:Write(Cisco)
+    Controls.PresetActivate.Boolean = false
+end
+
+Controls.PresetStore.EventHandler = function()
+	if PresetName ~= nil then
+		if PresetID == nil then
+			PresetID = 0
+		end
+		cam = tostring(icam)
+		pi = tostring(PresetID+1)
+		Cisco = ("xCommand Camera Preset Store PresetId: "..pi.." CameraId: "..cam.." ListPosition: "..pi.." Name: "..PresetName.."\n")
+		print("Cisco: "..Cisco)
+		sshSock:Write(Cisco)
+		presetlist = {}
+		Cisco = ("xCommand Camera Preset List\n")
+		sshSock:Write(Cisco)
+	end
+	Controls.PresetStore.Boolean = false
+end
+
+Controls.PresetRequest.EventHandler = function()
+    PresetMAX = 0
+    presetlist = {}
+    Cisco = ("xCommand Camera Preset List\n")
+    sshSock:Write(Cisco)
+    Controls.PresetRequest.Boolean = false
+end
+
+Controls.PresetRemove.EventHandler = function()
+    if PresetID <= 1 then
+		pi = tostring(PresetID)
+		Cisco = ("xCommand Camera Preset Remove PresetId: 1\n")
+		sshSock:Write(Cisco)
+		presetlist = {}
+		Controls.PresetList.Choices = presetlist
+		Controls.PresetRemove.Boolean = false
+	else
+		pi = tostring(PresetID)
+		Cisco = ("xCommand Camera Preset Remove PresetId: "..pi.."\n")
+		sshSock:Write(Cisco)
+		presetlist = {}
+		Controls.PresetList.Choices = presetlist
+		Controls.PresetRemove.Boolean = false
+	end
+	Cisco = ("xCommand Camera Preset List\n")
+	sshSock:Write(Cisco)
+	
+	
+end
+
+
+Controls.PresetList.EventHandler = function(ctl)
+ for i, v in ipairs(presetlist) do
+    if v == ctl.String then
+        pi = tostring(i)
+        print("Number to Call: "..presetlist[i])
+    end
+  end
+end
+
+
+PressHoldTimer.EventHandler = function()
+    print("I held out")
+    PressHoldTimer:Stop() 
+	  if Controls.SendPreset.Boolean == true then
+		keytext.String = ""
+		Controls.PresetText.String = keytext.String
+		PresetName = Controls.PresetText.String
+	  else
+		keytext.String = ""
+		idial.String = keytext.String
+	  end    
+end
+
+Controls.RecentsGet.EventHandler = function()
+    Cisco = ("xCommand CallHistory Recents Filter: All Limit: 15 DetailLevel: Basic Order: OccurrenceTime\n")
+    sshSock:Write(Cisco)
+    recent = {}
+    names = {}   
+end
+
+Controls.ContactsGet.EventHandler = function()
+    Cisco = ("xCommand Phonebook Search PhonebookType: Corporate FolderId: \"c_1\" Limit: 500 Offset: 0\n")  --ContactType: Folder FolderId: 1 
+    print(Cisco)
+    sshSock:Write(Cisco)
+    Controls.ContactNames.Choices = contacts
+    Controls.ContactsGet.Boolean = true
+    Controls.CUCMGet.Boolean = false
+    contacts = {}
+    numbers = {}
+end
+
+Controls.CUCMGet.EventHandler = function()
+    Cisco = ("xCommand Phonebook Search PhonebookType: Corporate FolderId: \"c_4\" Limit: 500 Offset: 0\n")  --ContactType: Folder FolderId: 1 
+    print(Cisco)
+    sshSock:Write(Cisco)
+    Controls.ContactNames.Choices = CUCM
+    Controls.ContactsGet.Boolean = false
+    Controls.CUCMGet.Boolean = true
+    CUCM = {}
+    CUCMnumbers = {}
+end
+
+--Controls.send.EventHandler = function()
+    --Cisco = ("xFeedback register /Status/Standby/State\n")
+    --Cisco = ("xCommand CallHistory Recents Filter: All DetailLevel: Basic Order: OccurrenceTime\n")
+    --Cisco = ("xStatus Call "..callid.." Status\n").
+    --Cisco = ("xCommand Peripherals Connect ID: \"00:1B:21:E8:56:23\" Name: \"QSC Core\" SerialNumber: \"12345\" Type: ControlSystem\n")   --xCommand Peripherals HeartBeat ID: "00:10:7f:69:10:05"\x0D\x0A
+    
+    --sshSock:Write(Cisco)
+    --print("First instance: "..Cisco)
+    --Cisco = ("xCommand CallHistory Recents Filter:Received\n")  
+    --Cisco = ("xCommand Peripherals HeartBeat ID:1\n")
+    --Cisco = ("xStatus Network 1 Ethernet MacAddress\n") 
+    --Cisco = ("xCommand Peripherals Connect Type: ControlSystem\n")
+    --Cisco = ("xCommand Phonebook Search PhonebookType: Corporate Limit: 500 Offset: 0 Recursive: False\n")
+    --print("Second instance: "..Cisco)
+    --sshSock:Write(Cisco)
+    --Controls.Bookings.Choices = recent
+--end
+
+
+
+function ReportStatus(state,msg)
+    if DebugFunct then print("ReportStatus() Called") end
+    local msg=msg or ""
+    Status.Value=StatusState[state]
+    Status.String=msg
+  end
+
+--Connection logic
+sshSock.Connected = function()
+  print ("ssh connected")
+  ReportStatus("OK")
+end
+
+--Connect Function
+function ConnectSSH ()
+sshSock:Connect (address.String,"22",username.String,password.String) --Cisco:Connect(IPAddress.String,Port,UserName.String,Password.String)
+end
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------Date Parse for Contacts----------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+--Data Receive actions
+sshSock.Data = function()
+	sshData =  sshSock:ReadLine(sshSock.EOL.Custom, "** end")  --
+	if sshData ~= nil then
+		buffer = sshData
+		line = sshData
+		print(buffer)
+  
+		if string.find(buffer, "Welcome") then
+			timer:Start(1)
+		end
+	
+		for name in string.gmatch(buffer, "SystemUnit Software DisplayName: (%b\"\")") do
+			DisplayName.String = string.gsub(name,"\"","")
+		end
+		
+		for name in string.gmatch(buffer, "SystemUnit ProductId: (%b\"\")") do
+			ProductId.String = string.gsub(name,"\"","")
+		end
+		
+		for name in string.gmatch(buffer, "SystemUnit Software Version: (%b\"\")") do
+			Version.String = string.gsub(name,"\"","")
+		end
+	
+		
+		if string.find(buffer, "Contact %d+ Name: %b\"\"") then
+			if Controls.CUCMGet.Boolean == true then
+				for contact,name in string.gmatch(response, "Contact (%d+) Name: (%b\"\")") do
+					name = string.gsub(name,"\"","")
+					print("Contact: "..contact)
+					print("Name: "..name)
+					table.insert(CUCM, contact, name)   --insert result into contacts table
+				end
+				Controls.ContactNames.Choices = CUCM
+			end
+			if Controls.ContactsGet.Boolean == true then
+				for contact,name in string.gmatch(response, "Contact (%d+) Name: (%b\"\")") do
+					name = string.gsub(name,"\"","")
+					table.insert(contacts, contact, name)   --insert result into contacts table
+				end
+				Controls.ContactNames.Choices = contacts
+			end
+		end
+		
+		if string.find(buffer, "Contact %d+ ContactMethod 1 Number: %b\"\"") then
+			if Controls.CUCMGet.Boolean == true then
+				for contact,str in string.gmatch(response, "Contact (%d+) ContactMethod 1 Number: (%b\"\")") do
+					str = string.gsub(str,"\"","")
+					table.insert(CUCMnumbers, contact, str)   --insert result into contacts table
+				end
+			end
+			if Controls.ContactsGet.Boolean == true then
+				for contact,str in string.gmatch(response, "Contact (%d+) ContactMethod 1 Number: (%b\"\")") do
+					str = string.gsub(str,"\"","")
+					table.insert(numbers, contact, str)   --insert result into contacts table
+				end
+			end
+		end
+		if string.find(buffer, "Entry .? DisplayName: %b\"\"") then
+			for entry,str in string.gmatch(response, "Entry %d+ DisplayName: %b\"\"") do
+				str = string.gsub(str,"\"","")
+				table.insert(names, entry, str)      --insert result into contacts table
+			end
+		end
+		if string.find(buffer, "Entry %d+ CallbackNumber: %b\"\"") then
+			for entry,str in string.gmatch(response, "Entry %d+ CallbackNumber: %b\"\"") do
+				str = string.gsub(str,"\"","")
+				table.insert(recent, entry, str)      --insert result into contacts table
+			end
+		end
+	
+		if string.find(buffer, "*s Audio Volume: %d+") then  --%d+
+			v = buffer
+			print("Found Volume!")
+			v = string.match(buffer,"%d+")
+			print("Volume is:", v)
+			Controls.Volume.Value = tonumber(v)
+		end
+		if string.find(buffer, "*s Audio VolumeMute: Off") then
+			Controls.VolumeMute.Boolean = false
+		elseif string.find(buffer, "*s Audio VolumeMute: On") then
+			Controls.VolumeMute.Boolean = true
+		end 
+		
+		if string.find(buffer, "*s Audio Microphones Mute: Off") then
+			Controls.MicMute.Boolean = false
+		elseif string.find(buffer, "*s Audio Microphones Mute: On") then
+			Controls.MicMute.Boolean = true
+		end 
+		if string.find(buffer, "*s Standby State: Off") then  --*r StandbyActivateResult
+			print("Cisco is On")
+			Controls.ActivateStandby.Boolean = false
+			Controls.DeactivateStandby.Boolean = true --PowerStatus
+			Controls.PowerStatus.Boolean = true
+			PowerState = "ON"
+		elseif string.find(buffer, "*s Standby State: Standby") then 
+			print("Cisco is Standby")
+			Controls.ActivateStandby.Boolean = true
+			Controls.DeactivateStandby.Boolean = false
+			Controls.PowerStatus.Boolean = false
+			PowerState = "OFF"
+		end
+		if string.find(line, "CallId: .?") then
+			i,j = string.find(line, "CallId: .?")   
+			callid = string.match(line,"%d+")
+			local str= (string.sub(line,i,j))
+			cid= str
+			print("CallID String:"..cid)
+			print("CallID is:"..callid)
+		end
+	
+		     
+		if string.find(line, "*s Call .? Status: Connected") then  --run a loop until no more are found
+			i,j = string.find(line, "*s Call .? Status: Connected") 
+		else
+			ActiveCall.Boolean = true
+		end
+		if string.find(line, "*s Call .? Status: Dialling") then
+			i,j = string.find(line, "*s Call .? Status: Dialling")  
+		else
+			calltimer:Start(5)
+		end
+		if string.find(line, "*s Call .? Status: Connecting") then
+			i,j = string.find(line, "*s Call .? Status: Connecting")   
+		else
+			calltimer:Start(5)
+		end
+		if string.find(line, "CallDisconnectResult") then
+			i,j = string.find(line, "CallDisconnectResult")  
+		else
+			ActiveCall.Boolean = false
+		end
+		
+		if string.find(buffer, "*r PresetListResult Preset") then
+			print("Found Preset: "..buffer)
+			for presetid,name in string.gmatch(buffer, "PresetId: (%d+)") do
+				print("Preset ID: "..presetid)     --insert result into contacts table
+				PresetID = tonumber(presetid)   --PreIDList
+				table.insert(PreIDList, PresetID, presetid)
+			end
+		end
+		if string.find(buffer, "*r PresetListResult Preset") then
+			for presetpos,name in string.gmatch(buffer, "Preset (%d+) Name: (%b\"\")") do
+				tostring(presetpos)
+				name = string.gsub(name,"\"","")
+				print("Preset Position: "..presetpos)  
+				print("Name: "..name)
+				table.insert(presetlist, presetpos, name)   --insert result into contacts table
+			end
+			Controls.PresetList.Choices = presetlist
+		end
+			
+	end	
+end     
+
+--Disconnect and Reconnect after values are changed
+Controls.IPAddress.EventHandler = function()
+sshSock:Disconnect()
+ConnectSSH() 
+print("IP: "..adrress.String)
+end
+
+Controls.UserName.EventHandler = function()
+sshSock:Disconnect()
+ConnectSSH() 
+print("User: "..username.String)
+end
+
+Controls.Password.EventHandler = function()
+sshSock:Disconnect()
+ConnectSSH() 
+print("Password: "..password.String)
+end
+
+--Socket Closed Actions  StatusState={OK=0,COMPROMISED=1,FAULT=2,NOTPRESENT=3,MISSING=4,INITIALIZING=5}
+sshSock.Closed = function()
+  print("ssh closed")
+  ReportStatus("MISSING","Socket closed")
+  recontimer:Start(30)
+end
+
+sshSock.Error = function(s, err)
+  print("ssh error", err)
+  ReportStatus("MISSING","Socket error")
+end
+
+sshSock.Timeout = function()
+  print("ssh timeout")
+  ReportStatus("MISSING","Timeout")
+end
+
+sshSock.LoginFailed = function()
+  print("ssh LoginFailed")
+  ReportStatus("MISSING","Check credentials")
+end
+
+ConnectSSH()
+idial.String = ""
+icam = 1
+--Controls.CUCMGet.IsInvisible = true
+--labelkeys()
+
+
+
+end 

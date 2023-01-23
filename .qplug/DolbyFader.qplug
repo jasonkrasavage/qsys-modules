@@ -1,0 +1,535 @@
+-- Dolby Fader for Q-SYS
+-- by james.puig@dolby.com
+-- Sept '20
+
+PluginInfo = {
+    Name = "Dolby~Dolby Fader",
+    Version = "1.0",
+    BuildVersion = "1.0.2.1",
+    Id = "a07f3b34-09af-4c25-af2d-be47d00bb4e9",
+    Author = "(c) Jaume Puig, Barcelona",
+    Description = "Dolby Fader Component Plugin",
+}
+
+function GetColor(props)
+  return { 204, 204, 204 }
+end
+
+function GetPrettyName(props)
+  return "Dolby Fader " --.. PluginInfo.Version
+end
+
+function GetProperties()
+  return props
+end
+
+function RectifyProperties(props)
+   	props.plugin_show_debug.IsHidden = true
+  return props
+end
+
+function GetComponents(props)
+  local comps = {}
+  table.insert(comps,
+      {
+        Name = "Step", 
+    	  Type = "stepper",
+        Properties = 
+        {
+        	control_type = 2,   --// Integer
+        	num_steps = 100,
+        },
+  })
+  return comps
+end
+
+function GetControls(props)
+  local ctrls = {}
+  
+  table.insert(ctrls, {
+  			Name = "ref",
+       		ControlType = "Button",
+       		ButtonType = "Momentary",
+  })
+  
+  table.insert(ctrls, {
+  			Name = "level",
+       		ControlType = "Text",
+  			UserPin = true,
+  			PinStyle = "Both",
+  })
+  
+  table.insert(ctrls, {
+  			Name = "gain",
+       		ControlType = "Knob",
+       		ControlUnit = "dB",
+   			Min = -100,
+  			Max =  20, 	
+  			PinStyle = "Both",
+  })
+  
+  table.insert(ctrls, {
+  			Name = "increase",
+       		ControlType = "Button",
+       		ButtonType = "Momentary",
+  			IconType="Icon",
+  			Icon="Plus",
+  			IconColor={0,0,0},		 	
+  })
+  
+  table.insert(ctrls, {
+  			Name = "decrease",
+       		ControlType = "Button",
+       		ButtonType = "Momentary",
+  			IconType="Icon",
+  			Icon="Minus",
+  			IconColor={0,0,0},		
+  })
+  return ctrls
+end
+
+function GetControlLayout(props)
+  local layout   = {}
+  local graphics = {}
+  	local left= -4
+  	local top = -4
+  
+  	layout['ref'] = { 
+  		 	PrettyName = "Ref Level",
+  		 	Style = "Button",
+  			ButtonStype = "Momentary",
+  			Color = {242,137,174},
+  			Size={36,16},	
+  			Position = {left+26,top+48},	
+  	}
+  	layout['level'] = { 
+  			PrettyName='Dolby Level', 
+  			Style = "Knob",
+  			Color = {0,226,113},
+      		Position = { left+90, top+28},
+      		Size={36,36}, 	
+      }
+  	layout['increase'] = { 
+  		 	PrettyName = "Increase",
+  		 	Style = "Button",
+  			ButtonStype = "Momentary",
+  			Color = {255,255,255},
+    			Position={left+154,top+28}, 			
+  			Size={36,16},				
+  	}
+  	layout['decrease'] = { 
+  		 	PrettyName = "Decrease",
+  		 	Style = "Button",
+  			ButtonStype = "Momentary",
+  			Color = {255,255,255},
+   			Size={36,16},
+   			Position={left+154,top+48 }, 			
+  	}
+      layout["gain"] =	{
+     			PrettyName = "Gain",
+     			Style = "Knob",
+      		Position={left+214,top + 28 }, 
+      		Size = { 36,36 },
+    	 }
+  	
+  	graphics = {
+  		{
+   			Type="GroupBox",
+   			Text="Knob",
+   			HTextAlign="Left",
+   			StrokeWidth=1,
+   			CornerRadius=8,
+   			Position={left+8,top+8},
+   			Size={265,100},
+   		},
+   		{
+   			Type="Label",
+   			Text="Reference",
+   			Position={left+12,top+72},
+   			Size={64,16}, 			
+   		},
+   		{
+   			Type="Label",
+   			Text="Dolby\nLevel",
+   			Position={left+76, top+72},
+   			Size={64,32}, 			
+   		},
+    		{
+   			Type="Label",
+   			Text="Inc/Dec",
+   			Position={left+140, top + 72},
+   			Size={64,16}, 			
+   		},
+    		{
+   			Type="Label",
+   			Text="RMS Level (dBFS)",
+   			Position={left+202,top+72},
+   			Size={64,32}, 			
+   		},
+  	}	
+  return layout, graphics
+end
+
+if not Controls and Reflect then return end
+
+	--##  Code for Dolby Fader  
+
+  -------- STRICT -----------------------
+  --  Verify strict variables
+  --  Error if variable is not declared 	
+  ---------------------------------------
+
+  do 
+
+    local mt = getmetatable(_G)
+
+    if mt == nil then 
+      mt = {} 
+      setmetatable(_G, mt) 
+    end   
+    mt.__declared = {}
+
+    function Global(...) 
+      for _, key in ipairs{...} do 
+        mt.__declared[key] = true 
+      end 
+    end
+
+    mt.__newindex = function (table, key, value) 
+      if not mt.__declared[key] then
+        if  debug.getinfo(2, "S").what ~= "C" then 
+          error("assign to undeclared variable '"..key.."'", 2)
+        end 
+        mt.__declared[key] = true 
+      end 
+      rawset(table, key, value) 
+    end
+
+    mt.__index = function (table, key) 
+      if not mt.__declared[key] and debug.getinfo(2, "S").what ~= "C" then
+        error("variable '"..key.."' is not declared", 2) 
+      end 
+      return rawget(table, key) 
+    end 
+
+  end
+
+ 		Global("class","Class")
+		Global("QKnob")
+		Global("DKNob","DolbyFaderEventHandler")
+
+ 
+ 	--################ Class classes ##########################
+  	-- https://github.com/jonstoler/class.lua
+ 	--################ Class classes ##########################
+  
+  do
+
+    Class = {}
+
+	-- default (empty) constructor
+    function Class:init(...) end
+
+	-- create a subclass
+    function Class:extend(obj)
+      local obj = obj or {}
+
+      local function copyTable(table, destination)
+        local table = table or {}
+        local result = destination or {}
+        for k, v in pairs(table) do
+          if not result[k] then
+            if type(v) == "table" and k ~= "__index" and k ~= "__newindex" then
+              result[k] = copyTable(v)
+            else
+              result[k] = v
+            end
+          end
+        end
+        return result
+      end
+
+      copyTable(self, obj)
+      obj._ = obj._ or {}
+      local mt = {}
+
+      -- create new objects directly, like o = Object()
+      mt.__call = function(self, ...)
+        return self:new(...)
+      end
+
+      -- allow for getters and setters
+      mt.__index = function(table, key)
+        local val = rawget(table._, key)
+        if val and type(val) == "table" and (val.get ~= nil or val.value ~= nil) then
+          if val.get then
+            if type(val.get) == "function" then
+              return val.get(table, val.value)
+            else
+              return val.get
+            end
+          elseif val.value then
+            return val.value
+          end
+        else
+          return val
+        end
+      end
+
+      mt.__newindex = function(table, key, value)
+        local val = rawget(table._, key)
+        if val and type(val) == "table" and ((val.set ~= nil and val._ == nil) or val.value ~= nil) then
+          local v = value
+          if val.set then
+            if type(val.set) == "function" then
+              v = val.set(table, value, val.value)
+            else
+              v = val.set
+            end
+          end
+          val.value = v
+          if val and val.afterSet then 
+          	val.afterSet(table, v) 
+          end
+        else
+          table._[key] = value
+        end
+      end
+
+      setmetatable(obj, mt)
+
+      return obj
+    end
+
+	-- set properties outside the constructor or other functions
+    function Class:set(prop, value)
+      if not value and type(prop) == "table" then
+        for k, v in pairs(prop) do
+          rawset(self._, k, v)
+        end
+      else
+        rawset(self._, prop, value)
+      end
+    end
+
+	-- create an instance of an object with constructor parameters
+    function Class:new(...)
+      local obj = self:extend({})
+      if obj.init then obj:init(...) end
+      return obj
+    end
+
+
+    function class(attr)
+      attr = attr or {}
+      return Class:extend(attr)
+    end
+
+  end 
+
+
+	--///////////////////////  QKNob Class ////////////////////////////// 
+
+
+  do
+
+    -- declare local variables & functions
+    local setposition,getposition,formatstr,formatval,todigits,compare
+    local privates = setmetatable({}, {__mode = "k"}) 
+
+    QKnob = class()
+
+    QKnob:set("Value",{
+        value = 0,	
+        get = function(self,value) return value end, 
+        set = function(self, newVal,oldVal) 
+          newVal = formatval(self,newVal)
+          privates[self].ctrl.Value = newVal 
+          if not privates[self].nested then 
+          	privates[self].nested = true
+          	self.Position = setposition(self,newVal) 
+          	self.String = newVal
+          	privates[self].nested = false 		
+          end
+          return newVal 
+        end,
+        } ) 
+
+    QKnob:set("String",{ 	
+        value = "",
+        get = function(self,value) return value end, 
+        set = function(self, newVal,oldVal)	
+          newVal = formatstr(self,newVal)
+          privates[self].ctrl.String = newVal 
+          if not privates[self].nested then
+          	privates[self].nested = true
+          	self.Value = newVal
+          	self.Position = setposition(self,self.Value)
+          	privates[self].nested = false 		
+          end
+          return newVal 
+        end,
+      })			
+
+    QKnob:set("Position",{ 	
+        value = 0,
+        get = function(self,value) return value end, 
+        set = function(self, newVal,oldVal)
+          local val = getposition(self,newVal)
+          newVal = setposition(self,val)	 
+          privates[self].ctrl.Position = newVal 
+          if not privates[self].nested then
+          	privates[self].nested = true 		
+          	self.Value = getposition(self,newVal) 
+          	self.String = self.Value
+          	privates[self].nested = false		
+          end
+          return newVal 
+        end,
+        } ) 			
+
+
+    function QKnob:SetString(val) 
+      return val 
+    end	
+
+    function QKnob:init(ctlName, Min, Max, numDecs )
+      local ctrldef = nil
+      for _,def in ipairs(GetControls(Properties)) do
+        if def.Name == ctlName then	 ctrldef = def break end	
+      end 
+      assert(ctrldef,"GetComponents: "..ctlName.." not found")
+      assert(ctrldef.ControlType=="Text","GetComponents: "..ctlName..".Type is not 'Text'")
+      privates[self] = { ctrl = Controls[ctlName], nested = false, min=Min, max=Max, 
+        numdecs = numDecs, tm = Timer.New() }
+      self.EventHandler = nil		
+      privates[self].ctrl.EventHandler = function() 
+         local newVal = formatstr(self,privates[self].ctrl.String)
+		 if self.String ~=newVal then 	
+        	self.String =  newVal
+    		if self.EventHandler then
+            	self.EventHandler(privates[self].ctrl)
+        	end
+        end
+      end
+      self.String = privates[self].ctrl.String 
+      privates[self].tm.EventHandler = function()
+        compare(self)
+      end
+      privates[self].tm:Start(1/1000)
+    end
+
+    todigits = function (a) 
+      local _
+      a = tostring(a) or "" 
+      a,_ = a:gsub("[^%d.-]", "") 
+      return tonumber(a) or 0  
+    end
+
+    setposition = function(self,value)
+      local p = (value-privates[self].min)/(privates[self].max-privates[self].min) 
+      return p<0 and 1+p or p 
+    end
+
+    getposition = function(self,value)
+      value = value * ( privates[self].max-privates[self].min ) + privates[self].min 
+      return value
+    end
+
+    compare = function(self)
+      if math.abs(privates[self].ctrl.Position - self.Position)>=1e-3 and not privates[self].nested then
+        self.Position = privates[self].ctrl.Position 
+    	if self.EventHandler then
+            self.EventHandler(privates[self].ctrl)
+        end
+      end 				
+    end
+
+    formatval = function(self,val)
+      val = todigits(val)
+      val = val < privates[self].min and privates[self].min or val
+      val = val > privates[self].max and privates[self].max or val 		
+      if privates[self].numdecs then
+        val = tonumber(string.format("%."..privates[self].numdecs.."f",val))
+      end
+      return val	
+    end
+
+    formatstr = function(self,val)
+      val = todigits(val)
+      val = val < privates[self].min and privates[self].min or val
+      val = val > privates[self].max and privates[self].max or val 		
+      local neg = val<0 and true or false
+      val = math.abs(val)
+      local num = 0 
+      num = val<100 and 1 or num
+      num = val<10  and 2 or num
+      num = val< 1  and 3 or num
+      if privates[self].numdecs then
+        num = num>privates[self].numdecs and privates[self].numdecs or num 
+      end
+      val = string.format("%."..num.."f",val)	
+      if not privates[self].numdecs then
+        val = tonumber(val)<1 and val:sub(2) or val
+        val = tonumber(val)==0 and 0 or val
+      end
+      if neg then val = '-'.. val end
+      val = self:SetString(tostring(val))
+      return tostring(val)
+    end
+
+  end
+
+
+		DKNob = QKnob:new('level',0,10,1)
+
+		local function convertToDb(val) 
+			if val <= 4 then return val*20-90 
+			else return (val-7)*10/3 end 
+		end
+
+		local function convertToDolby(dB) 
+			if dB <= -10 then return (dB+90)/20 
+			else return (dB*3/10)+7 end 
+		end
+
+		Step.value.EventHandler = function(ctrl)
+		   DKNob.Position = Step.value.Value / 100	
+			DKNob.EventHandler(Step)			
+		end	
+
+		DKNob.EventHandler  = function(ctrl)
+			if ctrl ~= Controls.gain then 
+					Controls.gain.Value = convertToDb( DKNob.Value ) 
+			end
+			Step.value.Value = DKNob.Position * 100
+			if DolbyFaderEventHandler then
+				DolbyFaderEventHandler(DKNob)
+			end
+		end
+
+		Controls.gain.EventHandler  = function(ctrl)
+			DKNob.Value = convertToDolby( Controls.gain.Value)
+			DKNob.EventHandler(Controls.gain)
+		end 
+
+		Controls.ref.EventHandler = function(ctrl)
+			if Controls.ref.Value == 1 then
+		  		DKNob.Value = 7.0
+		  		DKNob.EventHandler(Controls.ref)
+			end
+		end
+
+		Controls.increase.EventHandler = function()
+			Step.increase.Value = Controls.increase.Value
+		end	
+
+		Controls.decrease.EventHandler = function()
+			Step.decrease.Value = Controls.decrease.Value
+		end	
+
+		-- Execute at StartUp
+		Controls.gain.EventHandler()
+		DolbyFaderEventHandler = nil
+
+

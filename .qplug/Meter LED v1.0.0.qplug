@@ -1,0 +1,928 @@
+----------------------------------------------------------------------
+--                           METER LED
+--                       by Programation.io
+--
+-- This plugin is the intellectual property of Programation.io.
+-- Any reworks, distribution, or otherwise use of this code, concept,
+-- or packaged plugin shall retain this header as attribution to the
+-- original author.  This plugin is provided as-is without warranty.
+--
+----------------------------------------------------------------------
+
+
+PluginInfo = 
+{
+  Name = "Programation.io~Meter LED",
+  Version = "1.0.0",
+  Id = "841f169c-4ac2-44ea-b066-82f5f552dd1b",
+  Description = "A color-changing LED that represents signal level",
+  ShowDebug = false,
+}
+
+function GetPrettyName( props )
+  return "Meter LED"
+end
+
+function GetColor( props )
+  return { 207, 207, 207 }
+end
+
+function GetProperties()
+  return
+  {
+    
+  }
+end
+
+function GetControls( props )
+  return
+  {
+    {
+      Name = "InputMeter",
+      Count = 1,
+      ControlType = "Indicator",
+      IndicatorType = "Meter",
+      UserPin = true,
+      PinStyle = "Input",
+    },
+    {
+      Name = "PreviewEnable",
+      Count = 1,
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      UserPin = true,
+	  PinStyle = "Both",
+    },
+    {
+      Name = "PreviewSlider",
+      Count = 1,
+      ControlType = "Knob",
+      ControlUnit = "dB",
+      Min = -100,
+      Max = 0,
+      UserPin = true,
+	  PinStyle = "Both",
+    },
+    {
+      Name = "EnableHide",
+      Count = 1,
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      UserPin = true,
+	  Pinstyle = "Both",
+    },
+    {
+      Name = "HideThreshold",
+      Count = 1,
+      ControlType = "Knob",
+      ControlUnit = "dB",
+      Min = -100,
+      Max = 0,
+      UserPin = false,
+    },
+    {
+      Name = "MultiColor",
+      Count = 1,
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      UserPin = false,
+    },
+    {
+      Name = "OutputLED",
+      Count = 1,
+      ControlType = "Indicator",
+      IndicatorType = "Led",
+      UserPin = true,
+      PinStyle = "Output",
+    },
+    {
+      Name = "BottomThreshold",
+      Count = 1,
+      ControlType = "Knob",
+      ControlUnit = "dB",
+      Min = -100,
+      Max = 0,
+      UserPin = false,
+    },
+    {
+      Name = "BottomPreview",
+      Count = 1,
+      ControlType = "Indicator",
+      IndicatorType = "Led",
+      UserPin = false,
+    },
+    {
+      Name = "BottomRed",
+      Count = 1,
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 255,
+      UserPin = false,
+    },
+    {
+      Name = "BottomGreen",
+      Count = 1,
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 255,
+      UserPin = false,
+    },
+    {
+      Name = "BottomBlue",
+      Count = 1,
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 255,
+      UserPin = false,
+    },
+    {
+      Name = "TopThreshold",
+      Count = 1,
+      ControlType = "Knob",
+      ControlUnit = "dB",
+      Min = -100,
+      Max = 0,
+      UserPin = false,
+    },
+    {
+      Name = "TopPreview",
+      Count = 1,
+      ControlType = "Indicator",
+      IndicatorType = "Led",
+      UserPin = false,
+    },
+    {
+      Name = "TopRed",
+      Count = 1,
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 255,
+      UserPin = false,
+    },
+    {
+      Name = "TopGreen",
+      Count = 1,
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 255,
+      UserPin = false,
+    },
+    {
+      Name = "TopBlue",
+      Count = 1,
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 255,
+      UserPin = false,
+    },
+    {
+      Name = "OnThreshold",
+      Count = 1,
+      ControlType = "Knob",
+      ControlUnit = "dB",
+      Min = -100,
+      Max = 0,
+      UserPin = false,
+    },
+  }
+end
+function GetControlLayout( props )
+  layout = {}
+
+  layout["InputMeter"] = 
+  {
+    PrettyName = "Input Meter",
+    Position = { 103, 0 },
+    Size = { 231, 20 },
+    Color = { 0, 159, 60 },
+    Margin = 0,
+    Radius = 0,
+    Style = "Meter",
+    MeterStyle = "Standard",
+    IsReadOnly = false,
+  }
+
+  layout["PreviewEnable"] = 
+  {
+    PrettyName = "Enable Preview",
+    Position = { 104, 30 },
+    Size = { 36, 16 },
+    Color = { 255, 255, 255 },
+    Style = "Button",
+    ButtonStyle = "Toggle",
+    Legend = "Enable",
+    HTextAlign = "Center",
+    VTextAlign = "Center",
+    UnlinkOffColor = false,
+    --OffColor = {  },
+    Margin = 2,
+    Radius = 2,
+    IsReadOnly = false,
+  }
+
+  layout["PreviewSlider"] = 
+  {
+    PrettyName = "Preview Slider",
+    Position = { 140, 30 },
+    Size = { 195, 16 },
+    Color = { 124, 155, 207 },
+    Style = "Fader",
+    Margin = 0,
+    Radius = 0,
+    IsReadOnly = false,
+  }
+
+  layout["EnableHide"] = 
+  {
+    PrettyName = "Enable Hide",
+    Position = { 104, 66 },
+    Size = { 36, 16 },
+    Color = { 255, 255, 255 },
+    Style = "Button",
+    ButtonStyle = "Toggle",
+    Legend = "Enable",
+    HTextAlign = "Center",
+    VTextAlign = "Center",
+    UnlinkOffColor = false,
+    --OffColor = {  },
+    Margin = 2,
+    Radius = 2,
+    IsReadOnly = false,
+  }
+
+  layout["HideThreshold"] = 
+  {
+    PrettyName = "Hide Threshold",
+    Position = { 299, 66 },
+    Size = { 36, 16 },
+    Color = { 124, 155, 207 },
+    Style = "Textbox",
+    TextBoxStyle = "Meter",
+    Margin = 0,
+    Radius = 0,
+    IsReadOnly = false,
+  }
+
+  layout["MultiColor"] = 
+  {
+    PrettyName = "MultiColor Output",
+    Position = { 104, 104 },
+    Size = { 36, 16 },
+    Color = { 255, 255, 255 },
+    Style = "Button",
+    ButtonStyle = "Toggle",
+    Legend = "Enable",
+    HTextAlign = "Center",
+    VTextAlign = "Center",
+    UnlinkOffColor = false,
+    --OffColor = {  },
+    Margin = 2,
+    Radius = 2,
+    IsReadOnly = false,
+  }
+
+  layout["OutputLED"] = 
+  {
+    PrettyName = "Output LED",
+    Position = { 376, 26 },
+    Size = { 20, 20 },
+    Color = { 124, 124, 124 },
+    Margin = 3,
+    Radius = 0,
+    Style = "Led",
+    UnlinkOffColor = false,
+    --OffColor = {  },
+    IsReadOnly = false,
+  }
+
+  layout["BottomThreshold"] = 
+  {
+    PrettyName = "Bottom Threshold",
+    Position = { 104, 151 },
+    Size = { 36, 16 },
+    Color = { 124, 155, 207 },
+    Style = "Textbox",
+    TextBoxStyle = "Meter",
+    Margin = 0,
+    Radius = 0,
+    IsReadOnly = false,
+  }
+
+  layout["BottomPreview"] = 
+  {
+    PrettyName = "Bottom Preview",
+    Position = { 111, 172 },
+    Size = { 20, 20 },
+    Color = { 124, 124, 124 },
+    Margin = 3,
+    Radius = 0,
+    Style = "Led",
+    UnlinkOffColor = false,
+    --OffColor = {  },
+    IsReadOnly = false,
+  }
+
+  layout["BottomRed"] = 
+  {
+    PrettyName = "Bottom Red",
+    Position = { 104, 197 },
+    Size = { 36, 16 },
+    Color = { 110, 198, 241 },
+    Style = "Textbox",
+    TextBoxStyle = "Meter",
+    Margin = 0,
+    Radius = 0,
+    IsReadOnly = false,
+  }
+
+  layout["BottomGreen"] = 
+  {
+    PrettyName = "Bottom Green",
+    Position = { 104, 213 },
+    Size = { 36, 16 },
+    Color = { 110, 198, 241 },
+    Style = "Textbox",
+    TextBoxStyle = "Meter",
+    Margin = 0,
+    Radius = 0,
+    IsReadOnly = false,
+  }
+
+  layout["BottomBlue"] = 
+  {
+    PrettyName = "Bottom Blue",
+    Position = { 104, 229 },
+    Size = { 36, 16 },
+    Color = { 110, 198, 241 },
+    Style = "Textbox",
+    TextBoxStyle = "Meter",
+    Margin = 0,
+    Radius = 0,
+    IsReadOnly = false,
+  }
+
+  layout["TopThreshold"] = 
+  {
+    PrettyName = "Top Threshold",
+    Position = { 299, 151 },
+    Size = { 36, 16 },
+    Color = { 124, 155, 207 },
+    Style = "Textbox",
+    TextBoxStyle = "Meter",
+    Margin = 0,
+    Radius = 0,
+    IsReadOnly = false,
+  }
+
+  layout["TopPreview"] = 
+  {
+    PrettyName = "Top Preview",
+    Position = { 306, 172 },
+    Size = { 20, 20 },
+    Color = { 124, 124, 124 },
+    Margin = 3,
+    Radius = 0,
+    Style = "Led",
+    UnlinkOffColor = false,
+    --OffColor = {  },
+    IsReadOnly = false,
+  }
+
+  layout["TopRed"] = 
+  {
+    PrettyName = "Top Red",
+    Position = { 299, 197 },
+    Size = { 36, 16 },
+    Color = { 110, 198, 241 },
+    Style = "Textbox",
+    TextBoxStyle = "Meter",
+    Margin = 0,
+    Radius = 0,
+    IsReadOnly = false,
+  }
+
+  layout["TopGreen"] = 
+  {
+    PrettyName = "Top Green",
+    Position = { 299, 213 },
+    Size = { 36, 16 },
+    Color = { 110, 198, 241 },
+    Style = "Textbox",
+    TextBoxStyle = "Meter",
+    Margin = 0,
+    Radius = 0,
+    IsReadOnly = false,
+  }
+
+  layout["TopBlue"] = 
+  {
+    PrettyName = "Top Blue",
+    Position = { 299, 229 },
+    Size = { 36, 16 },
+    Color = { 110, 198, 241 },
+    Style = "Textbox",
+    TextBoxStyle = "Meter",
+    Margin = 0,
+    Radius = 0,
+    IsReadOnly = false,
+  }
+
+  layout["OnThreshold"] = 
+  {
+    PrettyName = "On Threshold",
+    Position = { 200, 151 },
+    Size = { 36, 16 },
+    Color = { 124, 155, 207 },
+    Style = "Textbox",
+    TextBoxStyle = "Meter",
+    Margin = 0,
+    Radius = 0,
+    IsReadOnly = false,
+  }
+
+  graphics = {
+  
+  {
+		Type = "Label",
+		Position = { 0, 0 },
+		Size = { 99, 20 },
+		Text = "Input",
+		TextSize = 12,
+		HTextAlign = "Right",
+		VTextAlign = "Center",
+		IsBold = false,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  
+  {
+		Type = "Label",
+		Position = { 335, 10 },
+		Size = { 99, 16 },
+		Text = "Output",
+		TextSize = 12,
+		HTextAlign = "Center",
+		VTextAlign = "Center",
+		IsBold = false,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  
+  {
+		Type = "Label",
+		Position = { 0, 30 },
+		Size = { 99, 16 },
+		Text = "Preview",
+		TextSize = 12,
+		HTextAlign = "Right",
+		VTextAlign = "Center",
+		IsBold = false,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  
+  {
+		Type = "Label",
+		Position = { 0, 66 },
+		Size = { 99, 16 },
+		Text = "Allow LED to hide",
+		TextSize = 12,
+		HTextAlign = "Right",
+		VTextAlign = "Center",
+		IsBold = false,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  
+  {
+		Type = "Label",
+		Position = { 236, 66 },
+		Size = { 58, 16 },
+		Text = "Threshold",
+		TextSize = 12,
+		HTextAlign = "Right",
+		VTextAlign = "Center",
+		IsBold = false,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  
+  {
+		Type = "Label",
+		Position = { 0, 104 },
+		Size = { 99, 16 },
+		Text = "Multi-Color",
+		TextSize = 12,
+		HTextAlign = "Right",
+		VTextAlign = "Center",
+		IsBold = false,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  
+  {
+		Type = "Label",
+		Position = { 104, 130 },
+		Size = { 60, 16 },
+		Text = "Bottom",
+		TextSize = 12,
+		HTextAlign = "Left",
+		VTextAlign = "Center",
+		IsBold = true,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  
+  {
+		Type = "Label",
+		Position = { 164, 130 },
+		Size = { 111, 16 },
+		Text = "Turn-On Point",
+		TextSize = 12,
+		HTextAlign = "Center",
+		VTextAlign = "Center",
+		IsBold = true,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  
+  {
+		Type = "Label",
+		Position = { 275, 130 },
+		Size = { 60, 16 },
+		Text = "Top",
+		TextSize = 12,
+		HTextAlign = "Right",
+		VTextAlign = "Center",
+		IsBold = true,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  
+  {
+		Type = "Label",
+		Position = { 0, 151 },
+		Size = { 99, 16 },
+		Text = "Threshold",
+		TextSize = 12,
+		HTextAlign = "Right",
+		VTextAlign = "Center",
+		IsBold = false,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  
+  {
+		Type = "Label",
+		Position = { 140, 151 },
+		Size = { 58, 16 },
+		Text = "Threshold",
+		TextSize = 12,
+		HTextAlign = "Right",
+		VTextAlign = "Center",
+		IsBold = false,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  
+  {
+		Type = "Label",
+		Position = { 241, 151 },
+		Size = { 58, 16 },
+		Text = "Threshold",
+		TextSize = 12,
+		HTextAlign = "Right",
+		VTextAlign = "Center",
+		IsBold = false,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  
+  {
+		Type = "Label",
+		Position = { 0, 197 },
+		Size = { 99, 16 },
+		Text = "Red",
+		TextSize = 12,
+		HTextAlign = "Right",
+		VTextAlign = "Center",
+		IsBold = false,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  
+  {
+		Type = "Label",
+		Position = { 0, 213 },
+		Size = { 99, 16 },
+		Text = "Green",
+		TextSize = 12,
+		HTextAlign = "Right",
+		VTextAlign = "Center",
+		IsBold = false,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  
+  {
+		Type = "Label",
+		Position = { 0, 229 },
+		Size = { 99, 16 },
+		Text = "Blue",
+		TextSize = 12,
+		HTextAlign = "Right",
+		VTextAlign = "Center",
+		IsBold = false,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  
+  {
+		Type = "Label",
+		Position = { 236, 197 },
+		Size = { 58, 16 },
+		Text = "Red",
+		TextSize = 12,
+		HTextAlign = "Right",
+		VTextAlign = "Center",
+		IsBold = false,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  
+  {
+		Type = "Label",
+		Position = { 236, 213 },
+		Size = { 58, 16 },
+		Text = "Green",
+		TextSize = 12,
+		HTextAlign = "Right",
+		VTextAlign = "Center",
+		IsBold = false,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  
+  {
+		Type = "Label",
+		Position = { 236, 229 },
+		Size = { 58, 16 },
+		Text = "Blue",
+		TextSize = 12,
+		HTextAlign = "Right",
+		VTextAlign = "Center",
+		IsBold = false,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  
+  {
+		Type = "Label",
+		Position = { 0, 255 },
+		Size = { 335, 16 },
+		Text = "by Programation.io  v"..PluginInfo.Version,
+		TextSize = 12,
+		HTextAlign = "Right",
+		VTextAlign = "Center",
+		IsBold = true,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+	
+	{
+		Type = "Header",
+		Position = { 104, 92 },
+		Size = { 231, 12 },
+		Text = "Color Settings",
+		TextSize = 12,
+		HTextAlign = "Center",
+		IsBold = false,
+		Fill = { 0, 0, 0 },
+	},
+	
+  }
+  
+  return layout, graphics
+end
+
+function GetPins( props )
+  local pins = {}
+  
+  return pins
+end
+
+function GetComponents( props )
+  return
+  {
+    
+  }
+end
+
+function GetWiring( props )
+  local wiring = {}
+  
+  return wiring
+end
+
+if Controls then
+
+----------------------------------------------------------------------
+--                           METER LED
+--                       by Programation.io
+--
+-- This plugin is the intellectual property of Programation.io.
+-- Any reworks, distribution, or otherwise use of this code, concept,
+-- or packaged plugin shall retain this header as attribution to the
+-- original author.  This plugin is provided as-is without warranty.
+--
+----------------------------------------------------------------------
+
+function DECtoHEX(dec)
+  dec = math.min( dec, 255 )
+  dec = math.max( dec, 0 )
+  local d1 = math.floor(dec / 16)
+  local d2 = math.floor(dec % 16)
+  return((d1<10 and d1 or string.char(d1+55)) .. (d2<10 and d2 or string.char(d2+55)))
+end
+
+function COLORtoSTRING( t )
+  local c = {"#"}
+  for i,v in ipairs( t ) do
+    table.insert( c, DECtoHEX( v ) )
+  end
+  return table.concat( c, "" )
+end
+
+function GetXPosition( val )
+  if val < Controls.BottomThreshold.Value then return 0 end
+  if val > Controls.TopThreshold.Value then return 1 end
+  return ( val - Controls.BottomThreshold.Value ) / ( Controls.TopThreshold.Value - Controls.BottomThreshold.Value )
+end
+
+function GetXValue( pos, min, max )
+  local spread = max - min
+  local offset = pos * spread
+  return offset + min
+end
+
+function SetMultiColor( val )
+  if val < -80 then
+    Controls.OutputLED.Color = "#7C7C7C"
+  elseif val < -60 then
+    local pos = (val + 80) / 20
+    local sat = GetXValue( pos, 0, 255 )
+    local value = GetXValue( pos, 51, 255 )
+    Controls.OutputLED.Color = "!AA" .. DECtoHEX( sat ) .. DECtoHEX( value )
+  else
+    local hue = 170
+    if val <= -13 then
+      local pos = 1 - ( ( val + 60) / 47 )
+      hue = GetXValue( pos, 86, 170 )
+    else
+      local pos = 1 - ( ( val + 13 ) / 13 )
+      hue = GetXValue( pos, 0, 86 )
+    end
+    Controls.OutputLED.Color = "!" .. DECtoHEX(hue) .. "FFFF"
+  end
+end
+
+function SetOutputColor( val )
+  local pos = GetXPosition( val )
+  local red = GetXValue( pos, Controls.BottomRed.Value, Controls.TopRed.Value )
+  local green = GetXValue( pos, Controls.BottomGreen.Value, Controls.TopGreen.Value )
+  local blue = GetXValue( pos, Controls.BottomBlue.Value, Controls.TopBlue.Value )
+  Controls.OutputLED.Color = COLORtoSTRING( { red, green, blue } )
+end
+
+function SetPreview()
+  if Controls.PreviewEnable.Boolean then
+    if Controls.MultiColor.Boolean then
+      SetMultiColor( Controls.PreviewSlider.Value )
+    else
+      SetOutputColor( Controls.PreviewSlider.Value )
+    end
+    Controls.OutputLED.Boolean = Controls.PreviewSlider.Value > Controls.OnThreshold.Value
+    Controls.OutputLED.IsInvisible = Controls.PreviewSlider.Value <= Controls.HideThreshold.Value and Controls.EnableHide.Boolean
+  end
+end
+
+function SetOutput()
+  if not Controls.PreviewEnable.Boolean then
+    if Controls.MultiColor.Boolean then
+      SetMultiColor( Controls.InputMeter.Value )
+    else
+      SetOutputColor( Controls.InputMeter.Value )
+    end
+    Controls.OutputLED.Boolean = Controls.InputMeter.Value > Controls.OnThreshold.Value
+    Controls.OutputLED.IsInvisible = Controls.InputMeter.Value <= Controls.HideThreshold.Value and Controls.EnableHide.Boolean
+  end
+end
+
+function UpdateBottomPreview()
+  Controls.BottomPreview.Color = COLORtoSTRING( { Controls.BottomRed.Value, Controls.BottomGreen.Value, Controls.BottomBlue.Value } )
+end
+
+function UpdateTopPreview()
+  Controls.TopPreview.Color = COLORtoSTRING( { Controls.TopRed.Value, Controls.TopGreen.Value, Controls.TopBlue.Value } )
+end
+
+function Initialize()
+  --first time initialization
+  --if all controls are in their default state, then we may assume that this is the first time
+  --the script has ever run and we should preset things into a more logical order
+  
+  if Controls.PreviewSlider.Value == 0 and
+      Controls.HideThreshold.Value == 0 and
+      Controls.BottomThreshold.Value == 0 and
+      Controls.TopThreshold.Value == 0 and
+      Controls.OnThreshold.Value == 0 then
+    
+    Controls.PreviewSlider.Position = 0
+    Controls.HideThreshold.Position = 0
+    Controls.BottomThreshold.Value = -60
+    Controls.TopThreshold.Value = 0
+    Controls.OnThreshold.Value = -18
+    
+    Controls.BottomRed.Value = 124
+    Controls.BottomGreen.Value = 124
+    Controls.BottomBlue.Value = 124
+    
+    Controls.TopRed.Value = 0
+    Controls.TopGreen.Value = 255
+    Controls.TopBlue.Value = 0
+  end
+  
+  
+  Controls.BottomRed.EventHandler = UpdateBottomPreview
+  Controls.BottomGreen.EventHandler = UpdateBottomPreview
+  Controls.BottomBlue.EventHandler = UpdateBottomPreview
+  UpdateBottomPreview()
+  
+  Controls.TopRed.EventHandler = UpdateTopPreview
+  Controls.TopGreen.EventHandler = UpdateTopPreview
+  Controls.TopBlue.EventHandler = UpdateTopPreview
+  UpdateTopPreview()
+  
+  Controls.TopPreview.Boolean = Controls.TopThreshold.Value > Controls.OnThreshold.Value
+  
+  Controls.PreviewSlider.EventHandler = SetPreview
+  
+  Controls.InputMeter.EventHandler = SetOutput
+  
+  Controls.PreviewEnable.EventHandler = function( ctl )
+    if ctl.Boolean then
+      SetPreview()
+    else
+      SetOutput()
+    end
+  end
+  
+  Controls.EnableHide.EventHandler = function()
+    SetPreview()
+    SetOutput()
+  end
+  
+  Controls.MultiColor.EventHandler = function(ctl)
+    Controls.BottomPreview.IsDisabled = ctl.Boolean
+    Controls.BottomRed.IsDisabled = ctl.Boolean
+    Controls.BottomGreen.IsDisabled = ctl.Boolean
+    Controls.BottomBlue.IsDisabled = ctl.Boolean
+    Controls.TopPreview.IsDisabled = ctl.Boolean
+    Controls.TopRed.IsDisabled = ctl.Boolean
+    Controls.TopGreen.IsDisabled = ctl.Boolean
+    Controls.TopBlue.IsDisabled = ctl.Boolean
+    SetPreview()
+    SetOutput()
+  end
+  Controls.MultiColor.EventHandler( Controls.MultiColor )
+  
+end
+
+Initialize()
+
+end

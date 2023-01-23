@@ -1,0 +1,670 @@
+PluginInfo = 
+{
+  Name = "KissBox~IO3CC / IO8CC",
+  Version = "1.1",
+  Id = "a5460b00-3fe4-483e-83fc-31527af68e0a",
+  Description = "KissBox IO3CC/IO8CC",
+  ShowDebug = false
+}
+
+function GetColor(props)
+  return { 255, 0, 0 }
+end
+
+CardToControl = 
+{
+  DO4PR = "Power Relays",
+  DI8DC = "CC Inputs",
+  DI4AC = "Digital Inputs",
+  DO4AR = "Analog Relays",
+  DO4BR = "Bistable Relays",
+  DO8SK = "Digital Outputs",
+  AI8RA = "Ratiometric Inputs", 
+  AO8DA = "Analog Outputs"
+}
+
+CardToControlPretty = 
+{
+  DO4PR = "Power Relay AC/DC Output",
+  DI8DC = "DC Contact Closure Inputs",
+  DI4AC = "AC Contact Closure Inputs",
+  DO4AR = "Analog Relay Outputs",
+  DO4BR = "Bistable Relay Outputs",
+  DO8SK = "Solid-state DC Outputs",
+  AI8RA = "Ratiometric 0-5V DC Inputs", 
+  AO8DA = "Analog 0-10V DC Outputs"
+}
+
+function GetSlotCount(props)
+  local model = props["Model"]
+  if model and model.Value == "IO8CC" then return 8 end
+  return 3
+end
+
+function GetPrettyName(props)
+  return "KissBox "..props["Model"].Value.." "..tostring(GetSlotCount(props)).." Slot I/O Cardframe"
+end 
+
+function makeColorGradient(i,frequency1, frequency2, frequency3,
+                           phase1, phase2, phase3, center, width)
+  --if not center then local center, width, red, grn ,blu = 192, 64
+  red = math.floor( math.sin(frequency1*i + phase1) * width + center )
+  grn = math.floor( math.sin(frequency2*i + phase2) * width + center )
+  blu = math.floor( math.sin(frequency3*i + phase3) * width + center )
+  return red,grn,blu
+end
+
+function GetProperties() 
+  props = {}
+  table.insert( props, 
+  {
+    Name = "Model",
+    Type = "enum",
+    Choices = { "IO3CC", "IO8CC" },
+    Value = "IO3CC",
+  })
+  for i = 1,8 do
+    table.insert( props, 
+    {
+      Name = string.format("Slot %i", i),
+      Type = "enum",
+      Choices = {
+        "Empty",
+        "DO4PR 4 Relay Out",
+        "DI8DC 8 Digital In",
+        "DO8SK 8 Ouput Sink",
+        "AI8RA 8 Analog Inputs",
+        "AO8DA 8 Analog Outputs",
+        "DI4AC (obsolete)",
+        "DO4AR (obsolete)",
+        "DO4BR (obsolete)"},
+      Value = "Empty",
+    })
+  end
+  table.insert( props, 
+  {
+    Name = "Status Pin",
+    Type = "enum",
+    Choices = { "Yes", "No" },
+    Value = "No",
+  })
+  return props
+end
+
+function RectifyProperties(props)
+  local slotCount = GetSlotCount(props);
+  for i = 1,8 do
+    props[string.format("Slot %i", i)].IsHidden = i > slotCount
+  end
+  return props
+end
+
+function GetControls(props)
+  ctls =  {}
+
+  for i = 1,GetSlotCount(props) do
+    local propName = string.format("Slot %i", i)
+    local card = props[propName]
+    local model = string.sub(card.Value,1,5)
+
+    if card then
+      if model == "DO4PR" then
+        -- 4 relay outputs
+        table.insert( ctls, {
+          Name = propName.." "..CardToControl[model],
+          ControlType = "Button",
+          PinStyle = "Input",
+          ButtonType = "Toggle",
+          Count = 4,
+        })
+       elseif model == "DI8DC" then
+        -- 8 digital inputs
+        table.insert( ctls, {
+          Name = propName.." "..CardToControl[model],
+          ControlType = "Indicator",
+          PinStyle = "Output",
+          IndicatorType = "Led",
+          Count = 8,
+        })
+      elseif model == "DI4AC" then
+        -- 4 analog inputs
+        table.insert( ctls, {
+          Name = propName.." "..CardToControl[model],
+          ControlType = "Indicator",
+          PinStyle = "Output",
+          IndicatorType = "Led",
+          Count = 4,
+        })
+      elseif model == "DO4AR" then
+        -- 4 relay outputs
+        table.insert( ctls, {
+          Name = propName.." "..CardToControl[model],
+          ControlType = "Button",
+          PinStyle = "Input",
+          ButtonType = "Toggle",
+          Count = 4,
+        })
+      elseif model == "DO4BR" then
+        -- 4 relay outputs
+        table.insert( ctls, {
+          Name = propName.." "..CardToControl[model],
+          ControlType = "Button",
+          PinStyle = "Input",
+          ButtonType = "Toggle",
+          Count = 4,
+        })
+      elseif model == "DO8SK" then
+        -- 8 digital outputs
+        table.insert( ctls, {
+          Name = propName.." "..CardToControl[model],
+          ControlType = "Button",
+          PinStyle = "Input",
+          ButtonType = "Toggle",
+          Count = 8,
+        })
+      elseif model == "AI8RA" then
+        -- 8 analog inputs
+        table.insert( ctls, {
+          Name = propName.." "..CardToControl[model],
+          ControlType = "Knob",
+          ControlUnit = "Integer",
+          Min = 0,
+          Max = 255,
+          PinStyle = "Output",
+          Count = 8,
+        })
+      elseif model == "AO8DA" then
+        -- 8 analog outputs
+        table.insert( ctls, {
+          Name = propName.." "..CardToControl[model],
+          PinStyle = "Input",
+          ControlType = "Knob",
+          ControlUnit = "Integer",
+          Min = 0,
+          Max = 255,
+          Count = 8,
+        })
+      end
+    end
+  end
+  table.insert( ctls, {
+    Name = "Connect",
+    ControlType = "Button",
+    ButtonType = "Toggle",
+    Count = 1,
+   })
+  local ctltemp = {
+    Name = "Status",
+    ControlType = "Indicator",
+    IndicatorType = "Status",
+    Count = 1,
+  }
+  if props["Status Pin"].Value == "Yes" then
+    ctltemp.PinStyle = "Output"
+  end
+  table.insert(ctls,ctltemp)
+  table.insert( ctls, {
+    Name = "IP Address",
+    ControlType = "Text",
+    Count = 1
+  })
+  table.insert( ctls, {
+    Name = "UDP Control Port",
+    ControlType = "Knob",
+    ControlUnit = "Integer",
+    Min = 1025,
+    Max = 65535,
+    Count = 1
+  })
+  table.insert( ctls, {
+    Name = "UDP Response Port",
+    ControlType = "Knob",
+    ControlUnit = "Integer",
+    Min = 1025,
+    Max = 65535,
+    Count = 1
+  })
+  return ctls
+end
+
+function GetControlLayout(props)
+
+  local function TotalCards(current)
+    local cardCount = 0
+    for i=1,current do
+      local propName = string.format("Slot %i", i)
+      cardCount = cardCount + tonumber(props[propName].Value~="Empty" and 1 or 0)
+    end
+    return cardCount
+  end
+
+  layout = {}
+
+  for i = 1,GetSlotCount(props) do
+    local propName = string.format("Slot %i", i)
+    local card = props[propName]
+    local model = string.sub(card.Value,1,5)
+
+    if card then
+      if model == "DO4PR" then
+        -- 4 relay outs
+        for j = 1,4 do
+          layout[propName.." "..CardToControl[model].." "..j] = 
+          {
+            Style = "Button",
+            ButtonStyle = "Toggle",
+            Legend = tostring(j),
+            TextFontSize = 30,
+            Color = { 255, 255, 255 },
+            Position = { 150+36*(j-1), 54*(TotalCards(i)-1)+6},
+            Size = { 36, 36 }
+          }
+        end
+      elseif model == "DI8DC" then
+        -- 8 digital ins
+        for j = 1,8 do
+          layout[propName.." "..CardToControl[model].." "..j] = 
+          {
+            Style = "Led",
+            Color = { 0, 255, 0 },
+            --UnlinkOffColor = true,
+            --OffColor = { 0, 124, 0 },
+            Position = { 156+36*(j-1), 54*(TotalCards(i)-1)+21},
+            Size = { 24, 24 },
+            IsReadOnly = true
+          }
+        end
+      elseif model == "DI4AC" then
+        -- 4 analog ins
+        for j = 1,4 do
+          layout[propName.." "..CardToControl[model].." "..j] = 
+          {
+            Style = "Led",
+            Color = { 0, 255, 0 },
+            --UnlinkOffColor = true,
+            --OffColor = { 0, 124, 0 },
+            Position = { 156+36*(j-1), 54*(TotalCards(i)-1)+21},
+            Size = { 24, 24 },
+            IsReadOnly = true
+          }
+        end
+      elseif model == "DO4AR" then
+        -- 4 relays
+        for j = 1,4 do
+          layout[propName.." "..CardToControl[model].." "..j] = 
+          {
+            Style = "Button",
+            ButtonStyle = "Toggle",
+            Legend = tostring(j),
+            TextFontSize = 30,
+            Color = { 255, 255, 255 },
+            Position = { 150+36*(j-1), 54*(TotalCards(i)-1)+6},
+            Size = { 36, 36 }
+          }
+        end
+      elseif model == "DO4BR" then
+        -- 4 relays
+        for j = 1,4 do
+          layout[propName.." "..CardToControl[model].." "..j] = 
+          {
+            Style = "Button",
+            ButtonStyle = "Toggle",
+            Legend = tostring(j),
+            TextFontSize = 30,
+            Color = { 255, 255, 255 },
+            Position = { 150+36*(j-1), 54*(TotalCards(i)-1)+6},
+            Size = { 36, 36 }
+          }
+        end
+      elseif model == "DO8SK" then
+        -- 8 digital outs
+        for j = 1,8 do
+          layout[propName.." "..CardToControl[model].." "..j] = 
+          {
+            Style = "Button",
+            ButtonStyle = "Toggle",
+            Legend = tostring(j),
+            TextFontSize = 30,
+            Color = { 255, 255, 255 },
+            Position = { 150+36*(j-1), 54*(TotalCards(i)-1)+6},
+            Size = { 36, 36 }
+          }
+        end
+      elseif model == "AI8RA" then
+        -- 8 analog ins
+        for j = 1,8 do
+          local red, grn, blu = makeColorGradient(j,.70,.70,.70,0,2,4,192,64)
+          layout[propName.." "..CardToControl[model].." "..j] = 
+          {
+            Style = "Knob",
+            Legend = tostring(j),
+            Color = { red, grn, blu },
+            Position = { 150+36*(j-1), 54*(TotalCards(i)-1)+3},
+            Size = { 36, 36 },
+            IsReadOnly = true
+          }
+        end
+      elseif model == "AO8DA" then
+        -- 8 analog ins
+        for j = 1,8 do
+          local red, grn, blu = makeColorGradient(j,.70,.70,.70,0,2,4,192,64)
+          layout[propName.." "..CardToControl[model].." "..j] = 
+          {
+            Style = "Knob",
+            Legend = tostring(j),
+            Color = { red, grn, blu },
+            Position = { 150+36*(j-1), 54*(TotalCards(i)-1)+3},
+            Size = { 36, 36 }
+          }
+        end
+      end
+    end
+  end
+
+  local setupOffset = TotalCards(GetSlotCount(props))*54
+  layout["Connect"] =
+  {
+    Style = "Button",
+    ButtonStyle = "Toggle",
+    Legend = "Connect",
+    TextFontSize = 14,
+    Color = { 0, 255, 0 },
+    Position = { 14, setupOffset+25},
+    Size = { 73, 24 }
+  }
+  layout["Status"] =
+  {
+    Style = "Text",
+    TextFontSize = 16,
+    HTextAlign = "Center",
+    Position = { 98, setupOffset+25},
+    Size = { 336, 24 },
+    IsReadOnly = true
+  }
+  layout["IP Address"] =
+  {
+    Style = "Textbox",
+    TextFontSize = 16,
+    Position = { 79, setupOffset+56},
+    Size = { 111, 22 },
+  }
+  layout["UDP Control Port"] =
+  {
+    Style = "Textbox",
+    TextBoxStyle = "Meter",
+    TextFontSize = 16,
+    Position = { 256, setupOffset+56},
+    Size = { 53, 22 },
+  }
+  layout["UDP Response Port"] =
+  {
+      Style = "Textbox",
+      TextBoxStyle = "Meter",
+      TextFontSize = 16,
+      Position = { 381, setupOffset+56},
+      Size = { 53, 22 },
+  }
+
+  local setupOffset = TotalCards(GetSlotCount(props))*54
+  graphics = {
+    {
+      Type = "GroupBox",
+      StrokeWidth = 1,
+      CornerRadius = 8,
+      Position = { 0, setupOffset},
+      Size = { 449, 88 }
+    },
+    {
+      Type = "Header",
+      Text = "Status",
+      Position = { 98, setupOffset+7 },
+      Size = { 336, 18 }
+    },
+    {
+      Type = "Header",
+      Text = "Connect",
+      Position = { 14, setupOffset+7 },
+      Size = { 73, 18 }
+    },
+    {
+      Type = "Label",
+      Text = "IP Address",
+      HTextAlign = "Right",
+      Position = { 14, setupOffset+56 },
+      Size = { 60, 22 }
+    },
+    {
+      Type = "Label",
+      Text = "UDP Port Control",
+      HTextAlign = "Right",
+      Position = { 200, setupOffset+54 },
+      Size = { 50, 26 }
+    },
+    {
+      Type = "Label",
+      Text = "UDP Port Response",
+      HTextAlign = "Right",
+      Position = { 317, setupOffset+54 },
+      Size = { 58, 26 }
+    },
+  }
+
+  local function GBColor(slot)
+    return { makeColorGradient(9-slot,.70,.70,.70,0,2,4,224,32) }
+  end
+
+  for i = 1,GetSlotCount(props) do
+    local propName = string.format("Slot %i", i)
+    local card = props[propName]
+    local model = string.sub(card.Value,1,5)
+    local slotOS = TotalCards(i)
+
+    if card and card.Value ~="Empty" then
+      table.insert( graphics, {
+        Type = "GroupBox",
+        Text = propName.." - "..model,
+        IsBold = true,
+        HTextAlign = "Left",
+        StrokeWidth = 1,
+        CornerRadius = 8,
+        Fill = GBColor(i),
+        Position = { 0, 54*(slotOS-1)},
+        Size = { 449, 49 }
+      })
+      table.insert( graphics, {
+        Type = "Label",
+        Text = CardToControlPretty[model],
+        HTextAlign = "Right",
+        IsBold = true,
+        Position = { 7, 54*(slotOS-1)+24},
+        Size = { 142, 16 }
+      })
+      if model == "DI8DC" or model == "DI4AC" then
+        for j = 1,4 do
+          table.insert( graphics, {
+            Type = "Label",
+            Text = tostring(j),
+            IsBold = true,
+            Position = { 150+36*(j-1), 54*(slotOS-1)+5},
+            Size = { 36, 16 }
+          })
+        end
+        if model == "DI8DC" then
+          for j = 5,8 do
+            table.insert( graphics, {
+              Type = "Label",
+              Text = tostring(j),
+              IsBold = true,
+              Position = { 150+36*(j-1), 54*(slotOS-1)+5},
+              Size = { 36, 16 }
+            })
+          end
+        end
+      elseif model == "AI8RA" or model == "AO8DA" then
+        for j = 1,8 do
+          table.insert( graphics, {
+            Type = "Label",
+            Text = tostring(j),
+            IsBold = true,
+            Position = { 150+36*(j-1), 54*(slotOS-1)+35},
+            Size = { 36, 11 }
+          })
+        end
+      end
+    end
+  end
+  return layout, graphics
+end
+
+if Controls then
+
+ip = Controls["IP Address"]
+cport = Controls["UDP Control Port"]
+rport = Controls["UDP Response Port"]
+status = Controls.Status
+KBconnect = Controls.Connect
+
+cmds = 
+{
+  ReadAll = 0xa0,
+  WriteAll = 0xa4,
+  ReadOne = 0xa2,
+  WriteOne = 0xa5,
+}
+
+slotsToRead = {}
+controlsForSlots = {}
+
+KBIO = UdpSocket.New()
+KBResp = UdpSocket.New()
+polltimer = Timer.New()
+resptimer = Timer.New()
+
+currentSlotIndex = 1
+
+function pollSlot()
+  if currentSlotIndex <= #slotsToRead then
+    local slot = slotsToRead[currentSlotIndex] - 1
+    local data = string.char( cmds.ReadAll, slot, 0, 0, 0, 0, 0, 0, 0, 0 )
+    print( "sending "..bitstring.hexstream(data).." to "..ip.String..":"..cport.Value)
+    KBIO:Send(ip.String, cport.Value, data)
+    resptimer:Start(10)
+    currentSlotIndex = currentSlotIndex + 1
+  end
+end
+
+polltimer.EventHandler = function()
+  currentSlotIndex = 1
+  pollSlot()
+end
+
+resptimer.EventHandler = function()
+  status.Value = 4
+  polltimer:Stop()
+  resptimer:Stop()
+  KBIO:Close()
+  KBResp:Close()
+end
+
+function send( cmd, slot, channel, value )
+  print( string.format("sending %i %i %i %i", cmd, slot, channel, value))
+  KBIO:Send( ip.String, cport.Value, string.char( cmd, slot-1, channel-1, value ))
+end
+
+KBResp.EventHandler = function(udp, packet)
+  status.Value = 0
+  resptimer:Stop()
+  local rxdata = packet.Data
+  print("read "..bitstring.hexstream(rxdata))
+  slot = string.byte(rxdata, 2)+1
+  slotControls = controlsForSlots[slot]
+  if slotControls then
+    for i = 1,#slotControls do
+      slotControls[i].Value = string.byte(rxdata, 2+i)
+    end
+  else
+    print("no slot for ", slot)
+  end
+  pollSlot()
+end
+
+function connect()
+  KBIO:Close()
+  KBResp:Close()
+  local validIP = false
+  if string.find(ip.String,"%d+.%d+.%d+.%d+") then -- Validate IP Address
+    local IP1,IP2,IP3,IP4 = string.match(ip.String,"(%d+).(%d+).(%d+).(%d+)")
+    if tonumber(IP1)<255 and tonumber(IP2)<255 and tonumber(IP3)<255 and tonumber(IP4)<255 and tonumber(IP1)>0 then
+      validIP = true
+      ip.Color = "White"
+    end
+  end
+  if KBconnect.Boolean and validIP then
+    KBIO:Open(nil, cport.Value) -- UDP port for sending commands
+    KBResp:Open(nil, rport.Value) -- UDP port for receiving responses
+    Controls.Status.Value = 5
+    Controls.Status.String = "Connecting..."
+    polltimer:Start(.25) -- Timer to poll input cards for changes
+    resptimer:Start(10) -- Timer to timeout if no response
+  elseif not KBconnect.Boolean then
+    Controls.Status.Value = 3
+    Controls.Status.String = "Disconnected..."
+    polltimer:Stop()
+    resptimer:Stop()
+  end
+  if not validIP then
+    status.Value = 2
+    status.String = "Invalid IP"
+    ip.Color = "Red"
+  end
+end
+
+-- reconnect if ip, ports or Connect button changes
+ip.EventHandler = connect
+cport.EventHandler = connect
+rport.EventHandler = connect
+KBconnect.EventHandler = connect
+
+function setControlHandler(slotIndex, controlName)
+  local slotName = string.format("Slot %i", slotIndex)
+  local controls = Controls[slotName.." "..controlName]
+  for c = 1,#controls do
+    controls[c].EventHandler = function(ctl)
+      send( cmds.WriteOne, slotIndex, c, ctl.Value )
+    end
+  end
+end
+
+function setControlReader(slotIndex, controlName)
+  local slotName = string.format("Slot %i", slotIndex)
+  table.insert(slotsToRead, slotIndex)
+  controlsForSlots[slotIndex] = Controls[slotName.." "..controlName]
+end
+
+for i = 1,GetSlotCount(Properties) do
+  card = Properties[string.format("Slot %i", i)]
+  model = string.sub(card.Value,1,5)
+  -- writeable controls
+  if model == "DO4PR" then setControlHandler(i, CardToControl[model])
+  elseif model == "DO4AR" then setControlHandler(i, CardToControl[model])
+  elseif model == "DO4BR" then setControlHandler(i, CardToControl[model])
+  elseif model == "DO8SK" then setControlHandler(i, CardToControl[model])
+  elseif model == "AO8DA" then setControlHandler(i, CardToControl[model])
+  -- readable controls
+  elseif model == "DI8DC" then setControlReader(i, CardToControl[model])
+  elseif model == "DI4AC" then setControlReader(i, CardToControl[model])
+  elseif model == "AI8RA" then setControlReader(i, CardToControl[model])
+  end
+end
+
+if #ip.String == 0 and cport.Value == 1025 and rport.Value == 1025 then
+  -- Set first-time default ports
+  ip.String = "Enter IP Address"
+  ip.Color = "Red"
+  cport.Value = 9813
+  rport.Value = 9817
+end
+
+connect()
+
+end

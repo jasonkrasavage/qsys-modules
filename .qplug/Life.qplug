@@ -1,0 +1,242 @@
+--[[
+
+Status Combiner -------------  © Callum Brieske - NSL New Zealand -------------
+
+SAMPLE LUA SCRIPT CODE: The following code is strictly provided as an
+example of some of the capabilities of Q-SYS.  It is NOT provided as a finished 
+product, suitable for deployment in specific applications.  Use of any part of 
+this code is at the user’s own risk. Please read the disclaimer at the bottom of 
+this source code, it limits the author’s responsibility and liability related to this code.
+=======================================================================================
+--]]
+PluginVersion = "1.0.0"
+_GRIDSIZE = 20
+PluginInfo = 
+{
+	Name = "Callum Brieske~Conway's Game of Life v" .. PluginVersion,
+	Version = PluginVersion,
+	Id = "bef541fb-f35e-4fc0-950e-e9833da3a567",
+	Description = "Initial Release",
+}
+
+function GetColor(props)
+	return {0,0,0}
+end
+
+function GetPrettyName(props)
+	return "Conway's\nGame\nof\nLife\nv" .. PluginVersion
+end
+
+function GetProperties()
+	return
+	{
+		{
+			Name = "Grid Size",
+			Type = "integer",
+			Min  = 10,
+			Max = 50,
+			Value = 20,
+		},
+	}
+end
+
+function GetControls(props)
+	local gridSize = props["Grid Size"].Value
+	local controls = {}
+	for y = 1, gridSize, 1 do
+		table.insert(controls, {
+			Name = tostring(y),
+			ControlType = "Button",
+			ButtonType = "Toggle",
+			Count = gridSize,
+		})
+	end
+	table.insert(controls, {
+		Name = "Run",
+		ControlType = "Button",
+		ButtonType = "Toggle",
+		Count = 1,
+	})
+	table.insert(controls, {
+		Name = "Step",
+		ControlType = "Button",
+		ButtonType = "Trigger",
+		Count = 1,
+	})
+	table.insert(controls, {
+		Name = "Speed",
+		ControlType = "Knob",
+		ControlUnit = "Percent",
+		Count = 1,
+		Min  = 1,
+		Max = 100,
+	})
+	return controls
+end
+
+function GetControlLayout(props)
+	local gridSize = props["Grid Size"].Value
+	local layout, graphics = {}, {
+		{
+			Type = "Label",
+			Text = "Speed:",
+			TextSize = 13,
+			HTextAlign = "Center",
+			VTextAlign = "Center",
+			Position = { 10, 50 },
+			Size = { 120, 20 },
+		},
+	}
+	local Color = {
+		GlobalBG = { 0x33, 0x33, 0x33 },
+		White = { 255, 255, 255 },
+		Grey = { 0xEE, 0xEE, 0xEE },
+		Stroke = { 0x95, 0x95, 0x95 },
+		MidGrey = { 127, 127, 127 },
+		Red = { 255, 0, 0 },
+		Black = { 0, 0, 0 },
+	}
+	for y = 1, gridSize, 1 do
+		for x = 1, gridSize, 1 do
+			layout[tostring(y) .. " " .. x] = {
+				PrettyName = "Grid " .. x .. ", " .. y,
+				Style = "Button",
+				ButtonStyle = "Toggle",
+				TextFontSize = 10,
+				Color = Color.White,
+				UnlinkOffColor = true,
+				OffColor = Color.GlobalBG,
+				Margin = 0,
+				Radius = 0,
+				CornerRadius = 0,
+				StrokeColor = Color.Black,
+				StrokeWidth = 1,
+				Size = { _GRIDSIZE, _GRIDSIZE },
+				Position = { ((_GRIDSIZE * x) - _GRIDSIZE) + 150, ((_GRIDSIZE * y) - _GRIDSIZE)}
+			}
+		end
+	end
+
+	layout["Run"] = {
+		PrettyName = "RUN/STOP",
+		Style = "Button",
+		ButtonStyle = "Toggle",
+		TextFontSize = 10,
+		Legend = "RUN/STOP",
+		Size = {80, 40},
+		Position = {50, 10}
+	}
+	layout["Step"] = {
+		PrettyName = "STEP",
+		Style = "Button",
+		ButtonStyle = "Trigger",
+		TextFontSize = 10,
+		Legend = "STEP",
+		Size = {40, 40},
+		Position = {10, 10}
+	}	
+	layout["Speed"] = {
+		PrettyName = "Speed",
+		Style = "Knob",
+		Size = {80, 80},
+		Position = {30, 70}
+	}
+	return layout, graphics
+end
+	
+if Controls then
+	_GRIDSIZE = #Controls['1']
+	_MAXINTERVAL = 1
+	_MININTERVAL = 0.05
+	tick = Timer.New()
+	
+	local function setTimer()
+	  if Controls.Run.Boolean then
+		tick:Start((_MAXINTERVAL - _MININTERVAL) - (((_MAXINTERVAL - _MININTERVAL) / 100) * Controls.Speed.Value) + _MININTERVAL)
+	  else
+		tick:Stop()
+	  end
+	end
+	
+	local function life()
+	  local nextFrame = {}
+	  
+	  local function checkNeighbours(x, y)
+		local neighbours = {
+		  {x > 1 and x - 1 or _GRIDSIZE, y > 1 and y - 1 or _GRIDSIZE}, -- Top Left
+		  {x, y > 1 and y - 1 or _GRIDSIZE}, -- Top
+		  {x < _GRIDSIZE and x + 1 or 1, y > 1 and y - 1 or _GRIDSIZE}, -- Top Right
+		  {x > 1 and x - 1 or _GRIDSIZE, y}, -- Left
+		  {x < _GRIDSIZE and x + 1 or 1, y}, -- Right
+		  {x > 1 and x - 1 or _GRIDSIZE, y < _GRIDSIZE and y + 1 or 1}, -- Bottom Left
+		  {x, y < _GRIDSIZE and y + 1 or 1}, -- Bottom
+		  {x < _GRIDSIZE and x + 1 or 1, y < _GRIDSIZE and y + 1 or 1} -- Bottom Right
+		}
+		local alive = 0
+		for _, neighbour in ipairs(neighbours) do
+		  alive = Controls[tostring(neighbour[2])][neighbour[1]].Boolean and alive + 1 or alive
+		end
+		return alive
+	  end
+	  
+	  for y = 1, _GRIDSIZE, 1 do
+		nextFrame[y] = {} -- Create x table for next frame.
+		
+		for x = 1, _GRIDSIZE, 1 do
+		  local ctl = Controls[tostring(y)][x]
+		  
+		  if ctl.Boolean then -- Check if cell is alive
+		  
+			-- Any live cell with two or three live neighbors survives, otherwise they die.
+			local neighbours = checkNeighbours(x, y)
+			if neighbours == 2 or neighbours == 3 then
+			  nextFrame[y][x] = true
+			else
+			  nextFrame[y][x] = false
+			end
+			
+		  else
+			
+			-- Any dead cell with three live neighbors becomes a live cell, otherwise they stay dead.
+			local neighbours = checkNeighbours(x, y)
+			if neighbours == 3 then
+			  nextFrame[y][x] = true
+			else
+			  nextFrame[y][x] = false
+			end
+			
+		  end
+		end
+	  end
+	  
+	  for y, t in ipairs(nextFrame) do
+		for x, v in ipairs(t) do
+		  Controls[tostring(y)][x].Boolean = v
+		end
+	  end
+	end
+	
+	Controls.Run.EventHandler = setTimer
+	Controls.Step.EventHandler = life
+	tick.EventHandler = function()
+	  tick:Stop()
+	  life()
+	  setTimer()
+	end
+	setTimer()
+end
+
+--[[
+DISCLAIMER:
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+POSSIBILITY OF SUCH DAMAGE.
+--]]

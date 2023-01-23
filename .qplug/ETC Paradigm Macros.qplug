@@ -1,0 +1,489 @@
+PluginInfo = 
+{
+    Name = "ETC~Paradigm Macros",
+    Version = "0.3",
+    Id = "etc_macros",
+    Description = "Macro Controller for ETC Paradigm",
+    ShowDebug = false
+}
+
+function GetColor(props)
+    return { 235, 210, 203 }
+end
+
+function GetPrettyName(props)
+    return "ETC Macro Controller"
+end
+
+local pagenames = 
+    {
+    "Controls",
+    "Setup",
+    }
+ 
+function GetPages()
+  pages = {}
+  for ix,name in ipairs(pagenames) do
+    table.insert( pages, { name = pagenames[ix] })
+  end
+  return pages
+end
+
+props = {}
+
+function GetProperties()
+	table.insert( props, 
+	{
+    Name = "Total Macros",
+    Type = "integer",
+    Min = 2,
+    Max = 50,
+    Value = 2,
+    })
+
+    for i = 1,50 do
+        table.insert( props, 
+        {
+        Name = string.format("Macro Name %i",i),
+        Type = "string",
+        Value = '',
+        })
+
+        table.insert( props, 
+        {
+        Name = string.format("Macro Type %i",i),
+        Type = "enum",
+        Choices = {'Toggle','Trigger On','Trigger Off'},
+        Value = 'Toggle',
+        })
+    end
+    
+	return props
+end
+
+function RectifyProperties(props) -- Used to hide properties that aren't needed based on other property setting
+    for i = 1,50 do
+        local name = string.format("Macro Name %i",i)
+        local type = string.format("Macro Type %i",i)
+        if i > props["Total Macros"].Value then 
+            props[name].IsHidden = true
+            props[type].IsHidden = true  
+        end
+    end
+  return props
+end
+
+ctrls = {}
+function GetControls(props)
+    local tMacros = props['Total Macros'].Value
+    
+    table.insert (ctrls,
+        {
+        Name = "Address",
+        ControlType = "Indicator",
+        IndicatorType = "Text",
+        Count = 1,
+        UserPin = false,
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "Port",
+        ControlType = "Indicator",
+        IndicatorType = "Text",
+        Count = 1,
+        UserPin = false,
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "RS232",
+        ControlType = "Indicator",
+        IndicatorType = "Led",
+        Count = 1,
+        UserPin = false,
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "Status",
+        ControlType = "Indicator",
+        IndicatorType = "Status",
+        Count = 1,
+        UserPin = true,
+        PinStyle = 'Output',
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "Macro",
+        ControlType = "Button",
+        ButtonType = "Toggle",
+        Count = tMacros,
+        UserPin = true,
+        PinStyle = 'Both',
+        }) 
+
+    table.insert (ctrls,
+        {
+        Name = "MacroRealName",
+        ControlType = "Indicator",
+        IndicatorType = 'Text',
+        Count = tMacros,
+        UserPin = false,
+        }) 
+
+       
+    table.insert (ctrls,
+        {
+        Name = "MacroAltName",
+        ControlType = "Text",
+        Count = tMacros,
+        UserPin = false,
+        }) 
+
+    return ctrls
+end
+
+layout = {}
+graphics = {}
+
+col = 70
+row = 16
+gutter = 86
+
+function GetControlLayout(props)
+    local tMacros= props['Total Macros'].Value
+    local CurrentPage = pagenames[props["page_index"].Value]
+    local mnames = {}
+
+    for i=1,tMacros do
+        table.insert(mnames,i,props['Macro Name '..i].Value)
+    end
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "Status",
+        Position = { 0, row },
+        Size = { 76,16 }
+        })
+
+    layout['Status'] =
+        {
+        PrettyName = 'Status',
+        Position = {gutter,row},
+        Size = { 220,16 },        
+        }
+
+    if CurrentPage == 'Setup' then     
+        CreateSetupPage(tMacros,row,mnames)       
+    end
+
+    if CurrentPage == 'Controls' then
+        row = row+56
+        CreateControlsPage(tMacros,row,mnames)
+    end  
+
+  return layout, graphics
+end
+
+--CONTROL AND GRAPHIC LAYOUT FUNCTIONS
+function CalcNextRow(start,btotal,rowh,rowsp)
+    local nr
+    local tr = math.ceil(btotal/8)
+    local tsp = (tr-1)*rowsp
+    
+    nr = start+(tr*rowh)+tsp
+    return nr
+end
+
+function CreateControlsPage(ti,vstart,mnames)
+    col = 70
+    row = 30
+
+    local h = gutter
+    local v = vstart
+    local nextrow
+    
+    --Create Macro Buttons
+    nextrow = CalcNextRow(v,ti,row,0)
+    table.insert(graphics,
+        {
+        Type = "Text",
+        Text = "Macros",
+        TextSize = 12,
+        Color = { 0, 0, 0}, 
+        HTextAlign = "Right",
+        Position = { 0, v },
+        Size = { 76,16 }
+        })
+    
+    for i = 1,ti do
+        layout['Macro '..i] = 
+            {
+            Legend = mnames[i],
+            WordWrap = true,
+            PrettyName = string.format("Macro~%i",i),
+            Position = { h, v},
+            Size = { col, row },
+            Padding = 4,
+            }
+        h = h + col
+        
+        if i%8 == 0 then
+            v = row+v
+            h = gutter
+        end
+    end
+end --end of create controls page
+
+function CreateSetupPage(ti,vstart,mnames)
+    
+    table.insert(graphics,
+    {
+    Type = "Text",
+    HTextAlign = "Right",
+    Text = "Address",
+    Position = { gutter+220, row },
+    Size = { 50,16 }
+    })
+
+    layout['Address'] =
+        {
+        PrettyName = 'Address',
+        Position = {gutter+220+60,row},
+        Size = { 180,16 },        
+        }
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "Port",
+        Position = { gutter+220, row+20 },
+        Size = { 50,16 }
+        })
+
+    layout['Port'] =
+        {
+        PrettyName = 'UDP Port',
+        Position = {gutter+60+220,row+20},
+        Size = { 36,16 },
+        Margin = 0,        
+        }
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "RS-232",
+        Position = { gutter+220+60+36, row+20 },
+        Size = { 50,16 }
+        })
+
+    layout['RS232'] =
+        {
+        PrettyName = 'RS-232 Mode',
+        Position = {gutter+60+220+46+46,row+20},
+        Size = { 16,16 },        
+        }
+
+    vstart = row+56  
+        
+    col = 70
+    row = 30
+
+    local h = gutter
+    local v = vstart
+    local nextrow
+    
+
+    --Create Alternate Names
+    col = 70
+    row = 20
+
+    nextrow = CalcNextRow(v,ti,row,0)
+    table.insert(graphics,
+        {
+        Type = "Text",
+        Text = "Name Alias\n(Optional)",
+        TextSize = 12,
+        Color = { 0, 0, 0}, 
+        HTextAlign = "Right",
+        VTextAlign = "Top",
+        Position = { 0, v },
+        Size = { 76,48 }
+        })
+    
+    for i = 1,ti do
+        layout['MacroRealName '..i] = 
+            {
+            PrettyName = string.format("Real Name~%i",i),
+            Position = { h, v },
+            Size = { col-2,16 }
+            }
+        layout['MacroAltName '..i] = 
+            {
+            PrettyName = string.format("Display Name Alias~%i",i),
+            Position = { h, v+16},
+            Size = { col-2, row-2 },
+            }
+        h = h + col
+        
+        if i%8 == 0 then
+            v = row+v+16
+            h = gutter
+        end
+    end 
+end --end of create setup page
+
+if Controls then --Start of runtime Lua code
+    local cmode = 1
+    local noteid
+    local sock = UdpSocket.New()
+    local ipa = ''
+    local port = 0
+
+    local StatusMsg = 
+        {
+        {state=0,lstate=0,msg='Searching for Manager Plugin'},
+        {state=0,lstate=0,msg=''},
+        {state=0,lstate=0,msg='Invalid Address or Port'},
+        }
+
+    local macros = {}
+
+    --FUNCTIONS
+    function StatusCheck(etype,state)
+        local ok = true
+        local max = {value=0,key=0}
+        StatusMsg[etype].state = state
+                
+        for k,v in ipairs(StatusMsg) do
+            if v.state ~= v.lstate then
+            v.lstate = v.state
+            end
+            if v.state > 0 then ok = false end
+        end
+                
+        if ok then
+            if Controls.Status.Value ~= 0 then 
+            Controls.Status.Value = 0
+            Controls.Status.String = ""
+            disableControls(false)
+            end
+        else
+            for k,v in ipairs(StatusMsg) do -- find the most severe status
+                if v.state > max.value then 
+                    max.value = v.state 
+                    max.key = k
+                end
+            end
+                    
+            Controls.Status.Value = max.value
+            Controls.Status.String = StatusMsg[max.key].msg
+        end 
+    end
+
+    function disableControls(state)
+        for k,v in ipairs(Controls.Macro) do
+            if state == false then v.Boolean = false end
+            v.IsDisabled = state
+        end
+    end
+
+    function sendCmd(cmd)
+        if cmd ~= nil then
+            Notifications.Publish('44a464e8ea01',cmd)
+        end
+    end
+
+    function SetMacro(id,ct)
+        local ctype
+
+        if macros[id].type == 1 then
+            if ct.Boolean then ctype = 'on'
+            else ctype = 'off' end
+        elseif macros[id].type == 2 then
+            if ct.Boolean then
+                ctype = 'on'
+                ct.Boolean = false
+            end
+        elseif macros[id].type == 3 then
+            if ct.Boolean then
+                ctpye = 'off'
+                ct.Boolean = false
+            end
+        end
+
+        sendCmd(string.format('macro %s %s',ctype,macros[id].name))
+    end
+
+    function SetAltName(id)
+        if #Controls.MacroAltName[id].String == 0 then
+            Controls.Macro[id].Legend = macros[id].name
+        else    
+            Controls.Macro[id].Legend = Controls.MacroAltName[id].String
+        end
+    end
+
+    function ProcessFeedback(name,data)
+        print(data.name..' '..data.cstate)
+        for k,v in ipairs(macros) do
+            if v.type == 1 then
+                if v.name == data.name then
+                    if data.cstate == 'on' then
+                        Controls.Macro[k].Boolean = true
+                    else 
+                        Controls.Macro[k].Boolean = false 
+                    end
+                end
+            end
+        end
+     end
+
+    --EVENT HANDLERS
+    Controls.Address.EventHandler = function(ctrl) ipa = ctrl.String end
+    Controls.Port.EventHandler = function(ctrl) port = ctrl.String end 
+
+    for ix,ct in ipairs(Controls.MacroAltName) do
+        ct.EventHandler = function() SetAltName(ix) end
+    end
+
+    for ix,ct in ipairs(Controls.Macro) do
+        ct.EventHandler = function() 
+           SetMacro(ix,ct)
+        end
+
+        local ctype
+        if Properties['Macro Type '..ix].Value == 'Toggle' then ctype = 1
+        elseif Properties['Macro Type '..ix].Value == 'Trigger On' then ctype = 2
+        elseif Properties['Macro Type '..ix].Value == 'Trigger Off' then ctype = 3 end
+
+        macros[ix] = {name=Properties['Macro Name '..ix].Value,type=ctype}
+        Controls.MacroRealName[ix].String = macros[ix].name
+        SetAltName(ix)
+    end
+
+    Controls.RS232.EventHandler = function(ctrl)
+        if ctrl.Boolean then
+            Controls.Address.String = ''
+            Controls.Port.String = ''
+        end
+    end
+
+    Controls.Status.EventHandler = function(ctrl)
+        if ctrl.Value == 0 or ctrl.Value == 1 then
+            if noteid == nil then
+                noteid = Notifications.Subscribe('etc_macros',ProcessFeedback)
+                print(noteid)
+            end 
+            disableControls(false)
+        else disableControls(true) end
+    end
+    
+    --INITALIZATION
+    StatusCheck(1,5)
+end

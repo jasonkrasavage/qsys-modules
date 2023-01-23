@@ -1,0 +1,764 @@
+PluginInfo = 
+{
+    Name = "Christie Digital~Solaria Series 3",
+    Version = "1.0",
+    Id = "christie_series_3",
+    Description = "Control of Christie Series 3 Cinema Projector",
+    ShowDebug = false
+}
+
+function GetColor(props)
+    return { 190, 230, 255 }
+end
+
+function GetPrettyName(props)
+    return "Christie Digital Solaria Series 3"
+end
+ 
+
+props = {}
+
+function GetProperties()
+
+    table.insert( props, 
+	{
+    Name = "User",
+    Type = "enum",
+    Choices = {'operator','manager','installer','service'},
+    Value = 'operator',
+    })
+
+    table.insert( props, 
+	{
+    Name = "Password",
+    Type = "string",
+    Value = 'operator',
+    })
+
+    table.insert( props, 
+    {
+    Name = "Total Channels",
+    Type = "integer",
+    Min = 1,
+    Max = 64,
+    Value = 4,
+    })
+
+    for i = 1,64 do
+        table.insert( props, 
+        {
+        Name = string.format("Channel Name %i",i),
+        Type = "string",
+        Value = '',
+        })
+    end
+    
+	return props
+end
+
+function RectifyProperties(props) -- Used to hide properties that aren't needed based on other property setting
+    for i = 1,64 do
+        local name = string.format("Channel Name %i",i)
+        if i > props["Total Channels"].Value then props[name].IsHidden = true end
+    end
+  return props
+end
+
+ctrls = {}
+function GetControls(props)
+    
+    table.insert (ctrls,
+        {
+        Name = "Address",
+        ControlType = "Text",
+        Count = 1,
+        UserPin = false,
+        })
+    
+    table.insert (ctrls,
+        {
+        Name = "Status",
+        ControlType = "Indicator",
+        IndicatorType = "Status",
+        Count = 1,
+        UserPin = true,
+        PinStyle = 'Output',
+        })
+    
+    table.insert (ctrls,
+        {
+        Name = "Refresh",
+        ControlType = "Button",
+        ButtonType = "Trigger",
+        Count = 1,
+        Icon = 'Refresh',
+        UserPin = false,
+        })   
+    
+    table.insert (ctrls,
+        {
+        Name = "SystemPower",
+        ControlType = "Button",
+        ButtonType = "Toggle",   
+        Count = 2,
+        UserPin = true,
+        PinStyle = 'Both',
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "LampPower",
+        ControlType = "Button",
+        ButtonType = "Toggle",   
+        Count = 2,
+        UserPin = true,
+        PinStyle = 'Both',
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "Douser",
+        ControlType = "Button",
+        ButtonType = "Toggle",   
+        Count = 2,
+        UserPin = true,
+        PinStyle = 'Both',
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "ChannelList",
+        ControlType = "Text",
+        Count = 1,  
+        })
+
+
+    table.insert (ctrls,
+        {
+        Name = "LampHours",
+        ControlType = "Indicator",
+        IndicatorType = "Text",
+        Count = 1,
+        })
+
+    return ctrls
+end
+
+layout = {}
+graphics = {}
+
+col = 70
+row = 16
+gutter = 86
+
+function GetControlLayout(props)
+
+    table.insert(graphics,
+        {
+        Type = "Header",
+        Text = "Address/Status",
+        Position = { 0, row },
+        Size = { 220+gutter,16 }
+        })
+
+    row = row+32
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "Address",
+        Position = { 0, row },
+        Size = { 76,16 }
+        })
+
+    layout['Address'] =
+            {
+            PrettyName = 'Address',
+            Position = {gutter,row},
+            Size = { 180,16 },        
+            }
+
+    layout['Refresh'] =
+            {
+            PrettyName = 'Refresh Connection',
+            Position = {gutter+180,row},
+            Size = { 36,16 },
+            Margin = 0,        
+            }
+
+    row = row+32
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "Status",
+        Position = { 0, row },
+        Size = { 76,16 }
+        })
+
+    layout['Status'] =
+        {
+        PrettyName = 'Status',
+        Position = {gutter,row},
+        Size = { 220,50 },        
+        }
+
+    row = row+16+50
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "Lamp Hours",
+        Position = { 0, row },
+        Size = { 76,16 }
+        })
+
+    layout['LampHours'] =
+        {
+        PrettyName = 'Lamp Hours',
+        Position = {gutter,row},
+        Size = { 220,16 },        
+        }
+
+    row = row+32
+
+    table.insert(graphics,
+        {
+        Type = "Header",
+        Text = "Controls",
+        Position = { 0, row },
+        Size = { 220+gutter,16 }
+        })  
+    
+    row = row+24
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Center",
+        Text = "System Power",
+        Position = { 43, row },
+        Size = { 100,16 }
+        })
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Center",
+        Text = "Lamp Power",
+        Position = { 43+120, row },
+        Size = { 100,16 }
+        })
+    
+    row = row+16
+    layout['SystemPower 1'] =
+        {
+        Style = 'Button',
+        PrettyName = 'System Off',
+        Position = {43,row},
+        Size = { 50,35 },
+        UnlinkOffColor = true,
+        OffColor = {124,124,124},
+        Color = {255,0,0},
+        Legend = 'Off',        
+        }
+        
+    layout['SystemPower 2'] =
+        {
+        Style = 'Button',
+        PrettyName = 'System On',
+        Position = {43+50,row},
+        Size = { 50,35 },
+        UnlinkOffColor = true,
+        OffColor = {124,124,124},
+        Color = {0,255,0},
+        Legend = 'On',        
+        }
+
+    layout['LampPower 1'] =
+        {
+        Style = 'Button',
+        PrettyName = 'Lamp Off',
+        Position = {43+120,row},
+        Size = { 50,35 },
+        UnlinkOffColor = true,
+        OffColor = {124,124,124},
+        Color = {255,0,0},
+        Legend = 'Off',        
+        }
+        
+    layout['LampPower 2'] =
+        {
+        Style = 'Button',
+        PrettyName = 'Lamp On',
+        Position = {43+170,row},
+        Size = { 50,35 },
+        UnlinkOffColor = true,
+        OffColor = {124,124,124},
+        Color = {0,255,0},
+        Legend = 'On',        
+        }
+    
+    row = row+40
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Center",
+        Text = "Douser",
+        Position = { 43, row },
+        Size = { 100,16 }
+        })
+
+    row = row+16
+    layout['Douser 1'] =
+        {
+        Style = 'Button',
+        PrettyName = 'Douser Closed',
+        Position = {43,row},
+        Size = { 50,35 },
+        Legend = 'Closed',        
+        }
+
+    layout['Douser 2'] =
+        {
+        Style = 'Button',
+        PrettyName = 'Douser Open',
+        Position = {43+50,row},
+        Size = { 50,35 },
+        Legend = 'Open',        
+        }
+
+    row = row+35+24
+
+    table.insert(graphics,
+        {
+        Type = "Header",
+        Text = "Channel",
+        Position = { 0, row },
+        Size = { 220+gutter,16 }
+        }) 
+        
+    row = row+20
+
+    row = row+20
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "Channel",
+        Position = { 0, row },
+        Size = { 76,16 }
+        })
+
+    layout['ChannelList'] =
+        {
+        PrettyName = 'Channel List',
+        Style = 'ComboBox',
+        Position = {gutter,row},
+        Size = { 220,16 },      
+        }
+
+  return layout, graphics
+end
+
+if Controls then --Start of runtime Lua code
+    sock = TcpSocket.New()
+    json = require('json')
+    local pollCurrent = {}
+    local channelNames = {}
+    local pollCount = 0
+    local lchan
+    local lshu
+    local lhours
+    local powerState = 3 --1=system on,2=lamp on,3=off,4=warming,5=cooling
+    local pollFIFO = {}
+    local pollTimeout = Timer.New()
+    local pollSleep = Timer.New()
+    local lpwrStat = 999
+    local ready = false
+    local tChan = Properties['Total Channels'].Value
+
+    Controls.Status.Value = 5
+
+    for i=1,tChan do
+        table.insert(channelNames,Properties['Channel Name '..i].Value)
+    end
+
+    Controls.ChannelList.Choices = channelNames
+
+    local powerStates = {'System On','Lamp On','Standby','Warming','Cooling'}
+    
+    local powerBtnStates = {
+                            {false,true,true,false,false,false}, --System On
+                            {false,true,false,true,false,false}, --Lamp On
+                            {true,false,true,false,false,true}, --Off
+                            {false,false,false,false,true,true}, --Warming
+                            {false,false,false,false,true,true}, --Cooling
+                            }
+                            
+    local pollStack = { --priorities 4=poll except when cooling, 3=poll always, 2=poll only when cooling, 1=poll when sytem is on
+                      {cmd='(SST+ALRM?)',qty=1,pri=4},
+                      {cmd='(CHA?)',qty=1,pri=1},
+                      {cmd='(LPH?)',qty=1,pri=1},
+                      {cmd='(SHU?)',qty=1,pri=1},
+                      {cmd='(PWR+COOL?)',qty=1,pri=2},
+                      {cmd='(PWR+STAT?)',qty=1,pri=3},
+                      }
+    
+    --FUNCTIONS
+    function SetStatus(state,msg)
+      if state ~= Controls.Status.Value then
+        Controls.Status.Value = state
+      end
+
+      if msg ~= nil then Controls.Status.String = msg
+      else Controls.Status.String = '' end
+    end 
+    
+    function connect()
+      Controls.Refresh.IsDisabled = false
+      if validateAddress(Controls.Address.String) then
+        SetStatus(5,'')
+        sock.WriteTimeout = 2
+        sock:Connect(Controls.Address.String,5000)
+      else
+        SetStatus(2,"Invalid Address")
+      end
+    end
+    
+    function fail()                                        
+      Controls.ChannelList.String = ''
+      DisableControls(true)
+      DisablePower(true)
+      pollCurrent = {}
+      pollFIFO = {}
+      pollCount = 0
+      powerState = 0
+      lpwrStat = 999
+      ready = false
+      pollTimeout:Stop()
+      pollSleep:Stop()
+    end
+    
+    function disconnect(recon)
+      fail()
+      sock:Disconnect()
+      if recon then SetStatus(5,'Connect')
+      else SetStatus(2,'Offline') end
+    end
+    
+    function refreshCNX()
+      disconnect(true)
+      Controls.Refresh.IsDisabled = true
+      Timer.CallAfter(connect,1)
+    end
+    
+    function createPollStack(init)
+      for k,v in ipairs(pollStack) do      
+        if v.pri == 3 or init then table.insert(pollFIFO,v)
+        elseif v.pri == 4 and powerState ~= 5 then table.insert(pollFIFO,v)
+        elseif v.pri == 2  and powerState == 5 then table.insert(pollFIFO,v)
+        elseif v.pri == 1 and powerState < 3 then table.insert(pollFIFO,v) end
+      end
+      
+      poll()
+    end
+    
+    function poll()
+      local cmd = ''
+  
+      if pollCurrent.qty ~= nil then
+        if pollCurrent.qty > 1 then
+          if pollCount < pollCurrent.qty then
+            pollCount = pollCount+1
+            cmd = string.format('%s%02d?)',pollCurrent.cmd,pollCount)
+            sock:Write(cmd)
+            return
+          end
+        end
+      end
+  
+      if #pollFIFO > 0 then
+        pollCount = 1
+        pollCurrent = table.remove(pollFIFO)
+        if pollCurrent.qty > 1 then cmd = string.format('%s%02d?)',pollCurrent.cmd,pollCount)
+        else cmd = pollCurrent.cmd end
+        --print(cmd)
+        sock:Write(cmd)
+        pollTimeout:Start(1)
+      else
+        if ready == false then
+          SetStatus(0)
+          ready = true
+        end
+        local sleepT
+        if powerState == 5 then sleepT = 1
+        else sleepT = 2 end
+        pollSleep:Start(sleepT) 
+      end
+    end
+    
+    function processData(data)
+      pollTimeout:Stop()
+      if string.find(data,'CHA!') then --Channel Number
+        local cchan = string.match(data,'!\x22(.+)\x22')
+        if lchan ~= cchan then UpdateChan(cchan) end
+      elseif string.find(data,'PWR%+STAT') then --Power Status
+        local cstat = string.match(data,'!(%d+)')
+        cstat = tonumber(cstat)
+        if lpwrStat ~= cstat then UpdatePower(cstat) end
+      elseif string.find(data,'PWR%+COOL') then --Cooling Timer
+        if powerState == 5 then
+          local ctime = string.match(data,'!(%d+)')
+          ctime = tonumber(ctime)
+          local min = math.floor(ctime/60)
+          local sec = ctime%60
+          Controls.Status.String = string.format('Cooling - %02d:%02d',min,sec)
+        end  
+      elseif string.find(data,'SHU!') then --Shutter Status
+        local cstat = tonumber(string.match(data,'!(%d+)'))
+        if cstat == 1 then cstat = true else cstat = false end
+        if lshu ~= cstat then 
+          lshu = cstat
+          if cstat then 
+            Controls.Douser[1].Boolean = true
+            Controls.Douser[2].Boolean = false
+          else
+            Controls.Douser[1].Boolean = false
+            Controls.Douser[2].Boolean = true
+          end
+        end
+      elseif string.find(data,'LPH!') then --Lamp Hours
+        local cstat = tonumber(string.match(data,'!(%d+)'))
+        if lhours ~= cstat then
+          lhours = cstat
+          Controls.LampHours.String = cstat
+        end
+      elseif string.find(data,'SST%+ALRM!') then --Alarms
+        local cstat,cdesc = string.match(data,' (%d+) ".+" "(.+)')
+        cstat = tonumber(cstat)
+        if cstat == 3 then cstat = 2 end
+        SetStatus(cstat,cdesc)     
+      end
+        
+      poll()
+    end
+    
+    function UpdateChan(cchan)
+      lchan = ccchan
+      Controls.ChannelList.String = cchan
+    end
+    
+    function UpdatePower(cstat)
+      lpwrStat = cstat
+      
+      if cstat == 3 then -- Standby Mode
+        powerState = 3
+      elseif cstat == 1 then --Lamp On
+        powerState = 2
+      elseif cstat == 0 then --System On
+        powerState = 1
+      elseif cstat == 10 then --Cooling
+        powerState = 5
+      elseif cstat == 11 then --Warming
+        powerState = 4
+      end
+
+      ctext = powerStates[powerState]
+      
+      if cstat < 4 then SetStatus(0,ctext)
+      else SetStatus(5,ctext) end
+      
+      SetPowerFb()
+    end
+
+    
+    function SetPowerFb()
+      local cstate = powerBtnStates[powerState]
+        
+      Controls.SystemPower[1].Boolean = cstate[1]
+      Controls.SystemPower[2].Boolean = cstate[2]
+      Controls.LampPower[1].Boolean = cstate[3]
+      Controls.LampPower[2].Boolean = cstate[4]
+      
+      DisablePower(cstate[5])
+      DisableControls(cstate[6])
+    end
+    
+    function DisablePower(state)
+      Controls.SystemPower[1].IsDisabled = state
+      Controls.SystemPower[2].IsDisabled = state
+      Controls.LampPower[1].IsDisabled = state
+      Controls.LampPower[2].IsDisabled = state
+    end
+         
+    function DisableControls(state)
+      Controls.Douser[1].IsDisabled = state
+      Controls.Douser[2].IsDisabled = state
+      Controls.ChannelList.IsDisabled = state
+    end
+    
+    function setSystemPower(id)
+      if id == 1 then
+        if powerState ~= 3 then 
+          powerState = 3
+          SetStatus(5)
+        end
+        if ready then sock:Write('(PWR3)') end
+      else
+        if powerState ~= 1 then
+          powerState = 1
+          SetStatus(5)
+        end
+        Controls.SystemPower[1].Boolean = false
+        if ready then sock:Write('(PWR0)') end
+      end
+            
+      SetPowerFb()
+    end
+    
+    function setLampPower(id)
+       if id == 1 then 
+        if powerState ~= 5 then
+          powerState = 5
+          SetStatus(5)
+        end
+        if ready then sock:Write('(PWR0)') end
+      else
+        if powerState ~= 2 then
+          powerState = 2
+          SetStatus(5)
+        end
+        Controls.LampPower[1].Boolean = false
+        if ready then sock:Write('(PWR1)') end
+      end 
+      
+      SetPowerFb()
+    end
+    
+    
+    function setChannel(id)  
+        if #id > 0 then   
+            local cmd = string.format('(CHA \x22%s\x22)',id)
+            if ready then sock:Write(cmd) end
+        end    
+    end
+      
+    --UTILITY FUNCTIONS
+    function validateAddress(addr)
+      if addr == nil or #addr < 2 then
+        return false
+      else
+        return true
+      end
+    end
+     
+    --TCP Socket Events
+      sock.Connected = function()
+        print("Connected")
+        local cmd = string.format('(UID \x22%s\x22 \x22%s\x22)',Properties['User'].Value,Properties['Password'].Value)
+        print(cmd)
+        sock:Write(cmd)
+        createPollStack(true)
+      end
+      
+      sock.Data = function()        
+        local line = sock:ReadLine(TcpSocket.EOL.Custom,')')
+        while (line ~= nil) do
+            print(line)
+            processData(line) 
+            line = sock:ReadLine(TcpSocket.EOL.Custom,')')
+        end
+      end
+      
+      sock.Closed = function()
+        SetStatus(2,"Offline")
+        fail()
+      end
+      
+      sock.Timeout = function()
+        SetStatus(2,"Timeout")
+        fail()
+      end
+      
+      sock.Error = function(_,err)
+        print("Server Error "..err)
+        SetStatus(2,err)
+        fail()
+      end
+      
+      sock.Reconnect = function()
+        print("Reconnecting")
+        SetStatus(2,"Attempt Reconnect")
+      end
+      
+      
+      --EVENT HANDLERS
+      Controls.Address.EventHandler = refreshCNX
+      Controls.Refresh.EventHandler = refreshCNX
+      
+      Controls.Douser[1].EventHandler = function(ctrl)
+        if ctrl.Boolean then
+          Controls.Douser[2].Boolean = false
+          if ready then sock:Write('(SHU 1)') end
+        end
+      end
+
+      Controls.Douser[2].EventHandler = function(ctrl)
+        if ctrl.Boolean then
+          Controls.Douser[1].Boolean = false
+          if ready then sock:Write('(SHU 0)') end
+        end
+      end
+      
+      for ix,ct in ipairs(Controls.SystemPower) do
+        ct.EventHandler = function()
+          if ct.Boolean then
+            setSystemPower(ix)
+          else
+            ct.Boolean = true
+          end
+        end
+      end
+      
+      for ix,ct in ipairs(Controls.LampPower) do
+        ct.EventHandler = function()
+          if ct.Boolean then
+            setLampPower(ix)
+          else
+            ct.Boolean = true
+          end
+        end
+      end
+      
+      
+      Controls.ChannelList.EventHandler = function(ctrl)
+        setChannel(ctrl.String)
+      end
+      
+      --TIMER EVENTS
+      pollTimeout.EventHandler = function()
+        --print('PollTimeout')
+        if Controls.Status.Value == 2 then 
+          SetStatus(0)
+          lpwrStat = 999
+        end
+        pollTimeout:Stop()
+        poll()
+      end
+      
+      pollSleep.EventHandler = function()
+        pollSleep:Stop()
+        createPollStack(false)
+      end
+      
+      --INITALIZATION
+      DisablePower(true)
+      DisableControls(true)
+      refreshCNX()
+      
+
+end

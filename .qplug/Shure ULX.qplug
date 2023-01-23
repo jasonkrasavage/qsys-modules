@@ -1,0 +1,1149 @@
+-- Shure Microflex Wireless Plugin for Q-Sys 5.3+
+-- by Joe Peavey / QSC Boulder
+-- Modified from Shure MXW Plugin for use - 2018
+-- December 2016
+
+PluginInfo = 
+{
+  Name = "Shure~ULX Wireless",
+  Version = "1.3",
+  Id = "a3daf924-bf26-46d7-b10f-bc958e15b907",
+  Description = "Shure ULX Wireless Plugin - Updated Bonjour IP Resolve for 6.0 - July 2016",
+  ShowDebug = false
+}
+
+function GetColor(props)
+  return { 102, 102, 102 }
+end
+
+function GetPrettyName(props)
+  return "Shure ULX Wireless"
+end
+
+function GetProperties() -- No properties needed
+  props = {}
+  return props
+end
+
+function GetControls(props)
+  return
+  {
+    {
+      Name = "mode",
+      ControlType = "Text",
+      Count = 1
+    },
+    {
+      Name = "nic",
+      ControlType = "Text",
+      Count = 1
+    },
+    {
+      Name = "ip",
+      ControlType = "Text",
+      UserPin = true,
+      PinStyle = "Both",
+      Count = 1,
+    },
+    {
+      Name = "apt",
+      ControlType = "Text",
+      Count = 1
+    },
+    {
+      Name = "connect",
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      Count = 1,
+      UserPin = true,
+      PinStyle = "Input"
+    },
+    {
+      Name = "details",
+      ControlType = "Text",
+      Count = 1
+    },
+    {
+      Name = "aptstatus",
+      ControlType = "Indicator",
+      IndicatorType = "Status",
+      Count = 1,
+      UserPin = true,
+      PinStyle = "Output"
+    },
+    {
+      Name = "battery_charge",
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 100,
+      Count = 1,
+      UserPin = true,
+      PinStyle = "Output"
+    },
+    {
+      Name = "battery_run_time",
+      ControlType = "Text",
+      Count = 1,
+      UserPin = true,
+      PinStyle = "Output"
+    },
+    {
+      Name = "audio_level",
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 98,
+      Count = 1,
+      UserPin = true,
+      PinStyle = "Output"
+    },
+    {
+      Name = "tx_status",
+      ControlType = "Indicator", 
+      IndicatorType = "Led",         
+      Count = 1,
+      UserPin = true,
+      PinStyle = "Output"
+    },    
+     {
+      Name = "mute",
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      Count = 1,
+      UserPin = true,
+      PinStyle = "Both"
+    },
+    {
+      Name = "transmitter_type",
+      ControlType = "Text",
+      Count = 1,
+      UserPin = true,
+      PinStyle = "Output"
+    },
+  }
+end
+
+function GetControlLayout(props)
+  local mg = { gx = {68,54,93},udx={26,0,39},udy={0,9} }
+  local Color = {
+    GlobalBG = { 102, 102, 102 },
+    TChBG = { 80, 81, 84 },
+    BChBG = { 70, 71, 73 },
+    ChStr = { 51, 51, 51 },
+    Combo = { 192, 192, 192 },
+    White = { 255, 255, 255 },
+    Black = { 0, 0, 0 },
+    BtnBlue = { 0, 181, 239 },
+    meterGrn = { 81, 177, 78 }, --{ 0, 238, 0 }
+    meterBg = { 59, 72 , 79 },
+    LtGray = { 223, 231, 234 },
+    LtBlue = { 31, 181, 251 },
+  }
+  layout = {
+    aptstatus = {
+      PrettyName = "Status~Access Point",
+      Style = "Text",
+      TextFontSize = 10,
+      HTextAlign = "Center",
+      WordWrap = true,
+      Position = { 3, 49 },
+      Size = { 124, 16 },
+      IsReadOnly = true
+    },
+    mode = {
+      PrettyName = "Setup~Discover Mode",
+      Style = "ComboBox",
+      Position = { 34, 79 },
+      Size = { 72, 16 },
+      TextFontSize = 10,
+    },
+    ip = {
+      PrettyName = "Setup~IP Address",
+      Style = "Text",
+      Position = { 34, 98 },
+      Size = { 72, 16 },
+      TextFontSize = 10,
+    },
+    apt = {
+      PrettyName = "Setup~Access Point",
+      Style = "ComboBox",
+      Position = { 34, 98 },
+      Size = { 72, 16 },
+      TextFontSize = 10,
+    },
+    nic = {
+      PrettyName = "Setup~Local NIC",
+      Style = "ComboBox",
+      Position = { 34, 117 },
+      Size = { 72, 16 },
+      TextFontSize = 10,
+    },
+    connect = {
+      PrettyName = "Setup~Connect",
+      Style = "Button",
+      ButtonStyle = "Toggle",
+      TextFontSize = 12,
+      Legend = "Connect",
+      Color = Color.BtnBlue,
+      OffColor = { 183, 37, 39 },
+      UnlinkOffColor = true,
+      Position = { 34, 136 },
+      Size = { 72, 18 },
+      Radius = 2,
+      Margin = 1,
+      IsBold = true,
+    },
+    details = {
+      PrettyName = "Device Details",
+      Style = "Text",
+      WordWrap = true,
+      HTextAlign = "Left",
+      VTextAlign = "Top",
+      TextFontSize = 7.5,
+      TextBoxStyle = "NoBackground",
+      Position = { 9, 166 },
+      Size = { 113, 36 },
+    },
+  }
+
+  local BGColor = { 102, 102, 102 }
+  local TextColor = { 204, 204, 204 }
+
+    layout["battery_charge"] = {
+      PrettyName = "Battery~Charge",
+      Style = "Meter",
+      MeterStyle = "Level",
+      Color = { 0, 238, 0 },
+      ShowTextBox = false,
+      Position = { 139, 84 },
+      Size = { 65, 14 }
+    }
+    layout["battery_run_time"] = 
+      {
+        PrettyName = "Battery~Run Time",
+        Style = "Text",
+        TextBoxStyle = "NoBackground",
+        TextFontSize = 9.5,
+        IsBold = true,
+        Color = TextColor,
+        Position = { 133, 98 },
+        Size = { 78, 11 },
+        IsReadOnly = true
+      }
+    layout["audio_level"] =
+      {
+        PrettyName = "Audio Meter",
+        Style = "Meter",
+        MeterStyle = "Level",
+        Color = { 0, 248, 0 },
+        ShowTextBox = false,
+        Position = { 154, 116 },
+        Size = { 10, 55 }
+      }
+    layout["tx_status"] = 
+      {
+        PrettyName = "Transmitter~Status",
+        
+    	Style = "LED",
+      	Color = Color.CtlBkgnd,
+      	OffColor = Color.CtlBkgnd,
+      	UnlinkOffColor = true,
+        Position = { 192, 193 },
+      	Size = { 16 , 16 },
+      	CornerRadius = 4,
+        IsReadOnly = true
+      }
+    layout["mute"] = 
+      {
+        PrettyName = "Mute",
+        Style = "Button",
+        ButtonStyle = "Toggle",
+        Legend = "MUTE",
+        Color = { 255, 0, 0 },
+        --OffColor = TextColor,
+        --UnlinkOffColor = true,
+        Position = { 138, 209 },
+        Size = { 67, 18 }
+      }
+    layout["transmitter_type"] = 
+      {
+        PrettyName = "Transmitter~Type",
+        Style = "Text",
+        TextBoxStyle = "NoBackground",
+        TextFontSize = 11,
+        Color = TextColor,
+        Position = { 135, 233 },
+        Size = { 74, 16 },
+        IsReadOnly = true
+      }
+
+  graphics = 
+  {
+    {
+      Type = "GroupBox",
+      Fill = Color.Black,
+      StrokeWidth = 0,
+      --CornerRadius = 0,
+      Position = { 0, 0 },
+      Size = { 213, 26 }
+    },
+    {
+      Type = "GroupBox",
+      Fill = Color.Black,
+      StrokeWidth = 0,
+      --CornerRadius = 0,
+      Position = { 0, 26 },
+      Size = { 131, 1 }
+    },
+    {
+      Type = "Svg", -- White Shure Logo
+      Image = "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz48IURPQ1RZUEUgc3ZnIFBVQkxJQyAiLS8vVzNDLy9EVEQgU1ZHIDEuMS8vRU4iICJodHRwOi8vd3d3LnczLm9yZy9HcmFwaGljcy9TVkcvMS4xL0RURC9zdmcxMS5kdGQiPjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iTGF5ZXJfMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeD0iMHB4IiB5PSIwcHgiIHdpZHRoPSIxMTUuMDUzcHgiIGhlaWdodD0iMjAuMjI1cHgiIHZpZXdCb3g9IjAgMCAxMTUuMDUzIDIwLjIyNSIgZW5hYmxlLWJhY2tncm91bmQ9Im5ldyAwIDAgMTE1LjA1MyAyMC4yMjUiIHhtbDpzcGFjZT0icHJlc2VydmUiPjxnIGlkPSJMYXllcl8zIiBkaXNwbGF5PSJub25lIj48cmVjdCB4PSI4Ni4xMjIiIHk9Ii00LjM3OSIgZGlzcGxheT0iaW5saW5lIiBmaWxsPSIjMjQwMDBFIiB3aWR0aD0iMzAuMDgxIiBoZWlnaHQ9IjEyLjY5MSIvPjwvZz48ZyBpZD0iQmxhY2tfMV8iIGRpc3BsYXk9Im5vbmUiPjxnIGlkPSJCbGFjayIgZGlzcGxheT0iaW5saW5lIj48cGF0aCBmaWxsPSIjMjMxRjIwIiBkPSJNNTYuODQyLDAuMTMxbC0xLjU0OSwxMi4wODVoLTIuMjU0bDEuNTA1LTEyLjA4NWgtOC41MjFsLTEuMTM4LDguMjE0YzAsMC0wLjU4NSwzLjE4OC0wLjExNCw0LjYyOWMxLjA3OSwzLjI2LDMuNzcxLDQuNDQ1LDMuNzcxLDQuNDQ1bDAuMzEyLDAuMTdjMS4wODEsMC41NTMsMi4yMjIsMC43OTUsMy43MDEsMC43OTVoMC44MDZjMi4xNDctMC4wMDYsMy44OTQtMC40ODQsNS4zMi0xLjE5NGMwLjAwMy0wLjAwOSwwLjA4OS0wLjA0MSwwLjA4OS0wLjA0MWMwLjQ2MS0wLjI3NCwzLjExLTEuNjM4LDQuNzUyLTQuODc3YzAuNjg2LTEuMzU1LDEuMDAyLTMuNDQ3LDEuMDAyLTMuNDQ3bDEuMDI0LTguNjkzIi8+PHBhdGggZmlsbD0iIzIzMUYyMCIgZD0iTTExNC40NzEsMC42NTRjMC4zNzksMC4zODcsMC41ODIsMC44OTUsMC41ODIsMS40NDJjMCwwLjU2Ni0wLjIxNiwxLjA3NS0wLjYwNCwxLjQ1M2MtMC40MDEsMC4zODktMC45MjMsMC41OTktMS40NTEsMC41OTljLTAuNTQ5LDAtMS4wNjQtMC4yMi0xLjQ2MS0wLjYyMmMtMC4zODYtMC4zOS0wLjU4OC0wLjg5OS0wLjU4OC0xLjQzYzAtMC4zNjksMC4wOTctMC43MjMsMC4zLTEuMDdjMC4zNjgtMC42MiwxLjAwNy0wLjk4NywxLjc0OS0wLjk4N0MxMTMuNTYxLDAuMDM4LDExNC4wNzMsMC4yNTMsMTE0LjQ3MSwwLjY1NCBNMTExLjgwNywwLjg2M2MtMC4zMzQsMC4zMzUtMC41MiwwLjc3NC0wLjUyLDEuMjI4czAuMTcsMC44NzcsMC40OTEsMS4yYzAuMzI4LDAuMzMyLDAuNzY1LDAuNTIsMS4yMTgsMC41MmMwLjQ0NCwwLDAuODc1LTAuMTgxLDEuMjE0LTAuNTAzYzAuMzIzLTAuMzExLDAuNTA0LTAuNzQxLDAuNTA0LTEuMTgyYzAtMC40OTItMC4xNjUtMC45MDQtMC40ODctMS4yMzNjLTAuMzMyLTAuMzM4LTAuNzUyLTAuNTEzLTEuMjI3LTAuNTEzQzExMi41MzcsMC4zNzgsMTEyLjEzLDAuNTQsMTExLjgwNywwLjg2MyBNMTEzLjAzOSwwLjkxNGMwLjY0OSwwLDAuOTczLDAuMjIyLDAuOTczLDAuNjU1YzAsMC4zMDEtMC4xODYsMC41MjYtMC40OTYsMC42MDZsMC41MDgsMS4wMTZoLTAuNjE2bC0wLjQzNS0wLjkzMmgtMC4yNzF2MC45MzJoLTAuNTU2VjAuOTE0SDExMy4wMzl6IE0xMTIuNzAxLDEuOTI2aDAuMjcxYzAuMzE1LDAsMC40NjktMC4wOTYsMC40NjktMC4zMjJjMC0wLjIzNy0wLjE2NC0wLjM0LTAuNDk4LTAuMzRoLTAuMjQxVjEuOTI2TDExMi43MDEsMS45MjZ6Ii8+PHBvbHlsaW5lIGZpbGw9IiMyMzFGMjAiIHBvaW50cz0iMzIuNDMxLDAuMTMxIDIzLjkzOCwwLjEzMSAyMS44MDEsMTcuNjIyIDMwLjI3NiwxNy42MjIgMzAuMjgzLDE3LjYyNyAzMC4yODMsMTcuNjIyIDMwLjI4NSwxNy42MjIgMzAuMjgzLDE3LjYyIDMxLjAzOCwxMS40OTQgMzMuNjQ2LDExLjQ5NCAzMy42OTcsMTEuNDY0IDMyLjk0MywxNy42MDQgNDEuNDI2LDE3LjYyNyA0My41NzIsMC4xMzYgNDMuNTcyLDAuMTQ3IDM1LjA4OCwwLjE0NyAzNC4zNDIsNi4xOTQgMzQuMzI4LDYuMTg0IDMxLjcwOSw2LjE4NCAzMS42ODMsNi4xOTYgMzIuNDI0LDAuMTM2ICIvPjxwYXRoIGZpbGw9IiMyMzFGMjAiIGQ9Ik05OC40MjEsNC4xNDNoMTAuMTQ2bDAuMzczLTQuMDIxSDkwLjIzTDg4LjYyNiwxMy4xOGwtNi40NDItMy4yODNjMCwwLDEuNzc3LTAuNTA0LDIuNzUtMS4xODNjMS4wMTUtMC43MSwxLjQzOS0xLjQxNSwxLjYyOS0xLjc0NGMwLjM2LTAuNjA0LDAuNzUtMS4zMDQsMC43OTUtMi42MjJjMC4wNDUtMS4zNjEtMC42Ny0yLjMzNy0xLjA1My0yLjc4MmMtMC4zODUtMC40NTctMS4zMy0xLjQ2LTMtMS40MzVjLTEuODU1LDAuMDI2LTE1LjQsMC0xNS40LDBsLTAuNDk2LDMuOTU1aDEyLjE5NWwtMC4yOSwyLjEzNEg2Ny4xNDhMNjUuNzksMTcuNDdoNy4zMzNsMC43NDktNS42NDFsMTMuOTEyLDguMzk1bDAuMzA4LTIuNTg2bDE4LjkyNi0wLjAxN2wwLjQ0MS00LjZsLTEwLjI1NS0wLjAwNmwwLjMxOC0yLjMxOGgxMC4yNDZsMC42MDMtNC40NjJsLTEwLjI0LDAuMDExTDk4LjQyMSw0LjE0M3oiLz48cGF0aCBmaWxsPSIjMjMxRjIwIiBkPSJNNi42NzUsMC4wMzRjLTEuMTQsMC4wMDUtMi4xNTEsMC4zOTctMi45NTcsMS4wMjlsLTAuMDQsMC4wMDdDMy42NzIsMS4wNjksMy42NzEsMS4wNjQsMy42NzEsMS4wNjRsMC4wMDEsMC4wMDdDMS4wODksMy4wODgsMC41MzEsNy41LDQuMTk0LDkuMzE0YzAuNDg4LDAuMjQyLDguNTkxLDMuNTI3LDguNTkxLDMuNTI3bDAuMDIsMC4wMDZMMC43ODIsMTIuODY1bC0wLjc2Nyw0LjczN0wwLDE3LjYxNWgwLjAxNUwwLjAxLDE3LjYyN2wwLjAxMS0wLjAxMmMwLjQ2MSwwLDEzLjg1MywwLjAxNiwxNC45NDUsMC4wMTZjMi4yNTcsMC4wMDIsMy44MDktMC44NjUsNC44ODgtMi4zODdjMC4zOTEtMC41MjEsMC42NS0xLjAzNiwwLjgyNS0xLjU2NGMwLjU2My0xLjY1NSwwLjQ1Ny0zLjU0Mi0wLjY2Ny00LjQ0NGMtMC4yMzktMC4xOTEtMC40NTEtMC4zNTktMC42NzEtMC40OTNjLTAuMTUtMC4wOTItMC40MDItMC4yNDUtMC42Mi0wLjM0N0MxNi43OTcsNy40OCw4LjU2Niw0LjAwMyw4LjU2Niw0LjAwM2wxMi43MDUtMC4wMDhsMC41MjQtMy45NWwtMC4zMTgsMC4yMzNsMC4zMTgtMC4yNDRINi42NzV6Ii8+PC9nPjwvZz48ZyBpZD0iV2hpdGVfMV8iPjxnIGlkPSJXaGl0ZSI+PHBhdGggZmlsbD0iI0ZGRkZGRiIgZD0iTTU2Ljg0MiwwLjEzMWwtMS41NDksMTIuMDg1aC0yLjI1NGwxLjUwNS0xMi4wODVoLTguNTIxbC0xLjEzOCw4LjIxNGMwLDAtMC41ODUsMy4xODgtMC4xMTQsNC42MjljMS4wNzksMy4yNiwzLjc3MSw0LjQ0NSwzLjc3MSw0LjQ0NWwwLjMxMiwwLjE3YzEuMDgxLDAuNTUzLDIuMjIyLDAuNzk1LDMuNzAxLDAuNzk1aDAuODA2YzIuMTQ3LTAuMDA2LDMuODk0LTAuNDg0LDUuMzItMS4xOTRjMC4wMDMtMC4wMDksMC4wODktMC4wNDEsMC4wODktMC4wNDFjMC40NjEtMC4yNzQsMy4xMS0xLjYzOCw0Ljc1Mi00Ljg3N2MwLjY4Ni0xLjM1NSwxLjAwMi0zLjQ0NywxLjAwMi0zLjQ0N2wxLjAyNC04LjY5MyIvPjxwYXRoIGZpbGw9IiNGRkZGRkYiIGQ9Ik0xMTQuNDcxLDAuNjU0YzAuMzc5LDAuMzg3LDAuNTgyLDAuODk1LDAuNTgyLDEuNDQyYzAsMC41NjYtMC4yMTYsMS4wNzUtMC42MDQsMS40NTNjLTAuNDAxLDAuMzg5LTAuOTIzLDAuNTk5LTEuNDUxLDAuNTk5Yy0wLjU0OSwwLTEuMDY0LTAuMjItMS40NjEtMC42MjJjLTAuMzg2LTAuMzktMC41ODgtMC44OTktMC41ODgtMS40M2MwLTAuMzY5LDAuMDk3LTAuNzIzLDAuMy0xLjA3YzAuMzY4LTAuNjIsMS4wMDctMC45ODcsMS43NDktMC45ODdDMTEzLjU2MSwwLjAzOCwxMTQuMDczLDAuMjUzLDExNC40NzEsMC42NTQgTTExMS44MDcsMC44NjNjLTAuMzM0LDAuMzM1LTAuNTIsMC43NzQtMC41MiwxLjIyOHMwLjE3LDAuODc3LDAuNDkxLDEuMmMwLjMyOCwwLjMzMiwwLjc2NSwwLjUyLDEuMjE4LDAuNTJjMC40NDQsMCwwLjg3NS0wLjE4MSwxLjIxNC0wLjUwM2MwLjMyMy0wLjMxMSwwLjUwNC0wLjc0MSwwLjUwNC0xLjE4MmMwLTAuNDkyLTAuMTY1LTAuOTA0LTAuNDg3LTEuMjMzYy0wLjMzMi0wLjMzOC0wLjc1Mi0wLjUxMy0xLjIyNy0wLjUxM0MxMTIuNTM3LDAuMzc4LDExMi4xMywwLjU0LDExMS44MDcsMC44NjMgTTExMy4wMzksMC45MTRjMC42NDksMCwwLjk3MywwLjIyMiwwLjk3MywwLjY1NWMwLDAuMzAxLTAuMTg2LDAuNTI2LTAuNDk2LDAuNjA2bDAuNTA4LDEuMDE2aC0wLjYxNmwtMC40MzUtMC45MzJoLTAuMjcxdjAuOTMyaC0wLjU1NlYwLjkxNEgxMTMuMDM5eiBNMTEyLjcwMSwxLjkyNmgwLjI3MWMwLjMxNSwwLDAuNDY5LTAuMDk2LDAuNDY5LTAuMzIyYzAtMC4yMzctMC4xNjQtMC4zNC0wLjQ5OC0wLjM0aC0wLjI0MVYxLjkyNkwxMTIuNzAxLDEuOTI2eiIvPjxwb2x5bGluZSBmaWxsPSIjRkZGRkZGIiBwb2ludHM9IjMyLjQzMSwwLjEzMSAyMy45MzgsMC4xMzEgMjEuODAxLDE3LjYyMiAzMC4yNzYsMTcuNjIyIDMwLjI4MywxNy42MjcgMzAuMjgzLDE3LjYyMiAzMC4yODUsMTcuNjIyIDMwLjI4MywxNy42MiAzMS4wMzgsMTEuNDk0IDMzLjY0NiwxMS40OTQgMzMuNjk3LDExLjQ2NCAzMi45NDMsMTcuNjA0IDQxLjQyNiwxNy42MjcgNDMuNTcyLDAuMTM2IDQzLjU3MiwwLjE0NyAzNS4wODgsMC4xNDcgMzQuMzQyLDYuMTk0IDM0LjMyOCw2LjE4NCAzMS43MDksNi4xODQgMzEuNjgzLDYuMTk2IDMyLjQyNCwwLjEzNiAiLz48cGF0aCBmaWxsPSIjRkZGRkZGIiBkPSJNOTguNDIxLDQuMTQzaDEwLjE0NmwwLjM3My00LjAyMUg5MC4yM0w4OC42MjYsMTMuMThsLTYuNDQyLTMuMjgzYzAsMCwxLjc3Ny0wLjUwNCwyLjc1LTEuMTgzYzEuMDE1LTAuNzEsMS40MzktMS40MTUsMS42MjktMS43NDRjMC4zNi0wLjYwNCwwLjc1LTEuMzA0LDAuNzk1LTIuNjIyYzAuMDQ1LTEuMzYxLTAuNjctMi4zMzctMS4wNTMtMi43ODJjLTAuMzg1LTAuNDU3LTEuMzMtMS40Ni0zLTEuNDM1Yy0xLjg1NSwwLjAyNi0xNS40LDAtMTUuNCwwbC0wLjQ5NiwzLjk1NWgxMi4xOTVsLTAuMjksMi4xMzRINjcuMTQ4TDY1Ljc5LDE3LjQ3aDcuMzMzbDAuNzQ5LTUuNjQxbDEzLjkxMiw4LjM5NWwwLjMwOC0yLjU4NmwxOC45MjYtMC4wMTdsMC40NDEtNC42bC0xMC4yNTUtMC4wMDZsMC4zMTgtMi4zMThoMTAuMjQ2bDAuNjAzLTQuNDYybC0xMC4yNCwwLjAxMUw5OC40MjEsNC4xNDN6Ii8+PHBhdGggZmlsbD0iI0ZGRkZGRiIgZD0iTTYuNjc1LDAuMDM0Yy0xLjE0LDAuMDA1LTIuMTUxLDAuMzk3LTIuOTU3LDEuMDI5bC0wLjA0LDAuMDA3QzMuNjcyLDEuMDY5LDMuNjcxLDEuMDY0LDMuNjcxLDEuMDY0bDAuMDAxLDAuMDA3QzEuMDg5LDMuMDg4LDAuNTMxLDcuNSw0LjE5NCw5LjMxNGMwLjQ4OCwwLjI0Miw4LjU5MSwzLjUyNyw4LjU5MSwzLjUyN2wwLjAyLDAuMDA2TDAuNzgyLDEyLjg2NWwtMC43NjcsNC43MzdMMCwxNy42MTVoMC4wMTVMMC4wMSwxNy42MjdsMC4wMTEtMC4wMTJjMC40NjEsMCwxMy44NTMsMC4wMTYsMTQuOTQ1LDAuMDE2YzIuMjU3LDAuMDAyLDMuODA5LTAuODY1LDQuODg4LTIuMzg3YzAuMzkxLTAuNTIxLDAuNjUtMS4wMzYsMC44MjUtMS41NjRjMC41NjMtMS42NTUsMC40NTctMy41NDItMC42NjctNC40NDRjLTAuMjM5LTAuMTkxLTAuNDUxLTAuMzU5LTAuNjcxLTAuNDkzYy0wLjE1LTAuMDkyLTAuNDAyLTAuMjQ1LTAuNjItMC4zNDdDMTYuNzk3LDcuNDgsOC41NjYsNC4wMDMsOC41NjYsNC4wMDNsMTIuNzA1LTAuMDA4bDAuNTI0LTMuOTVsLTAuMzE4LDAuMjMzbDAuMzE4LTAuMjQ0SDYuNjc1eiIvPjwvZz48L2c+PC9zdmc+",
+      Position = { 24, 6 },
+      Size = { 88, 15 }
+    },
+  }
+--[[
+    {
+      Type = "Label",
+      Text = "Mode",
+      TextSize = 10,
+      HTextAlign = "Right",
+      Color = LtGrayText,
+      Position = { 8, 220 },
+      Size = { 41, 16 },
+    },
+    {
+      Type = "Label",
+      Text = "Unit/IP",
+      TextSize = 10,
+      HTextAlign = "Right",
+      Color = LtGrayText,
+      Position = { 8, 239 },
+      Size = { 41, 16 },
+    },
+    {
+      Type = "Label",
+      Text = "NIC",
+      TextSize = 10,
+      HTextAlign = "Right",
+      Color = LtGrayText,
+      Position = { 8, 258 },
+      Size = { 41, 16 },
+    },
+]]
+
+  local mleg={t= {0,-9,-18,-30,-60},y={114,123,132,147,166}}
+  local SetupBoxes = {PY={27,69,158},SY={42,184,47},SW={0,0,1},R={0,0,3}}
+  local ChBoxes = {PY={26},SY={227}}
+  local SetupLabels = {
+    Pos={X={3,3,3,4,4,4,6,160},Y={27,38,68,79,98,117,158,8}},
+    Size={X={30,50,78,30,30,30,30,51},Y={11,11,11,16,16,16,9,10}},
+    Text={ "Status","Receiver","Connection Setup","Mode","Unit/IP","NIC","Details","Plugin v"..PluginInfo.Version },
+    FSize={10,9,10,9,9,9,9,9},Bold={true,false,true,false,false,false,true,true},
+    Just={"Left","Left","Left","Right","Right","Right","Left","Right"},}
+
+  for i=1,#SetupBoxes.PY do
+    table.insert(graphics,{
+      Type = "GroupBox",
+      Fill = i==1 and Color.GlobalBG or Color.BChBG,
+      StrokeColor = Color.LtGray,
+      StrokeWidth = SetupBoxes.SW[i],
+      CornerRadius = SetupBoxes.R[i],
+      Position = { i==3 and 3 or 0,SetupBoxes.PY[i] },
+      Size = { i==3 and 125 or 131, SetupBoxes.SY[i] }
+    })
+  end
+
+  for i=1,#SetupLabels.Pos.X do
+    table.insert(graphics,{
+      Type = "Label",
+      Text = SetupLabels.Text[i],
+      TextSize = SetupLabels.FSize[i],
+      HTextAlign = SetupLabels.Just[i],
+      IsBold = SetupLabels.Bold[i],
+      Color = Color.LtGray,
+      Position = { SetupLabels.Pos.X[i], SetupLabels.Pos.Y[i] },
+      Size = { SetupLabels.Size.X[i], SetupLabels.Size.Y[i] },
+    })
+  end
+  
+    for k,PosY in pairs(ChBoxes.PY) do
+      table.insert(graphics,{
+        Type = "GroupBox",
+        Fill = k>4 and Color.BChBG or Color.TChBG,
+        StrokeWidth = 1,
+        StrokeColor = Color.ChStr,
+        Position = { 131, PosY },
+        Size = { 82, ChBoxes.SY[k] }
+      })
+    end
+    table.insert(graphics,{
+      Type = "Label",
+      Text = tostring(1),
+      TextSize = 16,
+      IsBold = true,
+      Color = Color.LtGray,
+      Position = { 132, 29 },
+      Size = { 79, 16 },
+    })
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "Audio",
+      TextSize = 10,
+      Color = TextColor,
+      IsBold = true,
+      Position = { 139, 175 },
+      Size = { 30, 9 }
+    })
+    table.insert(graphics, {
+      Type = "Label",
+      Text = "TX Status",
+      TextSize = 10,
+      Color = TextColor,
+      IsBold = true,
+      Position = { 139, 197 },
+      Size = { 50, 9 }
+    })    
+    for j=1,5 do
+      table.insert(graphics, {
+        Type = "Label",
+        Text = tostring(mleg.t[j]),
+        TextSize = 9.5,
+        Color = Color.Combo,
+        IsBold = true,
+        HTextAlign = "Right",
+        Position = { 132, mleg.y[j] },
+        Size = { 18, 8 }
+      })
+    end
+  return layout, graphics
+end
+
+function GetComponents(props)
+  return {{Name = "nic_storage", Type = "scriptable_controls", Properties = {["config"] = '[{"Name":"Core","ControlType":"Text","ButtonType":"Momentary","TextType":"TextBox","IndicatorType":"Led","ControlUnit":"dB","PinStyle":"None","Min":-100.0,"Max":12.0,"Count":1.0},{"Name":"Emul","ControlType":"Text","ButtonType":"Momentary","TextType":"TextBox","IndicatorType":"Led","ControlUnit":"dB","PinStyle":"None","Min":-100.0,"Max":12.0,"Count":1.0},{"Name":"lastIP","ControlType":"Text","ButtonType":"Momentary","TextType":"TextBox","IndicatorType":"Led","ControlUnit":"dB","PinStyle":"None","Min":-100.0,"Max":12.0,"Count":1.0},{"Name":"lastname","ControlType":"Text","ButtonType":"Momentary","TextType":"TextBox","IndicatorType":"Led","ControlUnit":"dB","PinStyle":"None","Min":-100.0,"Max":12.0,"Count":1.0}]'}}}
+end
+
+
+if Controls and tonumber(string.match(_VERSION,"Lua (.+)"))<5.3 then
+  Controls.aptstatus.Value = 2
+  Controls.aptstatus.String = "Use Q-Sys 5.3+ !!"
+elseif Controls then
+
+-- Subtract 30 from any error line numbers for actual error line
+discovery = UdpSocket.New()
+mxdQuery = UdpSocket.New()
+APT = TcpSocket.New()
+APT.ReadTimeout = 5
+APT.WriteTimeout = 5
+APT.ReconnectTimeout = 5
+local IPTimer = Timer.New()
+local Flash = {
+  ID = {
+    Toggle = Timer.New(),
+    Delay = Timer.New(),
+    State = false
+    },
+  Preview = {
+    Toggle = Timer.New(),
+    State = false
+    }
+  }
+local NICTimer = Timer.New()
+local DisconnectTimer = Timer.New()
+local TXOFFTimer = {}
+local GainTimer = {}
+local Discovered = {}
+local IPLookup = {}
+local resolvedIP = {}
+local PresetNames-- = {}
+local Waits = {}
+local Faders = {}
+local Details = {}
+
+-- Constants
+e = System.IsEmulating
+--local nic_storage = Controls["nic.storage."..tostring(e and "Emul" or "Core")] -- Use this line when running in Scriptable Controls
+local lastDev = { ip = nic_storage.lastIP, name = nic_storage.lastname }
+local nic_storage = nic_storage[tostring(e and "Emul" or "Core")]
+local ippattern = "[012]?%d?%d+.[012]?%d?%d+.[012]?%d?%d+.[012]?%d?%d"
+local discTimeout = 6
+local ShureQuery = "\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x06_shure\x04_tcp\x05local\x00\x00\x0c\x00\x01"
+local Colors = {"RED", "GREEN", "BLUE", "PINK", "PURPLE", "YELLOW", "ORANGE", "WHITE"}
+local ColorPreview = {
+  Bright = {RED="FF0000", GREEN="00FC61", BLUE="61C6FF", PINK="FF98FF", PURPLE="C1ACFF", YELLOW="FFFF00", ORANGE="FF9F38", WHITE="FFFFFF"},
+  Dim =    {RED="E90000", GREEN="00E658", BLUE="0098ED", PINK="EDA8ED", PURPLE="A08ED4", YELLOW="ECEC00", ORANGE="E79032", WHITE="E6E6E6"} }
+local mTypes = {["0"]= "",["1"]= "Bodypack",["2"]="Handheld",["6"]="Boundary",["8"]="Gooseneck"}
+local Behavior = {"ON", "OFF", "FLASHING"}
+local ShureQueryIP = "239.255.254.253"
+local mDNSIP = "224.0.0.251"
+local ShureQueryPort = 8427
+local status_state = { OK = 0, COMPROMISED = 1, FAULT = 2, NOTPRESENT = 3, MISSING = 4, INITIALIZING = 5 }
+
+
+-- Alias Tables
+RespToCtl = {
+  TX_TYPE = "transmitter_type", 
+  TX_MUTE_STATUS = "mute",  
+  BATT_CHARGE = "battery_charge",
+  BATT_TIME_TO_FULL = "battery_run_time",
+  BATT_RUN_TIME =     "battery_run_time",
+  BATT_TYPE =  "battery_run_time",
+  AUDIO_LEVEL = "audio_level",
+  MUTE = "mute",
+  BATT_TIME_TO_FULL = "",
+  METER_RATE = "",
+}
+-- Control Aliases
+status = Controls.aptstatus
+connect = Controls.connect
+CH_NUM = Controls.channel_num
+mode = Controls.mode
+nic = Controls.nic
+apt = Controls.apt
+ip = Controls.ip
+details = Controls.details
+accesspts = Controls.apt
+mute = Controls.mute
+
+-- Timers
+DiscoverTimer = Timer.New()
+
+-- Tables
+sd_state = {}
+
+-- Control Aliases
+-- Helper Functions
+function DebugFormat(string,hex) -- Format strings containing non-printable characters so we can see what they are
+  local visual = ""
+  local format = hex~=nil and "\\x%02x" or "[%02X]"
+  for i=1,#string do
+    local byte = string:sub(i,i)
+    if string.byte(byte) >= 33 and string.byte(byte) <= 126 or string.byte(byte)==0x20 then
+      visual = visual..byte
+    else
+      visual = visual..string.format(format,string.byte(byte))
+    end
+  end
+  return visual
+end
+
+local function find(a,t) local f = false for _,_a in pairs(t) do f=a==_a if f then break end end return f end
+function GetNICIP(ctl) return string.match(ctl.String,ippattern) end
+function ParseChName(str) return string.match(str,"{(.-)%s+}") end
+
+function Status( msg, state )
+  status.Value = status_state[state]
+  status.String = msg
+  if DebugDesc or (status_state[state]>0) then print( msg ) end
+end
+
+function round(num)
+  if num >= -0.5 then return math.floor(num+.5) 
+  else return math.ceil(num-.5) end
+end
+
+--********************************************************************************
+--* Function - GetNICIP(ctl)
+--* Description - Returns table of available network interfaces
+--********************************************************************************
+function GetNICIP(ctl)
+  return string.match(ctl.String, IP_PATTERN)
+end
+
+
+--********************************************************************************
+--* Function - GetIPs
+--* Description - Returns table of available network interfaces
+--********************************************************************************
+local function GetIPs()
+	--print("GetIPs()")
+  local nics,iptable = Qlib.networkinterfaces(), {}
+  for _,n in ipairs(nics) do
+    if not string.find(n.Interface, "Loopback") then
+      iptable[n.Interface] = n.Address
+    end
+  end
+  return iptable
+end
+
+--********************************************************************************
+--* Function - DisconnectTimeout
+--* Description - If no data is received in 15 seconds
+--********************************************************************************
+function DisconnectTimeout()
+	--print("DisconnectTimeout()")
+	DisconnectTimer:Stop()
+	--APT:Disconnect() -- there is no disconnected event
+	Controls.tx_status.Boolean = false
+	
+	--connect.Boolean = false
+
+	
+  	dvc_ch_available[1] = false
+  	dvc_ch_controls_disable( 1, true )
+  
+end
+
+--********************************************************************************
+--* Function - SourceNic
+--* Description - Gets available network interfaces and confirms local IP address
+--********************************************************************************
+function SourceNIC()
+--print("SourceNIC()")
+  iptable = GetIPs()
+  local list = {}
+  for k,v in pairs(iptable) do
+    table.insert(list,tostring(e and v or k).." - "..tostring(e and k or v))
+  end
+  if #list == 1 then
+    localIP = GetNICIP{String = list[1]}
+    nic.String = list[1]
+    --print("Local IP: ", localIP)
+  elseif #list > 1 then
+    local validNIC = Find(nic_storage.String, list)
+    if nic_storage.String ~= "" and validNIC then
+      nic.String = nic_storage.String
+      localIP = GetNICIP(cbNic)
+      --print("Local IP: ",localIP)
+    else
+      nic.String = "Choose NIC..."
+      ledConnected.Boolean = false
+    end
+    nic.Choices = list
+  else
+    nic.String = "No NICs found"
+    localIP = ""
+    SetStatus( "No NIC found", "FAULT" )
+  end
+end
+
+function AssignIP()
+  if not string.find(nic.String,"Choose NIC") then
+    LocalIP=GetNICIP(nic)
+    --print("Using Local IP: ",LocalIP)
+    nic_storage.String = nic.String
+  end
+end
+
+--* Bonjour Bits on Core - Adjusts for 5.4/6.0 method change
+local ResolveBonjourName
+local function SetRBN()
+  local sixoh = Qlib.gethostbyname~=nil
+  local RBN = { "140000003500000007001117000000c6014000c741c003e48180000682400007c24004248280004102010080020000c142010000030004418301005d428304840200016c030000ca4183836c4300008c03c20300040003a443800180038006c0038004a44300012600800009000000040654696d657204044e657704036f730408746d706e616d6504146e6f68757020646e732d7364202d47207634200404203e2004032026040d4576656e7448616e646c65720406537461727401000000000002000000001a0000002c0000000000085400000006404000078040004500800081c000002480800108000080060040000cc041008100020024008101088000830840808208000082060040000c404200850080002440800106004100224000001e4001800680420041c00200864041005d808000868041002440800106004300074043004500800024400001060043000780430041c0030024000101c6404400c780c4010601410041c10400e480800108c00088220000001e000980c6004100dc0080015f00c5011e000880c5000001cc40c501e4400001c6004400c6c080015f80c5011e000180c5008002c6c00002060144005f0081011e000680c60044000bc10000450180020a41818b450100034c81c402c1410600648180010a41018c450180030a41018dc8008101c50080020601440008018101c50000045f80c5011e800180c5000004e44080001ec00080c680420001c1060045010003e4408001260080001c000000040566696c650403696f04056f70656e040272040472657304046d73670405636f646504057265616404032a610406636c6f736504067072696e7404084572726f723a2004036f73040772656d6f7665040865786563757465041d706772657020646e732d7364207c207861726773206b696c6c202d39040c63616e64696461746549500407737472696e6704066d6174636814365b3031325d3f25643f25642b252e5b3031325d3f25643f25642b252e5b3031325d3f25643f25642b252e5b3031325d3f25643f2564130000000000000000040553746f700004054e616d65040844656661756c74040b282e2b292e6c6f63616c04064d6f64656c04114950206e6f74207265736f6c766564210900000000000108010701030104010101000102010500000000540000001b0000001b0000001b0000001b0000001b0000001b0000001c0000001c0000001c0000001c0000001c0000001c0000001c0000001d0000001d0000001d0000001d0000001e0000001e0000001e0000001e0000001e0000001e0000001e0000001e0000001e0000001f0000001f0000001f0000001f000000200000002000000020000000200000002100000021000000210000002100000021000000210000002200000022000000220000002200000022000000220000002300000023000000230000002400000024000000240000002400000024000000240000002400000024000000240000002500000025000000250000002500000025000000250000002500000025000000250000002500000025000000250000002600000026000000260000002700000027000000270000002700000027000000280000002a0000002a0000002a0000002a0000002c000000030000000873756363657373220000005400000005657865632200000054000000077369676e616c220000005400000009000000055f454e5604746d700a6b696c6c74696d65720a446973635461626c650a49504c755461626c6509667269656e646c79056e616d65066d6f64656c106d616b65646973706c61794c697374002e0000003200000003000c12000000c100000006414000078140024001000081c10000c50180005dc1810224010101c6014100000200024642410081820100c00280029dc20205c002000364028001e44100002600800007000000040104036f730408657865637574650404203e2004076173736572740409746f737472696e67041145786563757465204661696c65643a20020000000000010800000000120000002f00000030000000300000003000000030000000300000003000000030000000310000003100000031000000310000003100000031000000310000003100000031000000320000000700000008636d646c696e650000000012000000087061747465726e0000000012000000086361707475726500000000120000000872737472696e6701000000120000000873756363657373080000001200000005657865630800000012000000077369676e616c080000001200000002000000055f454e5604746d7017000000150000001500000015000000160000001600000016000000170000001700000017000000170000001700000017000000180000002c0000002c00000032000000330000003300000033000000340000003400000034000000350000000e000000056e616d65000000001700000009667269656e646c790000000017000000066d6f64656c00000000170000000a446973635461626c6500000000170000000a49504c755461626c650000000017000000106d616b65646973706c61794c6973740000000017000000096b696c6c74696d6500000000170000000a6b696c6c74696d6572030000001700000004746d70060000001700000008636d646c696e650c00000017000000087061747465726e0d0000001700000008636170747572650d000000170000000872737472696e670d0000001700000004436d64100000001700000001000000055f454e56",
+    "400000004200000001000308000000460040004740c00080000000648000014780c00047c0c0006600000126008000040000000405516c6962040e676574686f737462796e616d65040a6164647265737365731301000000000000000100000000000000000008000000410000004100000041000000410000004100000041000000410000004200000001000000056e616d65000000000800000001000000055f454e56"}
+  local tmpFn = load(bitstring.fromhexstream("1b4c7561530019930d0a1a0a04080408087856000000000000000000000028774001023d"..RBN[sixoh and 2 or 1]))
+  if sixoh then
+    ResolveBonjourName = function(name,friendly,model,DiscTable,IPLuTable,makedisplayList,killtime)
+      local candidateIP = tmpFn(name)
+      if DiscTable[candidateIP]==nil or IPLuTable[friendly]~=candidateIP then
+         DiscTable[candidateIP]={ Name = friendly, Default = name:match("(.+).local"), Model = model}
+         IPLuTable[friendly] = candidateIP
+         if makedisplayList~=nil then makedisplayList() end
+      end
+    end
+  else
+    ResolveBonjourName=tmpFn
+  end
+end
+if not e then 
+  SetRBN() 
+end
+
+function mDNSBrowse()
+  if not e then
+    mDNS = BonjourBrowser.New()
+    mDNS.EventHandler = function( record ) -- record contents Domain=local. Type=_shure._tcp. NetIf=2 Added=true Name=(friendly name)
+      if record.Type=="_shure._tcp." then
+        --[[for k,v in pairs(record) do
+          if type(v) == "table" then
+            for a,b in pairs(v) do
+              --print("  --"..k,a,b)
+            end
+          else
+            --print("  "..k,v)
+          end
+        end]]
+        if record.Added then
+          local r = BonjourResolver.New()
+          r.EventHandler = function( rc )
+            local model = rc.Values.model
+            if rc.Values.model~=nil then
+              if model:find("^ULX") then
+                --ResolveBonjourName(     name,                     friendly,                            model,DiscTable, IPLuTable,makedisplayList, killtime)
+                ResolveBonjourName(string.match(rc.Target,"(.+)%."),string.match(rc.Name,"(.+)%._shure"),model,Discovered,IPLookup,MakeDisplayList,.06)
+              end
+            end
+          end
+          r:Resolve( record )
+        else
+          DeleteBonjourEntry(record.Name)
+        end
+      end
+    end   
+    mDNS:Start( "_shure._tcp", 0, "local" )
+  end
+end
+
+function DeleteBonjourEntry(friendly)
+  if IPLookup[friendly]~=nil then
+    local ipa = IPLookup[friendly]
+    if Discovered[ipa]~=nil then
+      if Discovered[ipa].Name==friendly then
+        Discovered[ipa] = nil
+        IPLookup[friendly] = nil
+        MakeDisplayList()
+      end
+    end
+  end
+end
+
+function ExpiredDiscovery(ipa)
+  if apt.String~="None" then
+    if Discovered[ipa]==nil then
+      apt.String="None"
+    else
+      local name = Discovered[ipa].Name
+      Discovered[ipa].Timer:Stop()
+      Discovered[ipa] = nil
+      IPLookup[name] = nil
+    end
+  end
+end
+
+function SendShureQuery() mxdQuery:Send(mDNSIP,5353,ShureQuery) end
+
+-- Discovery Parsing into Discovery table
+discovery.EventHandler = function(mxwapi, packet)
+  if string.find(packet.Data,"acn%-uacn=ULX%w%w%w") then
+    if e then SendShureQuery() end
+    local ipa = packet.Address
+    if Discovered[ipa]==nil then
+      Discovered[ipa]={ Timer = Timer.New() }
+    end
+  end
+end
+
+-- mDNS Receive
+function ParseName(data)
+  local start,lenpos = string.find(data,"_shure\x04_tcp\x05local\x00\x00\x0c\x00\x01\x00\x00\x11\x94\x00(.)")
+  local len = string.byte(string.sub(data,lenpos,lenpos))-2
+  return string.sub(data,lenpos+2,lenpos+len), data:match("\x11\x94..\rmodel=(ULX%w+)"), data:match("\x0e([%w%-]-)\xc0\x18\x00\x01\x80\x01\x00\x00\x00x\x00")
+end
+
+function MakeDisplayList()
+  DisplayList = {APT = {"None"}, NCS = {"None"} }
+  for key,item in pairs(Discovered) do
+    if item.Name~=nil then
+      if string.find(item.Model,"^ULX-D") then
+        table.insert(DisplayList.APT,item.Name)
+      elseif string.find(item.Model,"^ULX") then
+        table.insert(DisplayList.NCS,item.Name)
+      end
+    end
+  end
+  apt.Choices = DisplayList.APT
+end
+
+mxdQuery.EventHandler = function(mxwapi, packet)
+  local resp = packet.Data
+  if resp:find("ULX%a%a%a%d?") and resp:sub(2,3)=="\x00\x84" and not resp:find("_netaudio") then -- filter models and mDNS Response packets
+    if string.find(resp,"\x00\x0c.-\xc0\x0c\xc0%)") then
+      local name, model, default = ParseName(resp)
+      if Discovered[packet.Address]==nil then Discovered[packet.Address]={ Timer = Timer.New() } end
+      if name~= nil and Discovered[packet.Address] ~= nil then
+        if Discovered[packet.Address].Name ~= name then
+          Discovered[packet.Address].Name = name
+          Discovered[packet.Address].Model = model
+          Discovered[packet.Address].Default = default
+          IPLookup[name] = packet.Address
+          if status.Value==5 then Status("Choose Unit", "OK" ) end
+          MakeDisplayList()
+        end
+        if APT.IsConnected and name == lastDev.name then
+          AssembleDetails()
+        end
+      else
+        --print("Shure Discovery packet not yet parsed",packet.Address,name)
+        --print(DebugFormat(packet.Data,true))
+      end
+    else
+      --print("Not parsed",DebugFormat(packet.Data))
+    end
+  end
+end
+
+function APTHandler()
+  if mode.String=="Discovery" then
+    if apt.String~="None" and apt.String~=lastDev.name.String then
+      ip.String = IPLookup[apt.String]
+      APT:Disconnect()
+    else
+      connect.Boolean = false
+      ip.String = ""
+      Details = {}
+    end
+    Connect()
+  end
+end
+
+function HideDiscControls(bool)
+  if e then nic.IsDisabled=bool else nic.IsDisabled=true end
+  apt.IsInvisible = bool
+  ip.IsInvisible = not bool
+end
+
+-- Initiate Discovery of Shure MXWAPT
+function DiscoverDevices()
+  if mode.String == "Manual" then
+    HideDiscControls(true)
+  else -- Discovery
+    HideDiscControls(false)
+    MakeDisplayList()
+    if e then
+      discovery:Open( GetNICIP(nic), ShureQueryPort ) -- IP address/port are not needed
+      discovery:JoinMulticast(ShureQueryIP) -- Sends a multicast join report for the Shure multicast address
+      mxdQuery:Open( GetNICIP(nic), 5353 ) -- IP address/port are not needed
+      mxdQuery:JoinMulticast(mDNSIP) -- Sends a multicast join report for the Shure multicast address
+    else
+      mDNSBrowse()
+    end
+  end
+end
+
+function AssembleDetails()
+--print("AssembleDetails()")
+  local detailstr = {}
+  Details.IP = ip.String
+ -- if Details.Name ~= nil then table.insert(detailstr,"Name: "..Details.Name) end
+  if Details.Model ~= nil then table.insert(detailstr,"Model: "..Details.Model) end
+  if Details.IP ~= nil then table.insert(detailstr,"Control IP: "..Details.IP) end
+  details.String = table.concat(detailstr,"\r")
+  lastDev.ip.String = Details.IP
+end
+
+function BuildDetails()
+	--print("BuildDetails()")
+  if Discovered[ip.String] ~= nil then
+    Details = { Model = Discovered[ip.String].Model, IP = ip.String, Service = Discovered[ip.String].Default, Name = Discovered[ip.String].Name }
+    AssembleDetails()
+  end
+end
+
+-- End Discovery and Connect Functions
+
+
+--[[ Device Control 
+]]--------------------------------------------------------------
+local CH_COUNT = 1
+dvc_ch_available = {}
+dvc_ch_controls = {
+  "transmitter_type", "tx_status", "audio_level", "battery_charge", "battery_run_time", "mute"
+}
+
+function StopTimers()
+  TXOFFTimer[1].Timer:Stop()
+end
+
+function dvc_ch_controls_disable( ch, b_disable )
+  for i,v in ipairs( dvc_ch_controls ) do
+    Controls[v].IsDisabled = b_disable
+  end
+  if b_disable then
+    for _,ctl in ipairs{"audio_level", "battery_charge"} do
+      Controls[ctl].Value = 0
+    end
+  end
+  --Controls.tx_status.String = ""
+end
+
+function Connect()
+  if connect.Boolean and not string.find(ip.String,ippattern) then
+    Status( "Invalid Device IP Address", "FAULT" )
+    connect.Boolean = false
+  end
+  if connect.Boolean and not APT.IsConnected then
+    Status( "Connecting...", "INITIALIZING" )
+    local ipa = mode.String =="Manual" and ip.String or IPLookup[apt.String]
+    if ipa~=nil then APT:Connect(ipa, 2202 )
+    else connect.Boolean = false end
+  elseif APT.IsConnected then
+    StopTimers()
+    if not string.find(status.String,"Disconnected") then Status( "Disconnected", "OK",true ) end
+    APT:Disconnect() -- there is no disconnected event
+  end
+end
+
+connect.EventHandler = Connect
+apt.EventHandler = Connect
+DisconnectTimer.EventHandler =DisconnectTimeout
+
+APT.EventHandler = function( sock, evt, err )
+  if evt == TcpSocket.Events.Connected then
+    StartupFlag = false
+    Status( "Connected", "OK" , os.date())
+    dvc_start()
+    AssembleDetails()
+  elseif evt == TcpSocket.Events.Reconnect then
+    Status( "Reconnecting...", "INITIALIZING"  )
+  -- data
+  elseif evt == TcpSocket.Events.Data then
+    local msg = APT:ReadLine( TcpSocket.EOL.Custom, ">" )
+    while msg do
+      --print( msg )
+      tokens = {}
+      for i in string.gmatch( msg, "%S+" ) do
+        table.insert( tokens, i )
+      end
+      dvc_decode( tokens, msg )
+      msg = APT:ReadLine( TcpSocket.EOL.Custom, ">" )
+      DisconnectTimer:Stop()
+      DisconnectTimer:Start(15)
+
+      --Put time out timer here
+      
+    end
+  elseif evt == TcpSocket.Events.Closed then
+    Status( "Connection closed by remote", "FAULT" )
+  elseif evt == TcpSocket.Events.Error then
+    Status( "Connection closed due to error: "..err, "FAULT" )
+  elseif evt == TcpSocket.Events.Timeout then
+    Status( "Connection closed due to timeout", "FAULT" )
+  end
+end
+
+function StartInit()
+
+  --mode.Choices = {"Discovery","Manual"}
+  
+    if e then
+    mode.Choices = {"Manual"}
+    if mode.String == "" then 
+      mode.String = "Manual" 
+    end
+    if mode.String == "Discovery" then 
+      mode.String = "Manual" 
+    end
+  else  
+    mode.Choices = {"Discovery","Manual"}
+    if mode.String == "" then 
+      mode.String = "Manual" 
+    end
+  end
+  
+  mode.EventHandler = DiscoverDevices
+
+  -- Copy last settings if found to apt and ip textboxes
+  if lastDev.ip.String == "" and lastDev.name.String == "" and apt.String == "" and mode.String=="Discovery" then
+    apt.String="None"
+    ip.String = ""
+    Details = {}
+  elseif lastDev.ip ~= "" and connect.Boolean then
+    ip.String = lastDev.ip.String
+    if mode.String=="Discovery" then
+      IPLookup[lastDev.name.String] = lastDev.ip.String
+      apt.String = lastDev.name.String
+    end
+  end
+  apt.EventHandler = APTHandler
+  
+  Controls.tx_status.Boolean = false
+  dvc_ch_available[1] = false
+  dvc_ch_controls_disable( 1, true )
+    table.insert(TXOFFTimer, {Timer = Timer.New(),index = 1 } )
+    TXOFFTimer[1].Timer.EventHandler = function()
+      dvc_get( 1, "BATT_TIME_TO_FULL" )
+    end
+
+  -- Get Local IP Addresses and Check saved selection
+  nic.IsDisabled = not e
+  if e then
+    SourceNIC()
+    NICTimer.EventHandler = SourceNIC
+    NICTimer:Start(15)
+    nic.EventHandler = function()
+      discovery:Close()
+      mxdQuery:Close()
+      AssignIP()
+      DiscoverDevices()
+    end
+  else
+    nic.String = "not applicable"
+  end
+  DiscoverDevices()
+  connect.EventHandler = Connect
+  Connect()
+end
+
+function dvc_get( ch, key )
+	--print("dvc_get()") 
+	APT:Write( "< GET "..ch.." "..key.." >" ) 
+end
+
+function dvc_set( ch, key, value ) 
+	--print("dvc_set()") 
+	APT:Write( "< SET "..ch.." "..key.." "..value.." >" ) 
+end
+
+function dvc_led_update( ch )
+  local ls
+  if Controls[RespToCtl.MUTE].Boolean then ls = "ON OF" else ls = "OF ON" end
+  dvc_set( ch, "LED_STATUS", ls )
+end
+
+
+function dvc_decode( msg, raw )
+  if msg[2] == "REP" then
+    if msg[3] == "SEC" then
+      local msgtmp = {}
+      for i=1,#msg-1 do
+        table.insert(msgtmp,msg[i>2 and i+1 or i])
+      end
+      msg = msgtmp
+    end
+    local ch = tonumber( msg[3] )
+    -- channel message
+    if ch ~= nil then
+      local key = msg[4]
+      local value = msg[5]
+      --print( ch, key, value )
+      -- Channel/Mic availability change
+      if key == "TX_TYPE" then
+        local ctl = Controls[RespToCtl[key]]
+        --Controls[RespToCtl[key]].String = value
+        Details.Model = value
+        if value == "ULXD1" then
+        	Controls.tx_status.Boolean = true
+			s = "Lapel"
+		elseif value == "ULXD2" then
+        	Controls.tx_status.Boolean = true		
+			s = "Handheld"
+		elseif value == "ULXD6" then
+        	Controls.tx_status.Boolean = true		
+			s = "Boundary"		
+		elseif value == "ULXD8" then
+        	Controls.tx_status.Boolean = true		
+			s = "Gooseneck"						
+		else
+		    Controls.tx_status.Boolean = false
+			s = "No TX"
+        end
+        if #s>0 then ctl.String = s end   
+      -- Mic status update
+      elseif key == "TX_MUTE_STATUS" then
+        if value == "ON" then
+        	Controls[RespToCtl[key]].String = "true"
+        	Controls[RespToCtl.AUDIO_LEVEL].IsDisabled = false
+        else
+        	Controls[RespToCtl[key]].String = "false"
+        	Controls[RespToCtl.AUDIO_LEVEL].IsDisabled = true
+          	Controls[RespToCtl.AUDIO_LEVEL].Value = 0
+        end
+      -- Mic battery update
+      elseif key == "BATT_CHARGE" then
+        local charge = tonumber( value )
+        local ctl = Controls[RespToCtl[key]]
+        if charge <= 100 then
+          ctl.Value = charge -- 0-100 or 255
+          ctl.IsDisabled = false
+        else
+          ctl.Value = 0 -- ?
+          ctl.IsDisabled = true
+        end
+      -- Mic battery update
+      elseif key == "BATT_TYPE" then
+        local charge = tonumber( value )
+        local ctl = Controls[RespToCtl[key]]
+		if value == "ALKA" then
+			s = "Alkaline"
+		else
+			s = ""		
+        end        
+        if #s>0 then ctl.String = s end   
+      elseif key == "BATT_BARS" then
+      	local level = tonumber( value )
+      	if level == 255 then
+      		Controls.tx_status.Boolean = false
+      	else
+      		Controls.tx_status.Boolean = true 
+      	end                
+      elseif key == "BATT_RUN_TIME" then
+        --if ch==3 then print(raw) end
+        local time = tonumber( value )
+        local ctl = Controls[RespToCtl[key]]
+        local s = ""
+        --local b_disable = false
+        if time == 65532 then s = "Local Power"
+        --elseif time == 65533 then s = "Charging"
+        elseif time == 65534 then s = "Calculating..."
+        elseif time == 65535 then s = "Off"
+        elseif time ~= 65535 then s = string.format( "Time Left: %d:%02d", math.floor( time/60 ), math.fmod( time, 60 ) )
+        end
+        if #s>0 then ctl.String = s end
+        --ctl.IsDisabled = false --b_disable
+      elseif key == "BATT_TIME_TO_FULL" then
+        local time,ctl = tonumber( value ), Controls.battery_run_time[ch]
+        --if ch==3 then print(raw) end
+        if time == 65534 then ctl.String = "Fully Charged"
+        elseif time == 65535 then ctl.String = "On Charger"
+        --else
+        --  if time < 65533 then ctl.String = string.format( "Charge Time: %d:%02d", math.floor( time/60 ), math.fmod( time, 60 ) ) end
+        end
+      -- Mic button press
+      elseif key == "TX_MUTE_BUTTON_STATUS" then
+        if value == "RELEASED" then
+          -- toggle local mute button
+          --Controls[RespToCtl.MUTE].Boolean = not Controls[RespToCtl.MUTE].Boolean
+          -- update LED on mic
+        --  dvc_led_update( ch )
+        elseif value == "PRESSED" then
+        	
+        end        
+      end
+    end
+  -- Metering
+  elseif msg[2] == "SAMPLE" then
+    local ch = tonumber( msg[3] )
+    Controls[RespToCtl.AUDIO_LEVEL].Value = tonumber(msg[7]*2)
+  end
+end
+
+function dvc_start()
+
+	dvc_ch_available[1] = true
+    -- channel became available, initialize
+    dvc_ch_controls_disable( 1, false )
+   TXOFFTimer[1].Timer:Stop()    
+    
+    -- get current values
+    dvc_get( 1, "TX_TYPE" ) 
+    dvc_get( 1, "TX_MUTE_STATUS" ) 
+	dvc_get( 1, "BATT_CHARGE" )
+    dvc_get( 1, "BATT_RUN_TIME" )
+    dvc_get( 1, "BATT_BARS")
+    dvc_get( 1, "BATT_TIME_TO_FULL" )
+    dvc_set( 1, "METER_RATE", "200" )
+    --dvc_led_update( 1 )
+            
+end
+
+-- GUI mute button handler
+function mute_handler( ctl )
+	print("mute_handler() "..ctl.String)
+	if ctl.String == "true" then
+		dvc_set( 1, "TX_AUDIO_MUTE", "ON" )
+	else
+		dvc_set( 1, "TX_AUDIO_MUTE", "OFF" )
+	end
+	
+  --dvc_led_update( ch )
+end
+
+mute.EventHandler = function( ctl )
+  mute_handler( ctl )
+end
+
+--[[ Initialization ]]--------------------------------------------------------------
+Status( "Discovering", "INITIALIZING" )
+StartInit()
+end

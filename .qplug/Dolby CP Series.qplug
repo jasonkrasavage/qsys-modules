@@ -1,0 +1,601 @@
+PluginInfo = 
+{
+    Name = "Dolby~CP Series",
+    Version = "1.1",
+    Id = "e3fed729-c73d-44a7-af65-580cb0707f1f",
+    Description = "Control of CP Seires (850 & 950)",
+    ShowDebug = false
+}
+
+function GetColor(props)
+    return { 93, 188, 198 }
+end
+
+function GetPrettyName(props)
+    return "Dolby CP Series Control"
+end
+ 
+
+props = {}
+
+function GetProperties()
+
+    
+	return props
+end
+
+
+ctrls = {}
+function GetControls(props)
+    
+    table.insert (ctrls,
+        {
+        Name = "Address",
+        ControlType = "Text",
+        Count = 1,
+        UserPin = false,
+        })
+    
+    table.insert (ctrls,
+        {
+        Name = "Status",
+        ControlType = "Indicator",
+        IndicatorType = "Status",
+        Count = 1,
+        UserPin = true,
+        PinStyle = 'Output',
+        })
+    
+    table.insert (ctrls,
+        {
+        Name = "Refresh",
+        ControlType = "Button",
+        ButtonType = "Trigger",
+        Count = 1,
+        Icon = 'Refresh',
+        UserPin = false,
+        })   
+    
+    table.insert (ctrls,
+        {
+        Name = "MacroButtons",
+        ControlType = "Button",
+        ButtonType = "Toggle",   
+        Count = 8,
+        UserPin = true,
+        PinStyle = 'Both',
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "MacroSelect",
+        ControlType = "Text",
+        Count = 1,  
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "MasterMute",
+        ControlType = "Button",
+        ButtonType = "Toggle",
+        Icon = 'Volume Strike',   
+        Count = 1,
+        UserPin = true,
+        PinStyle = 'Both',
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "DolbyFader",
+        ControlType = "Knob",
+        ControlUnit = "Integer",
+        Min = 0,
+        Max = 100,  
+        Count = 1,
+        UserPin = true,
+        PinStyle = 'Both',
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "DbFader",
+        ControlType = "Knob",
+        ControlUnit = "dB",
+        Min = -90,
+        Max = 10,  
+        Count = 1,
+        UserPin = true,
+        PinStyle = 'Both',
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "TxtFader",
+        ControlType = "Text",
+        UserPin = true,
+        PinStyle = 'Both',
+        })
+
+    return ctrls
+end
+
+layout = {}
+graphics = {}
+
+col = 70
+row = 16
+gutter = 86
+
+function GetControlLayout(props)
+
+    table.insert(graphics,
+        {
+        Type = "Header",
+        Text = "Address/Status",
+        Position = { 0, row },
+        Size = { 288+gutter,16 }
+        })
+
+    row = row+32
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "Address",
+        Position = { 0, row },
+        Size = { 76,16 }
+        })
+
+    layout['Address'] =
+            {
+            PrettyName = 'Address',
+            Position = {gutter,row},
+            Size = { 180,16 },        
+            }
+
+    layout['Refresh'] =
+            {
+            PrettyName = 'Refresh Connection',
+            Position = {gutter+180,row},
+            Size = { 36,16 },
+            Margin = 0,        
+            }
+
+    row = row+32
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "Status",
+        Position = { 0, row },
+        Size = { 76,16 }
+        })
+
+    layout['Status'] =
+        {
+        PrettyName = 'Status',
+        Position = {gutter,row},
+        Size = { 220,16 },        
+        }
+
+    row = row+32
+
+    table.insert(graphics,
+        {
+        Type = "Header",
+        Text = "Fader",
+        Position = { 0, row },
+        Size = { 288+gutter,16 }
+        })  
+    
+    row = row+30
+
+    layout['DolbyFader']=
+        {
+        PrettyName = 'Dolby Fader Knob',
+        Style = 'Knob',
+        ShowTextBox = false,
+        Position = {70,row},
+        Size = {46,46}
+        }
+
+    layout['TxtFader']=
+        {
+        PrettyName = 'Dolby Level',
+        FontStyle = 'Black',
+        FontSize = 12,
+        Position = {70+46+10,row},
+        Size = {56,42}
+        }
+
+    layout['DbFader']=
+        {
+        PrettyName = 'Decibel Fader Knob',
+        FontStyle = 'Black',
+        FontSize = 12,
+        Position = {70+46+56+20,row},
+        Size = {56,42}
+        }
+
+    layout['MasterMute']=
+        {
+        PrettyName = 'Mute',
+        Color = {255,0,0},
+        UnlinkOffColor = true,
+        OffColor = {100,100,100},
+        Padding = 10,
+        Radius = 5,
+        Position = {70+46+56+56+30,row},
+        Size = {46,46}
+        }
+
+    row = row+35+24
+
+    table.insert(graphics,
+        {
+        Type = "Header",
+        Text = "Macros",
+        Position = { 0, row },
+        Size = { 288+gutter,16 }
+        }) 
+        
+    row = row+30
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "Macro Select",
+        Position = { 0, row },
+        Size = { 76,16 }
+        })
+
+    layout['MacroSelect']=
+        {
+        PrettyName = 'Select Macro From List',
+        Style = 'ComboBox',
+        Position = {gutter,row},
+        Size = {150,16}
+        }
+
+    row = row+30
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "Preset Buttons",
+        Position = { 0, row },
+        Size = { 76,16 }
+        })
+
+    local v = gutter
+    col = 36
+
+    for i = 1,8 do
+        layout['MacroButtons '..i]=
+            {
+            PrettyName = string.format('Preset~%i',i),
+            Position = {v,row},
+            Legend = tostring(i),
+            Size = {36,16}
+            } 
+        v = v+col
+    end 
+  return layout, graphics
+end
+
+if Controls then --Start of runtime Lua code
+    local sock = TcpSocket.New()
+    local cmdSock = TcpSocket.New()
+    local poll = Timer.New()
+    local wait = Timer.New()
+    local mRX = Timer.New()
+    local pollCount = 0
+    local pollFIFO = {}
+    local faderSem = false
+    local faderC = 0
+    local mcount = 0
+    local cMacro = ''
+    local presetList = {}
+    local presetTList = {}
+    local presetUpdate = false
+    local ready = false
+
+    local pollStack={
+                    {cmd='sys.fader ?',pri=1},
+                    {cmd='sys.mute ?',pri=2},
+                    {cmd='sys.macro_name ?',pri=2},
+                    {cmd='sys.macros ?',pri=20},
+                    }
+
+
+--FUNCTIONS
+
+    function SetStatus(state,msg)
+        --print('Set Status '..state)
+        Controls.Status.Value = state
+        if msg ~= nil then Controls.Status.String = msg
+        else Controls.Status.String = '' end
+    end 
+        
+    function connect()
+        Controls.Refresh.IsDisabled = false
+        if validateAddress(Controls.Address.String) then
+            SetStatus(5,'')
+            sock.WriteTimeout = 2
+            sock:Connect(Controls.Address.String,61408)
+            cmdSock:Connect(Controls.Address.String,61408)
+        else
+            SetStatus(2,"Invalid Address")
+        end
+    end
+        
+    function fail()
+        ready = false
+        poll:Stop()
+        mRX:Stop()
+        wait:Stop()
+        pollFIFO = {}
+        faderSem = false
+        faderC = 0
+        pollCount = 0
+        mcount = 0
+        cMacro = ''
+        presetTList = {}
+        presetList = {}
+        Controls.MacroSelect.Choices = {}
+    end
+        
+    function disconnect(recon)
+        fail()
+        sock:Disconnect()
+        cmdSock:Disconnect()
+        if recon then SetStatus(5,'Connect')
+        else SetStatus(2,'Offline') end
+    end
+        
+    function refreshCNX()
+        disconnect(true)
+        Controls.Refresh.IsDisabled = true
+        Timer.CallAfter(connect,1)
+    end
+        
+    function createPollStack(restack)
+        if pollCount < 20 then
+            pollCount = pollCount+1
+        else
+            pollCount = 1
+        end
+    
+        for k,v in ipairs(pollStack) do
+            if pollCount%v.pri == 0 then
+            table.insert(pollFIFO,v.cmd)
+            end
+        end
+    
+        sendPoll()
+    end
+    
+    function sendPoll()
+        local cmd = table.remove(pollFIFO)
+        sock:Write(cmd)
+        end
+        
+        function updateMacro()
+        for k,v in ipairs(presetList) do
+            if cMacro == v then
+            Controls.MacroSelect.String = v
+            
+            for a,b in ipairs(Controls.MacroButtons) do
+                if a == k then b.Boolean = true
+                else b.Boolean = false end
+            end
+            
+            break
+            end
+        end    
+    end
+        
+    function processFeedback(data)
+        if data:find('sys.fader') ~= nil then
+            local lev = tonumber(data:match('sys.fader (.+)'))
+            Controls.DolbyFader.Value = lev
+            Controls.DbFader.Value = convertToDb(lev)
+            lev = lev/10
+            Controls.TxtFader.String = lev
+            
+        elseif data:find('sys.mute') ~= nil then
+            local state = data:match('sys.mute (.+)')
+            if state == '0' then Controls.MasterMute.Boolean = false
+            else Controls.MasterMute.Boolean = true end
+            
+        elseif data:find('sys.macro_name') ~= nil then
+            local val = data:match('sys.macro_name (.+)')
+            --print(val)
+            if val ~= cMacro then
+                cMacro = val
+                updateMacro()
+            end
+            
+        elseif data:find('sys.macros') ~= nil then
+            presetTList = {}
+            
+        elseif data:find('%d:') ~= nil then
+            mRX:Stop()
+            mcount = tonumber(data:match('(%d):'))+1
+            --print(data)
+            presetTList[mcount] = data:match('%d:(.+)')
+            if presetTList[mcount] ~= presetList[mcount] then 
+                presetList[mcount] = presetTList[mcount]
+                presetUpdate = true
+            end
+    
+            mRX:Start(0.03)
+            return
+        end
+        
+        if #pollFIFO > 0 then sendPoll() 
+        else poll:Start(0.5) end
+    end
+        
+    function convertToDb(val)
+        if val <= 40 then
+            return ((val*80)/40)-90
+        elseif val > 40 then
+            return ((val-70)*20)/60
+        end
+    end
+    
+    function convertToDolby(dB)
+        if dB <= -10 then
+            return ((dB+90)*40)/80
+        elseif dB > -10 then
+            local tval = ((dB*60)/20)+70
+            return math.floor(tval)
+        end
+    end
+            
+    function setLevel(ctrl)
+        poll:Stop()
+        faderC = ctrl.Value
+        Controls.DbFader.Value = convertToDb(faderC)
+        Controls.TxtFader.String = faderC/10
+        if ready == false then return end
+        if faderSem == false then
+            local cmd = string.format('sys.fader %u\r\n',faderC)
+            cmdSock:Write(cmd)
+            faderSem = true
+            wait:Start(0.12) --pace the commands
+        end
+        
+        poll:Start(2)
+    end
+    
+--UTILITY FUNCTIONS
+    function validateAddress(addr)
+        if addr == nil or #addr < 2 then
+            return false
+        else
+            return true
+        end
+    end 
+        
+--TCP Socket Events
+    sock.Connected = function()
+        print("Connected")
+        SetStatus(0)
+        ready = true
+        sock:Write('sys.macros ?\r\n')        
+    end
+    
+    sock.Data = function()
+        local rx
+        repeat          
+        local line = sock:ReadLine(TcpSocket.EOL.Any)
+        if line then
+            --print('RX '..line)
+            processFeedback(line)            
+        end
+        until not line        
+    end
+    
+    sock.Closed = function()
+        SetStatus(2,"Offline")
+        fail()
+    end
+    
+    sock.Timeout = function()
+        SetStatus(2,"Timeout")
+        fail()
+    end
+    
+    sock.Error = function(_,err)
+        print("Server Error "..err)
+        SetStatus(2,err)
+        fail()
+    end
+    
+    sock.Reconnect = function()
+        print("Reconnecting")
+        SetStatus(2,"Attempt Reconnect")
+    end
+        
+--TIMER EVENTS
+    poll.EventHandler = function()
+        poll:Stop()
+        createPollStack()
+    end
+
+    wait.EventHandler = function()
+        wait:Stop()
+        faderSem = false
+        local cmd = string.format('sys.fader %u\r\n',faderC)
+        cmdSock:Write(cmd)
+    end
+
+    mRX.EventHandler = function()
+        mRX:Stop()
+        
+        if #presetTList ~= #presetList then 
+        presetUpdate = true 
+        presetList = presetTList
+        end
+        
+        if presetUpdate then
+        print('New Preset')
+        presetUpdate = false  
+        Controls.MacroSelect.Choices = presetList
+        end
+        
+        if #pollFIFO > 0 then sendPoll() 
+        else poll:Start(0.5) end
+    end
+    
+            
+--CONTROL EVENTS
+    Controls.Address.EventHandler = refreshCNX
+    Controls.Refresh.EventHandler = refreshCNX
+    
+    Controls.DolbyFader.EventHandler = setLevel
+    Controls.DbFader.EventHandler = function(ctrl) 
+        Controls.DolbyFader.Value =  convertToDolby(ctrl.Value)
+        setLevel(Controls.DolbyFader)
+    end
+
+    Controls.TxtFader.EventHandler = function(ctrl)
+        val = tonumber(ctrl.String)*10
+        Controls.DolbyFader.Value = val
+        setLevel(Controls.DolbyFader)
+    end
+    
+    Controls.MasterMute.EventHandler = function(ctrl)
+        if ready == false then return end
+        if ctrl.Boolean then cmdSock:Write('sys.mute 1\r\n')
+        else cmdSock:Write('sys.mute 0\r\n') end
+    end
+    
+    Controls.MacroSelect.EventHandler = function(ctrl)
+        cMacro = ctrl.String
+        updateMacro()
+        if ready then cmdSock:Write('sys.macro_name '..ctrl.String..'\r\n') end
+    end
+    
+    for ix,ctrl in ipairs(Controls.MacroButtons) do
+        ctrl.EventHandler = function()
+            cMacro = presetList[ix]
+            updateMacro()
+            for a,b in ipairs(Controls.MacroButtons) do
+                if a ~= ix then b.Boolean = false end
+            end
+            if ready then cmdSock:Write('sys.macro_preset '..ix..'\r\n') end
+        end
+    end
+  
+    
+      
+--INITALIZATION
+    refreshCNX()
+      
+
+end

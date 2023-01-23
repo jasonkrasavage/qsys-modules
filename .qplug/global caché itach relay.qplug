@@ -1,0 +1,1226 @@
+-- Global Caché iTach Plugin
+-- by Joe Peavey / QSC Boulder
+-- February 2019
+
+-- Release Notes
+-- 1.2 (15-Feb-19) Updated Global Caché Logo to support new QSD 7.3 SVG renderer
+
+PluginInfo = 
+{
+  Name = "Global Caché~iTach~Relay", -- Production Name
+  Version = "1.2.1",
+  Id = "f04f82c5-6755-4d70-b597-056df24a99e1", -- Will be different than for IR/Sensor version
+  Description = "Global Caché iTach Relay interface",
+  modeltype = "Relay",
+  Author = "QSC" 
+}
+pagenames = {"Setup/Status","Relay Control"} -- Relay
+
+local IRMode = {"IR Out","Sensor"}
+function GetProperties()
+  local typedefault = "Relay"
+  if PluginInfo.modeltype~=nil then typedefault = PluginInfo.modeltype end  
+  local props = {
+    {Name="iTach Type",Type="enum",Choices={"Infrared/Sensor","Serial","Relay"},Value=typedefault},
+    {Name="IR/Sensor Model",Type="enum",Choices={"IP2IR","WF2IR"},Value="IP2IR"},
+    {Name="Serial Model",Type="enum",Choices={"IP2SL","WF2SL"},Value="IP2SL"},
+    {Name="Relay Model",Type="enum",Choices={"IP2CC","WF2CC"},Value="IP2CC"},
+  }
+  for i = 1, 3 do
+    table.insert(props,{Name =string.format("Output %i Mode",i),Type="enum",Choices={"IR Out","Sensor","LED Lighting"},Value="IR Out"})
+    table.insert(props,{Name=string.format("Output %i Button Count",i),Type="integer",Min=1,Max=512,Value=10})
+  end
+  table.insert(props,{Name="IR Codeset Count",Type="integer",Min=1,Max=10,Value=1})
+  return props
+end
+
+function RectifyProperties(props)
+  local mode = props["iTach Type"].Value
+  if PluginInfo.modeltype~=nil then
+    mode = PluginInfo.modeltype
+    props["iTach Type"].IsHidden = true
+  end
+  local notir,ircsneed = mode~="Infrared/Sensor", 0
+  for i=1,3 do
+    for j,desc in ipairs{"Mode","Button Count"} do
+      local notirout = false
+      if j==2 then
+        notirout = props[string.format("Output %i Mode", i)].Value ~= "IR Out"
+        if not notirout then ircsneed = ircsneed + 1 end
+      end
+      props[string.format("Output %i %s", i,desc)].IsHidden = notir or notirout
+    end
+  end
+  props["IR Codeset Count"].IsHidden = ircsneed==0 or notir
+  props["IR/Sensor Model"].IsHidden = notir
+  props["Serial Model"].IsHidden = mode~="Serial"
+  props["Relay Model"].IsHidden = mode~="Relay"
+  return props
+end
+
+function WebToRgb(color) -- Converts Web Hex strings or decimal values to RGB table
+  if type(color)=="string" then color = tonumber(color:gsub("%X",""),16) end
+  local rgb,rh,gh,bh = {},string.match(string.format("%06x",color),"(%x%x)(%x%x)(%x%x)")
+  for _,h in ipairs{rh,gh,bh} do table.insert(rgb,tonumber(h,16)) end
+  return load("return {"..table.concat(rgb,",").."}")()
+end
+function Grayscale(hex) local v = tonumber(hex,16) return {v,v,v} end
+function GetColor(props) return { 195, 223, 155 } end
+function find(a,t) local f = false for _,_a in pairs(t) do f=a==_a if f then break end end return f end
+
+function GetModel(props)
+  local models = {I="IR/Sensor",S="Serial",R="Relay"}
+  local mode = string.sub(props["iTach Type"].Value,1,1)
+  return props[models[mode].." Model"].Value
+end
+
+function GetPrettyName(props)
+  return string.format("Global Caché~iTach %s",GetModel(props))
+end
+
+local Color = {
+  GC = {
+    Gray = WebToRgb("#707070"),
+    Blue = WebToRgb("#9CBEDD"),
+    Green = WebToRgb("#C5DD9F")
+  },
+  Red = { 255, 0, 0 },
+  LED = { On  = {51, 255, 0 },
+          Off = { 19, 124, 0 },
+          Stroke =  { 47, 119, 5 }
+        },
+  Discover = WebToRgb("#E6DE00"),
+  SerStroke = WebToRgb("#999999"),
+  LEDLightingTxt = WebToRgb("#666666"),
+}
+
+local SVG = {
+  IT="",
+  GC="PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz48c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4IiB2aWV3Qm94PSIwIDAgNzAxLjQgMTM4LjEiIHN0eWxlPSJlbmFibGUtYmFja2dyb3VuZDpuZXcgMCAwIDcwMS40IDEzOC4xOyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+PHN0eWxlIHR5cGU9InRleHQvY3NzIj4uc3Qwe2ZpbGw6I0Q2MUQ0Qzt9LnN0MXtmaWxsOm5vbmU7c3Ryb2tlOiNEQTFDNUM7c3Ryb2tlLW1pdGVybGltaXQ6MTA7fS5zdDJ7ZmlsbC1ydWxlOmV2ZW5vZGQ7Y2xpcC1ydWxlOmV2ZW5vZGQ7ZmlsbDojRDYxRDRDO30uc3Qze2ZpbGw6bm9uZTtzdHJva2U6I0Q3MUQ0QztzdHJva2Utd2lkdGg6NC40NzM7c3Ryb2tlLW1pdGVybGltaXQ6MTA7fTwvc3R5bGU+PGc+PHBhdGggZD0iTTIxOS44LDYzLjJ2NTcuMmgtOS40Yy0wLjgtNC4yLTEuNi03LjgtMi41LTEwLjdjLTMuOSw4LjItOS42LDEyLjMtMTcuMiwxMi4zYy04LDAtMTQuNi00LjYtMTkuOC0xMy44Yy01LjItOS4yLTcuOC0yMS42LTcuOC0zNy4zYzAtMTUuMiwyLjUtMjguMSw3LjUtMzguNGM1LTEwLjQsMTIuNS0xNS42LDIyLjQtMTUuNmM3LjQsMCwxMy40LDMuMSwxOCw5LjNjNC41LDYuMiw3LjUsMTQuOSw4LjgsMjYuM2wtMTguNSwzYy0wLjktMTAuNi0zLjgtMTUuOS04LjUtMTUuOWMtNi4zLDAtOS40LDkuOC05LjQsMjkuM2MwLDExLjgsMSwxOS42LDMsMjMuM2MyLDMuOCw0LjQsNS42LDcuMyw1LjZjMi4zLDAsNC4zLTEuMSw1LjktMy40YzEuNi0yLjMsMi41LTUuNCwyLjUtOS40aC0xMC4zVjYzLjJMMjE5LjgsNjMuMkwyMTkuOCw2My4yeiIvPjxyZWN0IHg9IjIyNi41IiB5PSIxOC40IiB3aWR0aD0iMTgiIGhlaWdodD0iMTAyIi8+PHBhdGggZD0iTTI3My45LDEyMS45Yy03LjcsMC0xMy44LTMuOS0xOC40LTExLjhjLTQuNS03LjgtNi44LTE3LTYuOC0yNy42YzAtMTEuNCwyLjQtMjAuOCw3LjEtMjguNGM0LjctNy42LDEwLjktMTEuNCwxOC41LTExLjRjNy42LDAsMTMuOCwzLjcsMTguNCwxMS4yYzQuNiw3LjUsNywxNi44LDcsMjguMWMwLDExLjQtMi40LDIwLjgtNy4xLDI4LjRDMjg4LDExOC4xLDI4MS43LDEyMS45LDI3My45LDEyMS45IE0yNzQuMiwxMDMuOWMyLjgsMCw0LjYtMi40LDUuMi03LjJjMC42LTQuOCwwLjktOS44LDAuOS0xNS4xYzAtNy4xLTAuNC0xMi4zLTEuMy0xNS40Yy0wLjktMy4xLTIuNS00LjctNC44LTQuN2MtMi4xLDAtMy42LDEuNi00LjYsNC45Yy0xLDMuMi0xLjUsOC42LTEuNSwxNmMwLDguNywwLjUsMTQuNSwxLjUsMTcuM0MyNzAuNywxMDIuNSwyNzIuMiwxMDMuOSwyNzQuMiwxMDMuOSIvPjxwYXRoIGQ9Ik0zMTQuNCwxMjAuNGgtMTAuM3YtMTAyaDE4djM1YzIuNS03LjEsNi41LTEwLjYsMTEuOS0xMC42YzMuOCwwLDcuMSwxLjYsOS44LDQuOWMyLjcsMy4zLDQuNyw4LDYsMTQuMWMxLjMsNi4xLDIsMTIuNSwyLDE5LjJjMCwxMi4zLTEuNywyMi4xLTUsMjkuNmMtMy40LDcuNS04LjMsMTEuMi0xNSwxMS4yYy02LjUsMC0xMS41LTQtMTQuOS0xMkMzMTUuOCwxMTIuOSwzMTUsMTE2LjQsMzE0LjQsMTIwLjQgTTMyMi4xLDkyLjFjMCw3LjUsMS44LDExLjIsNS4zLDExLjJjMS45LDAsMy40LTEuNCw0LjQtNC4xYzEtMi43LDEuNS04LjMsMS41LTE2LjhjMC05LjItMC42LTE1LTEuNy0xNy40Yy0xLjItMi40LTIuNi0zLjUtNC4zLTMuNWMtMS4zLDAtMi41LDAuOC0zLjYsMi41Yy0xLjEsMS43LTEuNiw0LjItMS42LDcuNEwzMjIuMSw5Mi4xTDMyMi4xLDkyLjF6Ii8+PHBhdGggZD0iTTQwMywxMjAuNGgtMTcuNGMtMC40LTMuMi0wLjYtNi44LTAuNi0xMC42Yy0zLjMsOC4xLTguMywxMi4yLTE0LjksMTIuMmMtNS41LDAtOS42LTIuMy0xMi4zLTYuOWMtMi43LTQuNi00LjEtOS44LTQuMS0xNS44YzAtOCwyLjItMTQuNSw2LjctMTkuNXMxMi40LTcuOSwyMy43LTguOXYtMS43YzAtMy4zLTAuNS01LjYtMS40LTYuNmMtMC45LTEuMS0yLjMtMS42LTQuMS0xLjZjLTQuMiwwLTYuNSwyLjgtNyw4LjNsLTE2LjYtMi41YzIuNC0xNS45LDEwLjUtMjMuOCwyNC4zLTIzLjhjMy43LDAsNy4yLDAuNiwxMC4zLDEuOGMzLjEsMS4yLDUuNiwzLjEsNy40LDUuN2MxLjgsMi42LDMuMSw1LjMsMy43LDguMmMwLjYsMi45LDAuOSw4LjQsMC45LDE2Ljd2MzAuM0M0MDEuNiwxMTEuNCw0MDIsMTE2LjMsNDAzLDEyMC40IE0zODQuMSw4NC44Yy03LjgsMS4zLTExLjYsNS40LTExLjYsMTIuMmMwLDQuNiwxLjUsNi45LDQuNiw2LjljMS45LDAsMy42LTAuOSw1LTIuOGMxLjQtMS45LDIuMS02LjEsMi4xLTEyLjZMMzg0LjEsODQuOEwzODQuMSw4NC44eiIvPjxyZWN0IHg9IjQwOC4yIiB5PSIxOC40IiB3aWR0aD0iMTgiIGhlaWdodD0iMTAyIi8+PHBhdGggZD0iTTQ4MC44LDg0bDE3LjUsMS43Yy0wLjgsMTIuNS0zLjYsMjIuMS04LjUsMjguOGMtNC44LDYuNy0xMC44LDEwLTE3LjgsMTBjLTguNSwwLTE1LjMtNC42LTIwLjUtMTMuN2MtNS4yLTkuMi03LjgtMjEuOC03LjgtMzhjMC0xNiwyLjUtMjguOSw3LjQtMzguN2M0LjktOS44LDExLjgtMTQuNywyMC42LTE0LjdjOC4zLDAsMTQuNiwzLjcsMTksMTEuMmM0LjQsNy41LDYuOSwxNy40LDcuNSwyOS43bC0xNy45LDEuNmMwLTYuOC0wLjgtMTEuOC0yLjQtMTQuOGMtMS42LTMtMy41LTQuNi01LjYtNC42Yy02LDAtOSw5LjktOSwyOS43YzAsMTEuMSwwLjgsMTguNiwyLjQsMjIuNmMxLjYsNCwzLjgsNiw2LjYsNkM0NzcuMywxMDAuOCw0ODAuMiw5NS4yLDQ4MC44LDg0Ii8+PHBhdGggZD0iTTU0OC42LDEyMi45aC0xNy40Yy0wLjQtMy4yLTAuNi02LjgtMC42LTEwLjZjLTMuMyw4LjEtOC4zLDEyLjItMTQuOSwxMi4yYy01LjUsMC05LjYtMi4zLTEyLjMtNi45cy00LjEtOS44LTQuMS0xNS44YzAtOCwyLjItMTQuNSw2LjctMTkuNWM0LjUtNSwxMi40LTcuOSwyMy43LTguOXYtMS43YzAtMy4zLTAuNS01LjYtMS40LTYuNmMtMC45LTEuMS0yLjMtMS42LTQuMS0xLjZjLTQuMiwwLTYuNSwyLjgtNyw4LjNsLTE2LjYtMi41YzIuNC0xNS45LDEwLjUtMjMuOCwyNC4zLTIzLjhjMy43LDAsNy4yLDAuNiwxMC4zLDEuOGMzLjEsMS4yLDUuNiwzLjEsNy40LDUuN2MxLjgsMi42LDMuMSw1LjMsMy43LDguMmMwLjYsMi45LDAuOSw4LjQsMC45LDE2Ljd2MzAuM0M1NDcuMiwxMTMuOSw1NDcuNywxMTguOCw1NDguNiwxMjIuOSBNNTI5LjcsODcuM2MtNy44LDEuMy0xMS42LDUuNC0xMS42LDEyLjJjMCw0LjYsMS41LDYuOSw0LjYsNi45YzEuOSwwLDMuNi0wLjksNS0yLjhjMS40LTEuOSwyLjEtNi4xLDIuMS0xMi42TDUyOS43LDg3LjNMNTI5LjcsODcuM3oiLz48cGF0aCBkPSJNNTgxLjksOTIuM2wxNS41LDIuMmMtMC43LDguOS0zLDE2LjEtNi44LDIxLjdjLTMuOCw1LjYtOC45LDguNC0xNS4yLDguNGMtNy4xLDAtMTIuOS0zLjYtMTcuMy0xMC45Yy00LjQtNy4zLTYuNi0xNi42LTYuNi0yOC4xYzAtMTEuNywyLjItMjEuMyw2LjYtMjguOGM0LjQtNy41LDEwLjEtMTEuMywxNy4yLTExLjNjNi4yLDAsMTEuMywyLjksMTUuMyw4LjZjMy45LDUuNyw2LjIsMTIuOSw2LjgsMjEuNmwtMTUuOSwyLjJjLTAuNy04LTIuNS0xMi01LjYtMTJjLTEuOSwwLTMuNCwxLjUtNC4zLDQuNGMtMC45LDIuOS0xLjMsOC0xLjMsMTUuMmMwLDYuMiwwLjQsMTAuOCwxLjMsMTMuOGMwLjksMywyLjUsNC41LDQuNyw0LjVDNTc5LjMsMTAzLjUsNTgxLjMsOTkuOCw1ODEuOSw5Mi4zIi8+PHBhdGggZD0iTTY0Ni44LDEyMi45aC0xOC4yVjc3LjJjMC00LjItMC4zLTcuMS0wLjgtOC42Yy0wLjYtMS42LTEuNi0yLjQtMy4yLTIuNGMtMS4yLDAtMi4zLDAuNi0zLjMsMS44Yy0wLjksMS4yLTEuNSwyLjUtMS42LDMuOGMtMC4yLDEuMy0wLjIsNC0wLjIsOC4xdjQzaC0xOC4ydi0xMDJoMTguMnYzNWMzLjMtNyw3LjYtMTAuNSwxMi45LTEwLjVjMi43LDAsNSwwLjgsNy4xLDIuM2MyLDEuNSwzLjYsMy41LDQuNyw1LjljMS4xLDIuNCwxLjgsNC43LDIuMiw2LjlzMC42LDYuNiwwLjYsMTNWMTIyLjl6Ii8+PHBhdGggZD0iTTcwMS40LDg2LjVjMCwxLDAsMi41LTAuMSw0LjNoLTE3aC0xNC4xYzAuMSw0LjgsMC42LDguMywxLjYsMTAuN2MxLDIuMywyLjgsMy41LDUuNiwzLjVjNCwwLDYuMy0zLjEsNy05LjNsMTcsMS45Yy0xLDcuNS0zLjYsMTMuOC03LjcsMTkuMWMtNC4xLDUuMi05LjcsNy45LTE2LjgsNy45Yy03LjgsMC0xNC4xLTMuNy0xOC43LTExLjFjLTQuNy03LjQtNy0xNi42LTctMjcuNWMwLTExLjQsMi4zLTIwLjksNi45LTI4LjhjNC42LTcuOCwxMC43LTExLjcsMTguNC0xMS43YzcuNCwwLDEzLjQsMy43LDE4LDExLjFDNjk5LDYzLjgsNzAxLjQsNzMuOCw3MDEuNCw4Ni41IE02NzAuMiw3NS45aDEyLjljMC01LjEtMC43LTguNi0xLjktMTAuM2MtMS4yLTEuOC0yLjgtMi42LTQuNi0yLjZDNjcyLjMsNjIuOSw2NzAuMiw2Ny4yLDY3MC4yLDc1LjkiLz48cG9seWdvbiBjbGFzcz0ic3QwIiBwb2ludHM9IjY4OC4zLDE0LjMgNjkxLjYsMjguOSA2NjkuOCw0MS4zIDY2Ny40LDMxICIvPjxwb2x5Z29uIGNsYXNzPSJzdDEiIHBvaW50cz0iNjY3LjQsMzEgNjg4LjMsMTQuMyA2OTEuNiwyOC45IDY2OS44LDQxLjMgIi8+PHBhdGggY2xhc3M9InN0MiIgZD0iTTQ5LjgsMThjNi40LTEuMSwxMy40LTIsMjAuOC0yLjdjMTQuNy0xLjMsMzAuNiwwLDQ1LjUsMS4xYzMuNCwwLjIsNy4xLDAuNSwxMS4yLDAuOGMzLjMsMC4zLDguOCwwLjEsOC45LDIuN2MwLjEsMy43LTcuOSwxLjctMTEuNSwxLjVjLTIyLjgtMS42LTUwLjItNC4yLTcwLjUsMC41YzEuNSwwLjcsMy41LDAuNywzLjYsMi40YzAuMyw0LjEtNywxLjgtOS4yLDAuNWMtMC44LTAuNS0xLjItMS4xLTEuOC0xLjJjLTEuOC0wLjItNi41LDIuMy04LDNjLTQuMiwxLjktOC40LDMuMy03LjIsOC44YzIuMS0wLjEsNC0xLDYtMS42YzUuOC0xLjgsMTIuMi0zLjIsMTkuNC00LjFjOS4zLTEuMSwxOS44LTAuOSwzMC42LTAuOWMxOC4yLDAsMzUuNCwxLjYsNDkuNiw1LjhjMi4yLDAuNyw0LjcsMS4xLDQuOCwyLjhjMC4yLDMuOC00LjksMS44LTcuNCwxLjFjLTEyLjgtMy41LTI3LjctNS4zLTQ0LjUtNS4zYy0xMC4yLDAtMTkuNS0wLjQtMjguMiwwLjNjLTguNiwwLjctMTYuMywyLjUtMjMuNCw0LjdjMi42LDEuMiw1LjUsMS44LDkuMiwyLjRjMi4zLDAuNCw4LjYsMC4xLDguNiwzYzAsMy00LjQsMi03LjcsMS42Yy01LjUtMC43LTEwLjQtMS44LTE0LjgtMy43Yy0wLjktMC40LTEuOS0xLjEtMi40LTEuMWMtMi4xLTAuMS02LDIuOC03LjEsMy45Yy0yLjEsMi4yLTUuOSw4LjItMC42LDkuOWMyNS4zLTkuNiw2OC4xLTguNSwxMDAuNC00LjdjNy43LDAuOSwxNiwyLjIsMjQuMSwzLjVjMi45LDAuNSw2LjEsMC43LDYuMiwyLjdjMC4yLDMuNi01LjYsMS45LTguNywxLjRjLTE3LjItMi44LTM1LjQtNS4zLTU0LjctNi4xYy0yNC40LTEtNDUuNywwLjctNjMuMiw1LjhjMS4xLDEuNCwzLjEsMi4xLDQuOCwyLjhjMy42LDEuNiw3LjEsMi44LDExLjgsMy44YzIuMywwLjUsNC44LDAuNiw0LjgsMi43YzAsMy42LTYuMiwxLjYtOC43LDAuOWMtNy4yLTEuOS0xMy42LTQuOS0xOC41LTguMWMtNC42LDIuNC05LjgsNS42LTEyLjIsMTAuMkM5LDcwLjksOCw3My42LDguOCw3NS43YzAuNiwxLjYsNC44LDQuMSw2LjMsNS4xYzIuNSwxLjcsNC44LDMsNy41LDQuMWMxLjUtMC45LDEuOS0xLjksMy4yLTIuOGM5LjktNy40LDIzLjYtMTAuOCw0MS0xMS45YzI1LjMtMS41LDUzLjEtMS4zLDc3LjMsMS41YzIuOSwwLjMsNi4xLDAuNyw2LjIsMi42YzAuMiwzLjYtNS41LDItOSwxLjZjLTcuNS0wLjgtMTYuNC0xLjUtMjQuMy0xLjhjLTI3LjctMC44LTYwLjUtMi03OS4zLDYuNWMtMy43LDEuNy03LjUsMy42LTEwLjIsNi41YzIuMSwxLjMsNC41LDIuMSw3LjUsM2MyLjEsMC42LDcuNSwwLjYsNy43LDIuN2MwLjMsMy41LTYuNCwxLjgtOC42LDEuMmMtMy41LTAuOS01LjctMi04LjYtM2MtMC44LDQuMSwyLjUsNC44LDUuNCw2YzIuMSwwLjgsNC4yLDEuNSw1LjksMS45YzEyLjUtNS4xLDI4LjYtNy42LDQ1LjgtOC44YzE1LjktMS4xLDMxLjEsMC43LDQ2LjYsMS40YzIuNSwwLjEsNC4zLDAuNSw0LjQsMi4zYzAuMSwzLjMtNi43LDIuMS05LjYsMS45Yy0xMS43LTAuOC0yMy40LTEuOS0zNi4yLTEuNGMtMTUuOSwwLjctMzAuOSwyLjctNDMuMSw2LjRjMC42LDIuNC0wLjQsMy44LTMuMywzLjVjLTAuNy0wLjEtMS45LTAuNi0yLjctMC40Yy0xLjEsMC4zLTMuMiwzLjQtMi43LDUuMWMwLjQsMS40LDUuMiwzLjEsNi45LDMuN2MxLjMsMC41LDIuNywwLjgsNC4yLDEuMmMxLjQsMC40LDMuMiwxLjEsNC40LDAuOWMxLjQtMC4xLDIuNi0xLjUsMy44LTIuMmM3LjQtMy45LDE3LjUtNCwyNy45LTQuN2M0LjYtMC4zLDEwLjMtMC41LDE2LTAuM2M0LjgsMC4yLDEzLjItMC4zLDEzLjMsMi44YzAsMi4xLTIuMywyLjItNC43LDJjLTYuNS0wLjYtMTUuMS0wLjctMjEuOS0wLjRjLTguOCwwLjQtMTkuNSwwLjktMjYuMSwzLjVjMS42LDAuNywzLjMsMC41LDMuNiwyLjJjMC43LDQtNi4yLDIuNC05LjYsMmMwLjEsNy40LDYuNyw5LjUsMTQuOSwxMGMyLjYsMC4yLDQuNiwwLjQsNC43LDIuMmMwLjIsMy45LTcuOSwyLjItMTAuNywxLjVjLTcuNC0xLjktMTUuMS01LjItMTMuNi0xNC41Yy01LjQtMi4zLTE1LjItMi43LTE3LjUtNy45Yy0xLjItMi43LDAtNi4zLDEuNC04LjVjLTYuNS0yLjItMTQuMi00LjctMTIuMS0xMy44Yy00LjgtMi4zLTkuNS00LjctMTMuNi04LjFjLTIuNS0yLjEtNC41LTQuMS0zLjYtOC41YzEuNC03LjIsOS4xLTEyLjEsMTQuOS0xNS40Yy0wLjYtMS40LTEuNy0xLjctMi4xLTNjLTIuNC03LjMsNS4zLTEzLjQsMTAuMi0xNmMtMi42LTEyLDkuMy0xNC45LDE4LjEtMThjLTAuMS0zLjYsMS44LTYuMyw0LjEtOC4xYzQuMS0zLjIsMTAtNS4yLDE3LTYuMmM3LTEsMTUtMC41LDIzLjEtMC44YzMuOS0wLjIsOS43LDAsMTUuMSwwLjVjMy42LDAuNCwxMS41LDAuNiwxMS45LDMuMWMwLjcsNC4zLTUuOCwxLjktOS4zLDEuNUMxMDAuMSw4LjksOTQuOCw5LDg4LDguOGMtOS42LTAuMi0xOS41LTAuMS0yNi43LDJDNTYuNiwxMi4yLDUxLjgsMTMuOSw0OS44LDE4Ii8+PHBhdGggY2xhc3M9InN0MyIgZD0iTTQ5LjgsMThjNi40LTEuMSwxMy40LTIsMjAuOC0yLjdjMTQuNy0xLjMsMzAuNiwwLDQ1LjUsMS4xYzMuNCwwLjIsNy4xLDAuNSwxMS4yLDAuOGMzLjMsMC4zLDguOCwwLjEsOC45LDIuN2MwLjEsMy43LTcuOSwxLjctMTEuNSwxLjVjLTIyLjgtMS42LTUwLjItNC4yLTcwLjUsMC41YzEuNSwwLjcsMy41LDAuNywzLjYsMi40YzAuMyw0LjEtNywxLjgtOS4yLDAuNWMtMC44LTAuNS0xLjItMS4xLTEuOC0xLjJjLTEuOC0wLjItNi41LDIuMy04LDNjLTQuMiwxLjktOC40LDMuMy03LjIsOC44YzIuMS0wLjEsNC0xLDYtMS42YzUuOC0xLjgsMTIuMi0zLjIsMTkuNC00LjFjOS4zLTEuMSwxOS44LTAuOSwzMC42LTAuOWMxOC4yLDAsMzUuNCwxLjYsNDkuNiw1LjhjMi4yLDAuNyw0LjcsMS4xLDQuOCwyLjhjMC4yLDMuOC00LjksMS44LTcuNCwxLjFjLTEyLjgtMy41LTI3LjctNS4zLTQ0LjUtNS4zYy0xMC4yLDAtMTkuNS0wLjQtMjguMiwwLjNjLTguNiwwLjctMTYuMywyLjUtMjMuNCw0LjdjMi42LDEuMiw1LjUsMS44LDkuMiwyLjRjMi4zLDAuNCw4LjYsMC4xLDguNiwzYzAsMy00LjQsMi03LjcsMS42Yy01LjUtMC43LTEwLjQtMS44LTE0LjgtMy43Yy0wLjktMC40LTEuOS0xLjEtMi40LTEuMWMtMi4xLTAuMS02LDIuOC03LjEsMy45Yy0yLjEsMi4yLTUuOSw4LjItMC42LDkuOWMyNS4zLTkuNiw2OC4xLTguNSwxMDAuNC00LjdjNy43LDAuOSwxNiwyLjIsMjQuMSwzLjVjMi45LDAuNSw2LjEsMC43LDYuMiwyLjdjMC4yLDMuNi01LjYsMS45LTguNywxLjRjLTE3LjItMi44LTM1LjQtNS4zLTU0LjctNi4xYy0yNC40LTEtNDUuNywwLjctNjMuMiw1LjhjMS4xLDEuNCwzLjEsMi4xLDQuOCwyLjhjMy42LDEuNiw3LjEsMi44LDExLjgsMy44YzIuMywwLjUsNC44LDAuNiw0LjgsMi43YzAsMy42LTYuMiwxLjYtOC43LDAuOWMtNy4yLTEuOS0xMy42LTQuOS0xOC41LTguMWMtNC42LDIuNC05LjgsNS42LTEyLjIsMTAuMkM5LDcwLjksOCw3My42LDguOCw3NS43YzAuNiwxLjYsNC44LDQuMSw2LjMsNS4xYzIuNSwxLjcsNC44LDMsNy41LDQuMWMxLjUtMC45LDEuOS0xLjksMy4yLTIuOGM5LjktNy40LDIzLjYtMTAuOCw0MS0xMS45YzI1LjMtMS41LDUzLjEtMS4zLDc3LjMsMS41YzIuOSwwLjMsNi4xLDAuNyw2LjIsMi42YzAuMiwzLjYtNS41LDItOSwxLjZjLTcuNS0wLjgtMTYuNC0xLjUtMjQuMy0xLjhjLTI3LjctMC44LTYwLjUtMi03OS4zLDYuNWMtMy43LDEuNy03LjUsMy42LTEwLjIsNi41YzIuMSwxLjMsNC41LDIuMSw3LjUsM2MyLjEsMC42LDcuNSwwLjYsNy43LDIuN2MwLjMsMy41LTYuNCwxLjgtOC42LDEuMmMtMy41LTAuOS01LjctMi04LjYtM2MtMC44LDQuMSwyLjUsNC44LDUuNCw2YzIuMSwwLjgsNC4yLDEuNSw1LjksMS45YzEyLjUtNS4xLDI4LjYtNy42LDQ1LjgtOC44YzE1LjktMS4xLDMxLjEsMC43LDQ2LjYsMS40YzIuNSwwLjEsNC4zLDAuNSw0LjQsMi4zYzAuMSwzLjMtNi43LDIuMS05LjYsMS45Yy0xMS43LTAuOC0yMy40LTEuOS0zNi4yLTEuNGMtMTUuOSwwLjctMzAuOSwyLjctNDMuMSw2LjRjMC42LDIuNC0wLjQsMy44LTMuMywzLjVjLTAuNy0wLjEtMS45LTAuNi0yLjctMC40Yy0xLjEsMC4zLTMuMiwzLjQtMi43LDUuMWMwLjQsMS40LDUuMiwzLjEsNi45LDMuN2MxLjMsMC41LDIuNywwLjgsNC4yLDEuMmMxLjQsMC40LDMuMiwxLjEsNC40LDAuOWMxLjQtMC4xLDIuNi0xLjUsMy44LTIuMmM3LjQtMy45LDE3LjUtNCwyNy45LTQuN2M0LjYtMC4zLDEwLjMtMC41LDE2LTAuM2M0LjgsMC4yLDEzLjItMC4zLDEzLjMsMi44YzAsMi4xLTIuMywyLjItNC43LDJjLTYuNS0wLjYtMTUuMS0wLjctMjEuOS0wLjRjLTguOCwwLjQtMTkuNSwwLjktMjYuMSwzLjVjMS42LDAuNywzLjMsMC41LDMuNiwyLjJjMC43LDQtNi4yLDIuNC05LjYsMmMwLjEsNy40LDYuNyw5LjUsMTQuOSwxMGMyLjYsMC4yLDQuNiwwLjQsNC43LDIuMmMwLjIsMy45LTcuOSwyLjItMTAuNywxLjVjLTcuNC0xLjktMTUuMS01LjItMTMuNi0xNC41Yy01LjQtMi4zLTE1LjItMi43LTE3LjUtNy45Yy0xLjItMi43LDAtNi4zLDEuNC04LjVjLTYuNS0yLjItMTQuMi00LjctMTIuMS0xMy44Yy00LjgtMi4zLTkuNS00LjctMTMuNi04LjFjLTIuNS0yLjEtNC41LTQuMS0zLjYtOC41YzEuNC03LjIsOS4xLTEyLjEsMTQuOS0xNS40Yy0wLjYtMS40LTEuNy0xLjctMi4xLTNjLTIuNC03LjMsNS4zLTEzLjQsMTAuMi0xNmMtMi42LTEyLDkuMy0xNC45LDE4LjEtMThjLTAuMS0zLjYsMS44LTYuMyw0LjEtOC4xYzQuMS0zLjIsMTAtNS4yLDE3LTYuMmM3LTEsMTUtMC41LDIzLjEtMC44YzMuOS0wLjIsOS43LDAsMTUuMSwwLjVjMy42LDAuNCwxMS41LDAuNiwxMS45LDMuMWMwLjcsNC4zLTUuOCwxLjktOS4zLDEuNUMxMDAuMSw4LjksOTQuOCw5LDg4LDguOGMtOS42LTAuMi0xOS41LTAuMS0yNi43LDJDNTYuNiwxMi4yLDUxLjgsMTMuOSw0OS44LDE4eiIvPjxwYXRoIGNsYXNzPSJzdDIiIGQ9Ik03Ni4yLDEyMi4xYzEtMC4yLDEuNiwwLjUsMywwLjVjMi42LDAuMSw3LjItMS41LDYuNiwyLjRjLTAuNCwyLjktOC45LDIuOC0xMC45LDEuMkM3My40LDEyNS4xLDc0LjQsMTIyLjQsNzYuMiwxMjIuMSIvPjxwYXRoIGNsYXNzPSJzdDMiIGQ9Ik03Ni4yLDEyMi4xYzEtMC4yLDEuNiwwLjUsMywwLjVjMi42LDAuMSw3LjItMS41LDYuNiwyLjRjLTAuNCwyLjktOC45LDIuOC0xMC45LDEuMkM3My40LDEyNS4xLDc0LjQsMTIyLjQsNzYuMiwxMjIuMXoiLz48L2c+PC9zdmc+"
+}
+
+function GetPages(props)
+  local pages = {}
+  local function AddPage(name) table.insert( pages, { name = name }) end
+  for ix,name in ipairs(pagenames) do
+    AddPage(pagenames[ix])
+  end
+  return pages
+end
+
+function GetControls(props)
+  local GCType = tostring(PluginInfo.modeltype==nil and props["iTach Type"].Value or PluginInfo.modeltype)
+  local ctls = {
+    -- Default Setup/Status Controls
+    { Name = "hwconnect", ControlType = "Button", ButtonType = "Toggle" },
+    { Name = "hwdiscman", ControlType = "Text" },
+    { Name = "hwunits" },
+    { Name = "hwip" },
+    { Name = "hwmac", ControlType = "Indicator", IndicatorType = "Text" },
+    { Name = "hwmodel" },
+    { Name = "hwclass" },
+    { Name = "hwrev" },
+    { Name = "hwpkglv" },
+    { Name = "hwpcbpn" },
+    { Name = "hwstatus", IndicatorType = "Status", Count=1 }
+  }
+  if GCType=="Infrared/Sensor" then
+    local irctls, useircodes = {},false
+    local btypes = {
+      fn = { ct="Indicator", it="Text", suf="func" },
+      t = { ct="Button", bt="Trigger", suf="trig" },
+      m = { ct="Button", bt="Momentary", suf="mom" },
+      l = { ct="Button", bt="Toggle", suf="loop" },
+      b = { ct="Text", suf="brand" },
+      c = { ct="Text", suf="codeset" },
+      f = { ct="Text", suf="fnset" },
+    }
+    for i = 1, 3 do
+      local mode = props[string.format("Output %i Mode", i)].Value
+      if mode=="IR Out" then
+        useircodes = true -- triggers last page and codeset paste boxes
+        if i==3 then table.insert(ctls,{Name=string.format("ir.%i.irmode",i),ControlType="Text",Count=1,UserPin=true,PinStyle="Both"}) end
+        for _,lc in ipairs{"legend","camel"} do
+          table.insert(ctls,{Name=string.format("ir.%i.%s",i,lc),ControlType="Button",ButtonType="Toggle",Count=1,UserPin=true,PinStyle="Both"})
+        end
+        for row=1,props[string.format("Output %i Button Count", i)].Value do
+          local prefix = string.format("ir.%i.btn.%i.",i,row)
+          for k,bctl in pairs(btypes) do
+            table.insert(ctls,{Name=string.format("%s%s",prefix,bctl.suf),ControlType=bctl.ct,IndicatorType=bctl.it,ButtonType=bctl.bt,Count=1,UserPin=true,PinStyle="Both"})
+          end
+        end
+        -- buttons and select codeset and select code comboboxes
+      elseif mode=="Sensor" then
+        table.insert(ctls,{Name=string.format("sensor.%i",i),ControlType="Indicator",IndicatorType="Led",Count=1,UserPin=true,PinStyle="Output"})
+      elseif mode=="LED Lighting" then
+        table.insert(ctls,{Name=string.format("ledlighting.%i.intreadout",i),ControlType="Text",Count=1})
+        table.insert(ctls,{Name=string.format("ledlighting.%i.intensity",i),ControlType="Knob",ControlUnit="Percent",Min=0,Max=100,Count=1,UserPin=true,PinStyle="Both"})
+        table.insert(ctls,{Name=string.format("ledlighting.%i.ramprate",i),ControlType="Knob",ControlUnit="Integer",Min=0,Max=10,Count=1,UserPin=true,PinStyle="Both"})
+        table.insert(ctls,{Name=string.format("ledlighting.%i.rampcalc",i),ControlType="Text",Count=1})
+      end
+    end
+    if useircodes then   -- Put IR Codeset paste boxes on last page
+      local csctl = {
+        notice = { ct="Indicator", it="Text" },
+        paste = { ct = "Text", ps="Both" },
+        brand = { ct="Indicator", it="Text", ps="Output" },
+        devtype = { ct="Indicator", it="Text", ps="Output" },
+        devname = { ct="Indicator", it="Text", ps="Output" },
+        func = { ct="Text",ps="Output", ps="Output" }
+      }
+      for i=1,props["IR Codeset Count"].Value do
+        for k,tctl in pairs(csctl) do
+          table.insert(ctls,{Name=string.format("cs.%i.%s",i,k),ControlType=tctl.ct,IndicatorType=tctl.it,Count=1,UserPin=true,PinStyle=tctl.ps})
+        end
+      end
+    end
+  elseif GCType=="Serial" then
+    local csctl = {
+      status =  { ct="Indicator", ps="Output", it="Status" },
+      baud =      { ct="Text", ps="Both" },
+      flowctl =   { ct="Text", ps="Both" },
+      parity =    { ct="Text", ps="Both" },
+      frameerr =  { ct="Indicator", ps="Output", it="Text" },
+      parityerr = { ct="Indicator", ps="Output", it="Text" },
+      ovflowerr = { ct="Indicator", ps="Output", it="Text" },
+      save =      { ct="Button", ps="Both", bt="Trigger" },
+      saveconf =  { ct="Indicator", ps="Output", it="Text" },
+    }
+    for k,tctl in pairs(csctl) do
+      table.insert(ctls,{Name=string.format("serial.%s",k),ControlType=tctl.ct,IndicatorType=tctl.it,ButtonType=tctl.bt,ControlUnit=tctl.cu,Min=tctl.n,Max=tctl.x,Count=1,UserPin=true,PinStyle=tctl.ps})
+    end
+  elseif GCType=="Relay" then
+    for i=1,3 do
+      table.insert(ctls,{Name=string.format("relay.%i",i),ControlType="Button",ButtonType="Toggle",Count=1,UserPin=true,PinStyle="Both"})
+    end
+  end
+  return ctls
+end
+
+function GetControlLayout(props)
+  local CurrentPage = pagenames[props["page_index"].Value]
+  local itType = string.sub(props["iTach Type"].Value,1,1)
+  local layout,graphics = {},{}
+  local function AddNotUsed(str)
+    local suffix = "model"
+    if str~=nil then suffix=str end
+    table.insert(graphics,{Type="GroupBox",StrokeWidth=1,CornerRadius=8,Position={0,48},Size={331,51}})
+    table.insert(graphics,{Type="Label",Text=string.format("This page is not used for the current %s.",suffix),Font="Roboto",FontStyle="Bold",FontSize=12,Position={19,64},Size={293,20}})
+  end
+  -- Define Graphics which display on all pages
+  if CurrentPage=="Setup/Status" then
+    local function PrettyName(prefix,str) return string.format("%s~%s",prefix,str) end
+    local setup = {
+      prefix = "Setup",
+      ctls = {
+        hwconnect = {PrettyName="Connect",Style="Button",Color=Color.GC.Green,Legend="Connect",Font="Roboto",FontStyle="Bold",FontSize=12,ButtonStyle="Toggle",Position={247,52},Size={72,20}},
+        hwstatus = {PrettyName="Status",Style="Text",Font="Roboto",FontStyle="Medium",FontSize=14,Position={11,98},Size={307,25}},
+        hwdiscman = {PrettyName="Discovery-Manual",Style="ComboBox",Margin=0,Font="Roboto",FontStyle="Medium",FontSize=13,Position={167,134},Size={150,24}},
+        hwunits = {PrettyName="Discovered Units",Style="ComboBox",Margin=0,Font="Roboto",FontStyle="Medium",FontSize=13,Position={167,158},Size={150,24}},
+        hwip = {PrettyName="IP Address",Style="Text",Margin=0,Font="Roboto",FontStyle="Medium",FontSize=13,Position={167,182},Size={150,24}}
+      },
+      graphics = {
+        {Type="GroupBox",Text="Connect/Status",FontSize=12,Font="Roboto",FontStyle="Bold",HTextAlign="Left",StrokeWidth=1,CornerRadius=8,Position={0,44},Size={331,175}},
+        {Type="Header",Text="Connection / Configuration Status",Font="Roboto",FontStyle="Medium",FontSize=14,Position={11,75},Size={307,24}},
+        {Type="Label",Text="Discovery/Manual Mode",Font="Roboto",FontStyle="Medium",FontSize=13,HTextAlign="Right",Position={11,134},Size={154,24}},
+        {Type="Label",Text=string.format("Discovered %s Units",GetModel(props)),Font="Roboto",FontStyle="Medium",FontSize=13,HTextAlign="Right",Position={11,158},Size={154,24}},
+        {Type="Label",Text="IP Address",Font="Roboto",FontStyle="Medium",FontSize=13,HTextAlign="Right",Position={11,182},Size={154,24}},
+      }
+    }
+    local details = {
+      prefix = "Details",
+      ctls = {
+        hwmac = {PrettyName="MAC Address",Style="Text",Font="Droid Sans",FontStyle="Bold",FontSize=14,Position={149,239},Size={168,24}},
+        hwmodel = {PrettyName="Model",Style="Text",Font="Droid Sans",FontStyle="Bold",FontSize=14,Position={149,263},Size={168,24}},
+        hwclass = {PrettyName="SDKClass",Style="Text",Font="Droid Sans",FontStyle="Bold",FontSize=14,Position={149,287},Size={168,24}},
+        hwrev = {PrettyName="Revision",Style="Text",Font="Droid Sans",FontStyle="Bold",FontSize=14,Position={149,311},Size={168,24}},
+        hwpkglv = {PrettyName="Package Level",Style="Text",Font="Droid Sans",FontStyle="Bold",FontSize=14,Position={149,335},Size={168,24}},
+        hwpcbpn = {PrettyName="PCB Part Number",Style="Text",Font="Droid Sans",FontStyle="Bold",FontSize=14,Position={149,359},Size={168,24}}
+      },
+      graphics = {
+        {Type="GroupBox",Text="Unit Details",FontSize=12,Font="Roboto",FontStyle="Bold",HTextAlign="Left",StrokeWidth=1,CornerRadius=8,Position={0,222},Size={331,175}},
+        {Type="Label",Text="MAC Address",Font="Roboto",FontStyle="Medium",FontSize=13,HTextAlign="Right",Position={26,239},Size={115,24}},
+        {Type="Label",Text="Model",Font="Roboto",FontStyle="Medium",FontSize=13,HTextAlign="Right",Position={26,263},Size={115,24}},
+        {Type="Label",Text="SDKClass",Font="Roboto",FontStyle="Medium",FontSize=13,HTextAlign="Right",Position={26,287},Size={115,24}},
+        {Type="Label",Text="Revision",Font="Roboto",FontStyle="Medium",FontSize=13,HTextAlign="Right",Position={26,311},Size={115,24}},
+        {Type="Label",Text="Package Level",Font="Roboto",FontStyle="Medium",FontSize=13,HTextAlign="Right",Position={26,335},Size={115,24}},
+        {Type="Label",Text="PCB Part Number",Font="Roboto",FontStyle="Medium",FontSize=13,HTextAlign="Right",Position={26,359},Size={115,24}}
+      }
+    }
+    for _,tbl in ipairs{setup,details} do
+      local pre = tbl.prefix
+      for name,ctl in pairs(tbl.ctls) do
+        ctl.PrettyName = PrettyName(pre,ctl.PrettyName)
+        layout[name] = ctl
+      end 
+      for _,grT in pairs(tbl.graphics) do
+        local item={}
+        for prop,val in pairs(grT) do item[prop] = val end
+        table.insert(graphics,item)
+      end
+    end
+  elseif CurrentPage:find("^IR Port") and itType=="I" then
+    local pg = tonumber(CurrentPage:match("%d$"))
+    local portmode = props[string.format("Output %i Mode",pg)].Value
+    local sendbtn = {
+      func= {name="Function",style="Text",sx=187,px=24,fs=9,wr=true},
+      trig = {name="Trigger",style="Button",btntype="Trigger",sx=55,px=211},
+      mom = {name="Momentary",style="Button",btntype="Momentary",sx=55,px=266}
+    }
+    local btnsetup = {
+      brand = {name="Brand",style="ComboBox",fs=7,px=59,sx=63},
+      codeset = {name="Codeset",style="ComboBox",fs=7,px=122,sx=63},
+      fnset = {name="Function Set",style="ComboBox",fs=7,px=185,sx=108},
+      loop = {name="Looping",style="Button",btntype="Toggle",m=1,px=293,sx=28,label="Loop"}
+    }
+    if portmode=="IR Out" then
+      local yofs = pg==3 and 88 or 44
+      local btncnt = props[string.format("Output %i Button Count", pg)].Value
+      local sizeY = 32+btncnt*24
+      local bsPosY = sizeY+yofs+3
+      local bsSizeY = 57+btncnt*18
+
+      for name,pn in pairs{legend="Legend",camel="Camel Case"} do
+        layout[string.format("ir.%i.%s",pg,name)] =
+          {PrettyName=string.format("IR~Port %i~Button %s",pg,pn),Style="Button",ButtonStyle="Toggle",Margin=1,Position={199+(name=="camel" and 95 or 0),bsPosY+8},Size={27,18}}
+      end
+      local irbgr = {
+        {Type="GroupBox",StrokeWidth=1,Text=string.format("IR %i Send Buttons",pg),FontSize=12,Font="Roboto",FontStyle="Bold",HTextAlign="Left",CornerRadius=8,Position={0,yofs},Size={331,sizeY}},
+        {Type="GroupBox",StrokeWidth=1,Text="Button Setup",FontSize=12,Font="Roboto",FontStyle="Bold",HTextAlign="Left",CornerRadius=8,Position={0,bsPosY},Size={331,bsSizeY}},
+        {Type="Label",Text="Display Function Name",Font="Roboto",FontStyle="Medium",FontSize=10,HTextAlign="Right",Position={89,bsPosY+8},Size={108,18}},
+        {Type="Label",Text="Camel Case",FontSize=10,Font="Roboto",FontStyle="Medium",HTextAlign="Right",Position={232,bsPosY+8},Size={60,18}}
+      }
+      for ix,label in ipairs{"Trigger","Momentary"} do
+        table.insert(irbgr,{Type="Label",Text=label,Font="Lato",FontStyle="Black",FontSize=9,Position={156+55*ix,yofs+5},Size={55,18}})
+      end
+      for _,tbl in pairs(btnsetup) do
+        table.insert(irbgr,{Type="Label",Font="Lato",FontStyle="Black",FontSize=10,Position={tbl.px,bsPosY+32},Size={tbl.sx,18},Text=tostring(tbl.label~=nil and tbl.label or tbl.name)})
+      end
+      for b=1,btncnt do
+        local pre,pnpre = string.format("ir.%i.btn.%i.",pg,b),string.format("IR~Port %i~Button %i~",pg,b)
+        local irbofs,irsofs = yofs+1+b*24,bsPosY+32+b*18
+        for ln,tbl in pairs(sendbtn) do
+          layout[pre..ln]={PrettyName=pnpre..tbl.name,Style=tbl.style,FontSize=tbl.fs,ButtonStyle=tbl.btntype,WordWrap=tbl.wr,Margin=1,Position={tbl.px,irbofs},Size={tbl.sx,24}}
+        end
+        for ln,tbl in pairs(btnsetup) do
+          layout[pre..ln]={PrettyName=pnpre..tbl.name,Style=tbl.style,FontSize=tbl.fs,ButtonStyle=tbl.btntype,Margin=tbl.m,Position={tbl.px,irsofs},Size={tbl.sx,18}}
+        end
+        table.insert(irbgr,{Type="Label",Text=tostring(b),Font="Lato",FontStyle="Black",FontSize=10,Position={2,irbofs},Size={22,24}})
+        table.insert(irbgr,{Type="Label",Text=string.format("Button %i",b),Font="Lato",FontStyle="Black",FontSize=10,Position={0,irsofs},Size={59,18}})
+      end
+      if pg==3 then
+        layout["ir.3.irmode"]={PrettyName=string.format("IR~Port %i~Mode",pg),FontSize=12,Style="ComboBox",Position={172,54},Size={143,20}}
+        table.insert(irbgr,{Type="GroupBox",StrokeWidth=1,CornerRadius=8,Position={0,44},Size={331,41}})
+        table.insert(irbgr,{Type="Label",Text="IR Port 3 Mode",Font="Roboto",FontStyle="Bold",FontSize=13,HTextAlign="Right",Position={9,54},Size={159,20}})
+      end
+      for _,gr in ipairs(irbgr) do table.insert(graphics,gr) end
+    elseif portmode=="Sensor" then
+      table.insert(graphics,{Type="GroupBox",StrokeWidth=1,CornerRadius=8,Position={0,44},Size={331,51}})
+      table.insert(graphics,{Type="Label",Text=string.format("Sensor Input %i",pg),Font="Roboto",FontStyle="Bold",FontSize=13,Position={84,60},Size={115,20}})
+      layout[string.format("sensor.%i",pg)]={PrettyName=string.format("IR~Port %i~Sensor Input",pg),Style="Led",Color=Color.LED.On,UnlinkOffColor=true,OffColor=Color.LED.Off,Position={209,60},Size={20,20}}
+    elseif portmode=="LED Lighting" then
+      table.insert(graphics,{Type="GroupBox",Text=string.format("LED Lighting %i",pg),FontSize=12,Font="Roboto",FontStyle="Bold",HTextAlign="Left",StrokeWidth=1,CornerRadius=8,Position={0,44},Size={331,126}})
+      table.insert(graphics,{Type="Label",Text="Intensity",Font="Roboto",FontStyle="Bold",FontSize=13,Position={9,72},Size={78,36}})
+      table.insert(graphics,{Type="Label",Text="Ramp Rate",Font="Roboto",FontStyle="Bold",FontSize=13,Position={9,108},Size={78,36}})
+      layout[string.format("ledlighting.%i.intreadout",pg)]={PrettyName=string.format("IR~Port %i~Intensity Readout",pg),Style="Text",Font="Roboto",FontStyle="Medium",FontSize=13,Color=Color.LEDLightingTxt,TextBoxStyle="NoBackground",Position={106,49},Size={216,20}}
+      layout[string.format("ledlighting.%i.intensity",pg)]={PrettyName=string.format("IR~Port %i~%s",pg,"Intensity"),Style="Fader",Color=Color.SerStroke,ShowTextbox=true,Margin=1,Position={88,72},Size={225,36}}
+      layout[string.format("ledlighting.%i.ramprate",pg)]={PrettyName=string.format("IR~Port %i~%s",pg,"Ramp Rate"),Style="Fader",Color=Color.SerStroke,ShowTextbox=true,Margin=1,Position={88,108},Size={225,36}}
+      layout[string.format("ledlighting.%i.rampcalc",pg)]={PrettyName=string.format("IR~Port %i~Ramp Time Calculation",pg),Style="Text",Font="Roboto",FontStyle="Medium",FontSize=13,Color=Color.LEDLightingTxt,TextBoxStyle="NoBackground",Position={129,144},Size={184,20}}
+    end
+  elseif CurrentPage=="IR Codesets" and itType=="I" then --{I="IR/Sensor",S="Serial",R="Relay"} then
+    local codesetneeded,sy=false,134
+    for i=1,3 do if props[string.format("Output %i Mode",i)].Value=="IR Out" then codesetneeded = true end end
+    if codesetneeded then
+      local count, yofs, csctl=1,66,{
+        notice = {name="Notice",st="Text",tbs="NoBackground",fs=6,f="Roboto",fst="Medium",wr=true,px=92,py=3,s={229,20}},
+        paste = {name="Paste",st="Text",wr=true,fs=6,hta="Left",vta="Top",px=9,py=37,s={144,84}},
+        brand = {name="Brand",st="Text",fs=10,px=197,py=37,s={124,21}},
+        devtype = {name="Device Type",st="Text",fs=10,px=197,py=58,s={124,21}},
+        devname = {name="Device Name",st="Text",fs=7.5,wr=true,px=197,py=79,s={124,21}},
+        func = {name="Functions",st="ComboBox",fs=10,px=197,py=100,s={124,21}},
+      }
+      for i=1,props["IR Codeset Count"].Value do
+        count=count+1
+        local baseY = yofs+(i-1)*sy
+        for ctl,cs in pairs(csctl) do
+          layout[string.format("cs.%i.%s",i,ctl)] = {
+            PrettyName = string.format("IR~Codeset~%i~%s",i,cs.name),
+            Style = cs.st,
+            ButtonStyle = cs.bt,
+            Legend = cs.l,
+            HTextAlign = cs.hta,
+            VTextAlign = cs.vta,
+            Font = cs.f,
+            FontStyle = cs.fst,
+            FontSize = cs.fs,
+            WordWrap = cs.wr,
+            TextBoxStyle = cs.tbs,
+            Margin = cs.m,
+            Position = { cs.px, cs.py+baseY },
+            Size = cs.s,
+          }
+        end
+        local csgr = {
+          { Type="GroupBox",Text=string.format("Codeset %i",i),FontSize=11,Font="Roboto",FontStyle="Bold",HTextAlign="Left",StrokeWidth=1,CornerRadius=8,Position={0,baseY},Size={331,sy-3}},
+          { Type="Label",Text="Paste IR JSON Here",FontSize=10,Font="Lato",FontStyle="Bold",HTextAlign="Left",Position={9,19+baseY},Size={96,18}},
+          { Type="Label",Text="Brand",FontSize=9,Font="Lato",FontStyle="Bold",HTextAlign="Right",Position={153,37+baseY},Size={44,21}},
+          { Type="Label",Text="Type",FontSize=9,Font="Lato",FontStyle="Bold",HTextAlign="Right",Position={153,58+baseY},Size={44,21}},
+          { Type="Label",Text="Name",FontSize=9,Font="Lato",FontStyle="Bold",HTextAlign="Right",Position={153,79+baseY},Size={44,21}},
+          { Type="Label",Text="Functions",FontSize=9,Font="Lato",FontStyle="Bold",HTextAlign="Right",Position={153,100+baseY},Size={44,21}},
+        }
+        for _,gr in ipairs(csgr) do table.insert(graphics,gr) end
+      end
+      table.insert(graphics,{Type="Header",Text="Infrared JSON Codesets",Font="Roboto",FontStyle="Bold",FontSize=13,Position={0,41},Size={331,25}})
+    else
+      AddNotUsed("mode")
+    end
+  elseif CurrentPage=="Serial Setup" and itType=="S" then --{I="IR/Sensor",S="Serial",R="Relay"}
+    local serctl = {
+      ovflowerr = {name="Errors~Overflow",st="Text",fs=14,p={197,56},s={45,24}},
+      parityerr = {name="Errors~Parity",st="Text",fs=14,p={197,80},s={45,24}},
+      frameerr =  {name="Errors~Frame",st="Text",fs=14,p={197,104},s={45,24}},
+      baud =      {name="Baud Rate",st="ComboBox",fs=13,p={163,153},s={143,18}},
+      flowctl =   {name="Flow Control",st="ComboBox",fs=13,p={163,171},s={143,18}},
+      parity =    {name="Parity",st="ComboBox",fs=13,p={163,225},s={143,18}},
+      save =      {name="Save",st="Button",bt="Trigger",l="Save",m=1,fs=17,f="Roboto",fst="Medium",p={163,251},s={61,24}},
+      saveconf =  {name="Save Confirm",st="Text",ts="NoBackground",fs=10,hta="Right",f="Roboto",fst="Bold",p={224,251},s={83,24},f=Color.Red},
+    }
+    for ctl,ser in pairs(serctl) do
+      layout["serial."..ctl] = {
+        PrettyName = string.format("Serial~%s",ser.name),
+        Style = ser.st,
+        ButtonStyle = ser.bt,
+        Legend = ser.l,
+        Font = ser.f,
+        FontStyle = ser.fst,
+        FontSize = ser.fs,
+        TextBoxStyle = ser.ts,
+        HTextAlign = ser.hta,
+        Margin = ser.m,
+        Position = ser.p,
+        Size = ser.s,
+        Color = ser.f,
+      }
+    end
+    local sergr = {
+      { Type="GroupBox",Text="Status",HTextAlign="Left",StrokeWidth=1,CornerRadius=8,Position={0,44},Size={331,97},FontSize=12,Font="Roboto",FontStyle="Bold"},
+      { Type="GroupBox",Text="Setup",HTextAlign="Left",StrokeWidth=1,CornerRadius=8,Position={0,144},Size={331,140},FontSize=12,Font="Roboto",FontStyle="Bold"},
+      { Type="Label",Text="Overflow Count",FontSize=13,HTextAlign="Right",Position={86,56},Size={108,24},Font="Roboto",FontStyle="Medium"},
+      { Type="Label",Text="Parity Error",FontSize=13,HTextAlign="Right",Position={86,80},Size={108,24},Font="Roboto",FontStyle="Medium"},
+      { Type="Label",Text="Frame Error",FontSize=13,HTextAlign="Right",Position={86,104},Size={108,24},Font="Roboto",FontStyle="Medium"},
+      { Type="Label",Text="Baud Rate",FontSize=13,HTextAlign="Right",Position={60,153},Size={99,18},Font="Roboto",FontStyle="Medium"},
+      { Type="Label",Text="Flow Control",FontSize=13,HTextAlign="Right",Position={60,171},Size={99,18},Font="Roboto",FontStyle="Medium"},
+      { Type="Label",Text="Data Bits",FontSize=13,HTextAlign="Right",Position={60,189},Size={99,18},Font="Roboto",FontStyle="Medium"},
+      { Type="Label",Text=" 8",HTextAlign="Left",Position={163,189},Size={143,18},StrokeWidth=1,StrokeColor=Color.SerStroke},
+      { Type="Label",Text="Stop Bit",FontSize=13,HTextAlign="Right",Position={60,207},Size={99,18},Font="Roboto",FontStyle="Medium"},
+      { Type="Label",Text=" 1",HTextAlign="Left",Position={163,207},Size={143,18},StrokeWidth=1,StrokeColor=Color.SerStroke},
+      { Type="Label",Text="Parity",FontSize=13,HTextAlign="Right",Position={60,225},Size={99,18},Font="Roboto",FontStyle="Medium"},
+      { Type="Label",Text="Save Changes",FontSize=13,HTextAlign="Right",Position={60,251},Size={99,24},Font="Roboto",FontStyle="Medium"},
+    }
+    for _,gr in ipairs(sergr) do table.insert(graphics,gr) end
+  elseif CurrentPage=="Relay Control" and itType=="R" then
+    table.insert(graphics,{Type="GroupBox",Text="Relays",HTextAlign="Left",StrokeWidth=1,CornerRadius=8,Position={0,44},Size={331,66},FontSize=12,Font="Roboto",FontStyle="Bold"})
+    for i=1,3 do
+      layout[string.format("relay.%i",i)]={PrettyName=string.format("Relay~%i",i),Legend=tostring(i),Style="Button",ButtonStyle="Toggle",
+        Font="Roboto",FontStyle="Black",FontSize=21,Margin=3,Position={89*i-3,54},Size={45,45}}
+    end
+  else AddNotUsed()
+  end
+
+  -- Logo Header
+  table.insert(graphics,{Type="GroupBox",HTextAlign="Left",StrokeWidth=1,CornerRadius=1,StrokeWidth=0,Fill=Color.GC.Blue,Position={0,0},Size={331,41}})
+  table.insert(graphics,{Type="Svg",Image=SVG.GC,Position={34,5},Size={153,29}})
+  table.insert(graphics,{Type="Label",Text="iTach",Font="Noto Serif",FontStyle="Bold",FontSize=25,HTextAlign="Right",Position={200,4},Size={103,25}})
+  table.insert(graphics,{Type="Label",Text=string.format("Plugin v%s",PluginInfo.Version),Font="Roboto",FontStyle="Light",FontSize=9,HTextAlign="Right",Position={200,28},Size={103,10}})
+  return layout, graphics
+end
+
+if Controls then
+
+json = require("rapidjson")
+ 
+-- Constants
+local GCType = Properties["iTach Type"].Value
+local MDchoices = {"Discovery","Manual IP Entry"}
+local FCChoices = {"None","Hardware"}
+local FCCode = {None="NONE",Hardware="HARDWARE"}
+local PChoices = {"None","Odd","Even"}
+local PCode = {None="NO",Odd="ODD",Even="EVEN"}
+local stats = {mac="MACAddress",model="Model",class="SDKClass",rev="Revision",pkglv="Pkg_Level",pcbpn="PCB_PN",ip="Address"}
+local BChoices = {"115200","57600","38400","19200","14400","9600","4800","2400","1200"}
+local DiscTimeout,PollTime = 20,60
+local targetmodel = GetModel(Properties)
+local status_state = { OK = 0, COMPROMISED = 1, FAULT = 2, NOTPRESENT = 3, MISSING = 4, INITIALIZING = 5 }
+local ippattern = "[012]?%d?%d+.[012]?%d?%d+.[012]?%d?%d+.[012]?%d?%d"
+local devtypestr = { RELAY = "CC", IR = "IR", SERIAL = "SL" }
+local ERR = { -- Return Error Codes from iTach products
+  "Invalid command. Command not found",
+  "Invalid module address (does not exist)",
+  "Invalid connector address (does not exist)",
+  "Invalid ID value",
+  "Invalid frequency value",
+  "Invalid repeat value",
+  "Invalid offset value",
+  "Invalid pulse count",
+  "Invalid pulse data",
+  "Uneven amount of <on|off> statements",
+  "No carriage return found",
+  "Repeat count exceeded",
+  "IR command sent to input connector",
+  "Blaster command sent to non-blaster connector",
+  "No carriage return before buffer full",
+  "No carriage return",
+  "Bad command syntax",
+  "Sensor command sent to non-input connector",
+  "Repeated IR transmission failure",
+  "Above designated IR <on|off> pair limit",
+  "Symbol odd boundary",
+  "Undefined symbol",
+  "Unknown option",
+  "Invalid baud rate setting",
+  "Invalid flow control setting",
+  "Invalid parity setting",
+  "Settings are locked",
+}
+
+-- Variables
+local Codes,ITModule,LLTimer = {},{},{}
+local saveTimerCount,discseconds,PollCount = 0,0,0
+local LEDLightingStart = true
+
+---- Control Aliases
+--Setup/Status
+local hw = {
+  status = Controls.hwstatus,
+  connect = Controls.hwconnect,
+  discman = Controls.hwdiscman,
+  units = Controls.hwunits,
+  ip = Controls.hwip,
+  mac = Controls.hwmac,
+  model = Controls.hwmodel,
+  class = Controls.hwclass,
+  rev = Controls.hwrev,
+  pkglv = Controls.hwpkglv,
+  pcbpn = Controls.hwpcbpn
+}
+local IR,Serial,CC={Set={},Port={}},{},{} -- Placeholders for control aliases
+
+-- Sockets and Timers
+local beacon = UdpSocket.New()
+local notify = UdpSocket.New()
+local iTach = TcpSocket.New()
+local PollTimer,saveTimer = Timer.New(),Timer.New()
+local InventoryTable,InventoryTimer,RepeatTimer={},{},{}
+for i=1,3 do table.insert(RepeatTimer,{Timer=Timer.New()}) end
+
+--- Helper Functions
+local function round(n) return math.floor(n+0.5) end
+local function numbrify(...) local t = {} for _,n in ipairs{...} do table.insert(t,tonumber(n)) end return table.unpack(t) end
+local function validmac(s) return s:find("%x%x%x%x%x%x%x%x%x%x%x%x")~=nil end
+local function DebugFormat(str) -- Format strings containing non-printable characters so we can see what they are
+  local visual = {}
+  for i=1,#str do
+    local byte = str:sub(i,i)
+    if string.byte(byte) >= 32 and string.byte(byte) <= 126 then
+      table.insert(visual,byte)
+    else
+      table.insert(visual,string.format("[%02X]",string.byte(byte)))
+    end
+  end
+  return table.concat(visual)
+end
+
+--- Hardware Status
+function Status( msg, state )
+  hw.status.Value = status_state[state]
+  hw.status.String = msg
+  if DebugDesc or (status_state[state]>0) then print( msg ) end
+end
+
+--- iTach Control
+local ignore = {"stopir","completeir","sendir"}
+local function Send(str)
+  if iTach.IsConnected then
+    local printTX = false
+    for _,ign in ipairs(ignore) do if str:find(ign)~=nil then printTX=false break end end
+    if printTX then print(string.format("==> %s\\r",str)) end
+    iTach:Write(str.."\r")
+  end
+end
+
+function ModuleAddressing(data)
+  local a1,a2,mtype = data:match("device,(%d),(%d) (%w+)")
+  a1,a2 = tonumber(a1),tonumber(a2)
+  if a1=="1" then 
+    if targetmodel:find("[IW][PF]2"..devtypestr[mtype])==nil then
+      hw.connect.Boolean = false
+      Status( "Incorrect Device Type", "FAULT")
+      ITModule = {}
+    end
+  end
+  if mtype~="ETHERNET" and mtype~="WIFI" then
+    ITModule = { Type = mtype, Address = {} }
+    if a2>1 then
+      for i=1,a2 do
+        table.insert(ITModule.Address,{name=mtype..i})
+      end
+    else
+      table.insert(ITModule.Address,{name=mtype})
+    end
+  end
+  PollTimer:Start(1)
+end
+
+-- Relay Control
+local function RelayOut(btn,port)
+  Send(string.format("setstate,1:%i,%i",port,btn.Boolean and 1 or 0))
+  btn.Color = btn.Boolean and "Yellow" or "GoldenRod"
+end
+
+local function CCResp(port,state)
+  port,state = numbrify(port,state)
+  local btn=CC[port]
+  btn.Color = (state==1)==btn.Boolean and tostring(btn.Boolean and "Lime" or "Green") or "Red"
+end
+
+----- Serial SL Control
+saveTimer.EventHandler = function()
+  if saveTimerCount==1 then
+    Serial.saveconf.String = "Cancelled..."
+    saveTimer:Start(2)
+    saveTimerCount=2
+    Serial.save.Legend = ""
+    Serial.save.IsDisabled = true
+    Send("get_SERIAL,1:1")
+  elseif saveTimerCount==2 then
+    saveTimer:Stop()
+    Serial.saveconf.String = ""
+    Serial.saveconf.Color = ""
+    Serial.save.Legend = ""
+    Serial.save.IsDisabled = false
+  else
+    saveTimerCount=0
+    saveTimer:Stop()
+  end   
+end
+
+local function SerialSave()
+  if Serial.saveconf.String=="" then
+    saveTimerCount = 1
+    Serial.saveconf.String = "Save Settings?"
+    saveTimer:Start(5)
+    Serial.save.Legend = "Yes"
+  else
+    saveTimerCount=2
+    saveTimer:Start(2)
+    Serial.saveconf.String="Serial Saved"
+    Serial.save.Legend = ""
+    Serial.save.IsDisabled = true
+    Send(string.format("set_SERIAL,1:1,%s,FLOW_%s,PARITY_%s",Serial.baud.String,FCCode[Serial.flowctl.String],PCode[Serial.parity.String]))
+  end
+end
+
+function SerialResp(data)
+  local b,fc,p = data:match("SERIAL,1:1,(%d+),FLOW_(%a+),PARITY_(%a+)")
+  Serial.baud.String = b
+  for fn,rx in pairs(FCCode) do if fc==rx then Serial.flowctl.String = fn end end
+  for pn,rx in pairs(PCode) do if p==rx then Serial.parity.String = pn end end
+end
+
+-- Initialize IR Mode Cross-Reference Tables
+IRModeTo={Plugin={IR="IR Out",SENSOR="Sensor",SENSOR_NOTIFY="Notify",IR_BLASTER="Blaster",LED_LIGHTING="LED Lighting"},iTach={}}
+P3ModeTo={Plugin={["IR Out"]="Emitter",["Blaster"]="Blaster"},iTach={}}
+for itmode,pimode in pairs(IRModeTo.Plugin) do IRModeTo.iTach[pimode]=itmode end
+for itmode,pimode in pairs(P3ModeTo.Plugin) do P3ModeTo.iTach[pimode]=itmode end
+
+local function IRModeRectify(cmd,addr,data)
+  --print(cmd,addr,data,type(addr))
+  local propmode,p3blaster=IR.Port[tonumber(addr)].mode
+  if addr=="3" then p3blaster = P3ModeTo.iTach[IR.Port[tonumber(addr)].irmode.String] end
+  if propmode=="Sensor" then propmode="Notify"
+  elseif propmode=="IR Out" and addr=="3" then propmode=p3blaster -- Modify Port 3 according to Blaster/Emitter setting
+  end
+  propmode=IRModeTo.iTach[propmode]
+  if data~=propmode then
+    print(string.format("Mismatch: data=%s,propmode=%s",data,propmode))
+    Status( "Configuring iTach IR Port "..addr, "INITIALIZING" )
+    Send(string.format("set_IR,1:%s,%s",addr,propmode))
+  else
+    Status( "Connected", "OK" )
+    if data==IRModeTo.iTach.Notify then
+      notify:Open(nil,9132)
+      notify:JoinMulticast("239.255.250.250")
+    elseif data==IRModeTo.iTach["LED Lighting"] then
+      Send(string.format("get_LED_LIGHTING,1:%i",addr))
+    end
+  end
+end
+
+local LEDLighting = {
+  Get = function(cmd,addr,data)
+    local cur,dst = numbrify(data:match("(%d+),(%d+)"))
+    if cur~=dst then
+      Timer.CallAfter(function() Send(string.format("get_LED_LIGHTING,1:%i",addr)) end,.75)
+      IR.Port[tonumber(addr)].ledlighting.intreadout.String = string.format("Intensity is %i%% (to %i%%)",cur,dst)
+    else
+      IR.Port[tonumber(addr)].ledlighting.intreadout.String = string.format("Current Intensity is %i%%",cur)
+    end
+  end,
+  Set = function(port)
+    local ll = IR.Port[port].ledlighting
+    ll.intensity.Value = round(ll.intensity.Value)
+    local int,rr = round(ll.intensity.Value),round(ll.ramprate.Value)
+    Send(string.format("set_LED_LIGHTING,1:%i,%i,%i",port,int,rr))
+  end,
+  Calc = function(port)
+    local ll,ramprate = IR.Port[port].ledlighting,0
+    local int,rr = round(ll.intensity.Value),round(ll.ramprate.Value)
+    Send(string.format("set_LED_LIGHTING,1:%i,%i,%i",port,int,rr))
+    if rr>0 then ramprate=11-rr end
+    IR.Port[port].ledlighting.rampcalc.String = string.format("Ramp in %i second%s",ramprate,tostring(rr==10 and "" or "s"))
+  end
+}
+
+function IRResp(cmd,addr,data)
+  local newmode = IRModeRectify(cmd,addr,data)
+end
+
+local function SendPoll()
+  local function SerialStatus(tbl, code, data, err, headers)
+    SerErr = {Frame="ovflow",Parity="parity",Overflow="frame"}
+    for line in string.gmatch(data,"<td>%a+ Errors</td><td>\"%d+\"</td>") do
+      local etype,count = line:match(">(%a+) Errors</td><td>\"(%d+)\"")
+      print(string.format("%serr",SerErr[etype]),count)
+      Serial[string.format("%serr",SerErr[etype])].String = count
+    end
+  end
+  PollCount=PollCount+1
+  if PollCount>59 then PollCount=0 end
+  if GCType=="Serial" and PollCount%5==0 then -- Poll every 10 seconds --http://10.104.129.78/serial.htm
+    print("Get Serial")
+    HttpClient.Download{ Url = string.format("http://%s/serial.htm",hw.ip.String), EventHandler = SerialStatus }
+  end
+  if PollCount%30==0 then Send("getdevices") end -- Poll every 30 seconds
+end
+
+function ITResponse(rx)
+  local cmd,base,addr,data = rx:match("([%a_]+),?")
+  if cmd~=nil then base,addr,data = rx:match(cmd..",(%d):(%d),(.+)") end
+  if RXCmd~=nil then
+    if RXCmd=="getversion" then
+      hw.rev.String = rx
+      Send("get_NET,0:1")
+      RXCmd="getnet"
+    elseif RXCmd=="getnet" then
+      if ITModule.Type=="SERIAL" then
+        Send("get_SERIAL,1:1")
+      elseif ITModule.Type=="RELAY" then
+        for i=1,3 do RelayOut(CC[i],i) end
+      elseif ITModule.Type=="IR" then
+        for i=1,3 do Send(string.format("get_IR,1:%i",i)) end
+      end
+      RXCmd = nil
+    else
+      RXCmd = nil
+    end
+  elseif rx:find("completeir,") or
+    rx:find("stopir,") then -- ignore
+  elseif cmd=="endlistdevices" then
+    Send("getversion")
+    RXCmd = "getversion"
+  elseif cmd=="device" then ModuleAddressing(rx)
+  elseif cmd=="SERIAL" then SerialResp(rx)
+  elseif cmd=="setstate" then CCResp(addr,data)
+  elseif cmd:find("^IR") then IRResp(cmd,addr,data)
+  elseif cmd:find("^LED_") then LEDLighting.Get(cmd,addr,data)
+  elseif cmd=="ERR_" then
+    local dev,port,err = rx:match("ERR_(%d):(%d),(%d%d%d)")
+    print(string.format("ERROR: %s (%i:%i)",ERR[tonumber(err)],dev,port))
+  else
+    print( "Unhandled RX: "..DebugFormat(rx) )
+  end
+end
+
+local function StopTimers()
+  PollTimer:Stop()
+  InventoryTimer = {}
+  for i=1,3 do RepeatTimer[i].Timer:Stop() end
+end
+
+local function DeleteStats()
+  for n,c in pairs(stats) do hw[n].String = "" end
+end
+
+--- Discovery
+local function ShowStats()
+  if string.find(hw.units.String,"^Choose") then
+    if InventoryTable[hw.mac.String]~=nil then
+      if InventoryTable[hw.mac.String].Address~=hw.ip.String then
+        DeleteStats()
+      end
+    end
+  else
+    if InventoryTable[hw.units.String]~=nil then 
+      for cname,propname in pairs(stats) do
+        hw[cname].String = InventoryTable[hw.units.String][propname]
+      end
+    end
+    if not hw.connect.Boolean and InventoryTable[hw.units.String]~=nil then
+      hw.status.String = InventoryTable[hw.units.String].Status
+      hw.connect.IsDisabled = false
+    end
+  end
+end
+
+function UpdateChoices()
+  unitChoices = {}
+  for mac,data in pairs(InventoryTable) do table.insert(unitChoices,mac) end
+  if #unitChoices>0 then
+    if (hw.discman.String):find("^Disco") then
+      if not validmac(hw.units.String) then
+        hw.units.String = string.format("Choose %s Unit...",targetmodel)
+        hw.connect.Boolean = false
+        hw.units.Choices = unitChoices
+        hw.connect.IsDisabled = true
+      end
+    elseif hw.units.String=="" then
+      if InventoryTable[hw.mac.String]~=nil then
+        if InventoryTable[hw.mac.String].Address==hw.ip.String then
+          hw.units.String = hw.mac.String
+        end
+      end
+    end
+    ShowStats()
+  end
+end
+
+beacon.EventHandler = function(socket, port)
+  local TblEntry,ItemList = {},{"<Manual IP Assignment>"}
+  for entry in string.gmatch(port.Data,"<%-.->") do
+    key,val = entry:match("<%-(.-)=(.+)>")
+    if key=="UUID" then
+      key="MACAddress"
+      val = val:match("_(%x+)")
+    elseif key=="Model" and val:find("^iTach") then
+      val = string.match(val,"iTach(.+)")
+    end
+    TblEntry[key] = val
+  end
+  if TblEntry.Model == targetmodel then
+    TblEntry.Address = port.Address
+    InventoryTable[TblEntry.MACAddress] = {}
+    for key,val in pairs(TblEntry) do
+      InventoryTable[TblEntry.MACAddress][key] = val
+    end
+    if InventoryTimer[TblEntry.MACAddress]==nil then
+      InventoryTimer[TblEntry.MACAddress] = Timer.New()
+      InventoryTimer[TblEntry.MACAddress].EventHandler = function()
+        InventoryTimer[TblEntry.MACAddress]:Stop()
+        InventoryTable[TblEntry.MACAddress] = nil -- remove item from choices
+        InventoryTimer[TblEntry.MACAddress] = nil -- remove timer
+      end
+    end
+    InventoryTimer[TblEntry.MACAddress]:Start(DiscTimeout)
+    UpdateChoices()
+  elseif hw.units.String ~= TblEntry.MACAddress then
+    UpdateChoices()
+  end
+end
+
+local function DiscoverOpen()
+  beacon:Open(nil,9131)
+  beacon:JoinMulticast("239.255.250.250")
+end
+
+local function ManDiscControls()
+  local disc = hw.discman.String == "Discovery"
+  hw.ip.IsDisabled = disc
+  hw.units.IsDisabled = not disc
+  if disc then
+    DiscoverOpen()
+    if not validmac(hw.units.String) then hw.units.String = "Discovering..." end
+  else
+    hw.units.String = ""
+    if not string.find(hw.ip.String,ippattern) then
+      hw.ip.String = "Enter IP Address"
+    end
+  end
+end
+
+local function ConnectDisable()
+  local disable = (hw.discman.String==MDchoices[1] and hw.units.String=="") or (hw.discman.String==MDchoices[2] and hw.ip.String=="")
+  hw.connect.IsDisabled = disable
+  ManDiscControls()
+end
+
+function IPHandler()
+  ConnectDisable()
+end
+
+-- IR Codes Parse and assign functions
+
+local function SendIR(port,row,btype,state)
+  local function ClearRepeatTimer()
+    RepeatTimer[port].Timer:Stop()
+    RepeatTimer[port].Cmd=nil
+  end
+  local b = IR.Port[port].button[row]
+  local looping = b.loop.Boolean
+  if btype=="mom" and state==false then
+    if looping then
+      Send(string.format("stopir,1:%i",port))
+      ClearRepeatTimer()
+    end
+  else
+    local cs = Codes[Lookup[string.format("%s.%s",b.brand.String,b.codeset.String)] ]
+    local func = cs.Functions[b.fnset.String]
+    local fTime,rTime,ofs,pulses,rep = table.unpack(func)
+    rep =  btype=="trig" and (rep or 1) or (looping and 5 or 1)
+    local sendircmd = string.format("sendir,1:%i,1,%i,%i,%i,%s",port,cs.Freq,rep,ofs,pulses)
+    if rep>1 then
+      RepeatTimer[port].Cmd=row
+      local resettime = fTime+rTime*3 -- time before resetting looping command ( (header length + (3 x remaining Length) ) = <float seconds>
+      --print(string.format("TimerTime: %.03fsec",resettime))
+      RepeatTimer[port].Timer:Start(resettime)
+    else
+      ClearRepeatTimer()
+    end
+    --print(string.format("Sending IR Command \"%s\":\"%s\":\"%s\": %s",b.brand.String,b.codeset.String,b.fnset.String,sendircmd))
+    Send(sendircmd)
+  end
+end
+
+local function RepeatIR(port)
+  SendIR(port,RepeatTimer[port].Cmd,"mom",IR.Port[port].button[RepeatTimer[port].Cmd].mom.Boolean)
+end
+local function GetCSFunctions(fnT)
+  local FuncChoices = {}
+  for name,code in pairs(fnT) do table.insert(FuncChoices,name) end
+  table.sort(FuncChoices)
+  return FuncChoices
+end
+
+local function GetBrandsChoices()
+  local BrandChoices = {}
+  for _,t in pairs(Codes) do
+    if not find(t.Brand,BrandChoices) then
+      table.insert(BrandChoices,t.Brand)
+    end
+  end
+  table.sort(BrandChoices)
+  return BrandChoices
+end
+
+local function GetCSChoices(brand)
+  local CSChoices = {}
+  if not brand:find("^Choose") then
+    for k,t in pairs(Codes) do
+      if brand==t.Brand then
+        table.insert(CSChoices,t.Name)
+      end
+    end
+    table.sort(CSChoices)
+  end
+  return CSChoices
+end
+
+local function GetFnChoices(port,btnIx)
+  local FnChoices,br = {""},IR.Port[port].button[btnIx].brand.String
+  if br~="Choose Brand" and br~="" then
+    local cs = IR.Port[port].button[btnIx].codeset.String
+    for k,t in pairs(Codes) do
+      if t.Name==cs and t.Brand==br then
+        FnChoices = GetCSFunctions(t.Functions)
+      end
+    end
+  end
+  return FnChoices
+end
+
+local function CamelCase(fn,camel)
+  if camel then
+    fn = fn.." "
+    local words={}
+    for oldword in fn:gmatch("(.-)%s") do
+      local word = {}
+      for let in oldword:gmatch("(.)") do
+        local cnt=#word+1
+        table.insert(word,tostring(cnt>1 and let:lower() or let))
+      end
+      table.insert(words,table.concat(word))
+    end
+    fn = table.concat(words," ")
+  end  
+  return fn
+end
+
+local function UpdateButtonPages()
+  local BrandChoices,nocodes = GetBrandsChoices(),"No Codesets Available"
+  for ix,port in pairs(IR.Port) do
+    if port.mode=="IR Out" then
+      local legend,camel = port.legend.Boolean,port.camel.Boolean
+      for btnIx=1,port.count do
+        -- Update Brand Choices
+        if #BrandChoices>0 then
+          port.button[btnIx].brand.Choices = BrandChoices
+          if not find(port.button[btnIx].brand.String,BrandChoices) then
+            port.button[btnIx].brand.String="Choose Brand"
+          end
+
+          -- Update Codeset Choices
+          local csChoices = GetCSChoices(port.button[btnIx].brand.String)
+          if #csChoices>0 then
+            port.button[btnIx].codeset.Choices = csChoices
+            if not find(port.button[btnIx].codeset.String,csChoices) then
+              port.button[btnIx].codeset.String = csChoices[1]
+            end
+          end
+          
+          -- Update Function Set Choices
+          local fnChoices = GetFnChoices(ix,btnIx)
+          port.button[btnIx].fnset.Choices = fnChoices
+          if not find(port.button[btnIx].fnset.String,fnChoices) then
+            port.button[btnIx].fnset.String = fnChoices[1]
+          end
+
+          -- Update Button Function
+          local br = port.button[btnIx].brand.String
+          local cs = port.button[btnIx].codeset.String
+          local fn = port.button[btnIx].fnset.String
+          if not br:find("^Choose") and #cs>0 and #fn>0 then
+            port.button[btnIx].func.String = string.format("%s %s %s",br,cs,fn)
+            fn = CamelCase(fn,camel)
+            port.button[btnIx].mom.Legend = legend and fn or ""
+            port.button[btnIx].trig.Legend = legend and fn or ""
+          else
+            port.button[btnIx].func.String = ""
+          end
+        else
+          for _,cname in ipairs{"brand","codeset","fnset"} do
+            port.button[btnIx][cname].Choices = {nocodes}
+            port.button[btnIx][cname].String=nocodes
+          end
+        end
+      end
+    elseif port.mode=="LED Lighting" then      
+      -- Do nothing
+    elseif port.mode=="Sensor" then
+      -- Do nothing
+    end
+  end
+end
+
+function PasteParse()
+  local codespresent = {}
+  Lookup = {}
+  local function Empty(t,b)
+    for i,c in ipairs{"brand","devtype","devname","func"} do
+      t[c].String = ""
+      t[c].IsDisabled = b
+      if i==4 then t[c].Choices = {""} end
+    end
+  end
+  for si,set in pairs(IR.Set) do
+    local csT = json.decode(set.paste.String)
+    if set.paste.String=="" then
+      set.paste.Color = ""
+      Empty(set,true)
+    elseif csT==nil then
+      set.paste.String = "INVALID JSON STRING!!"
+      set.paste.Color = "Red"
+      Empty(set,true)
+    else
+      -- Import Codeset JSON to variable
+      local ID = csT.ID
+      Codes[ID] = {}
+      Lookup[string.format("%s.%s",csT.Brand,csT.Name)] = ID
+      table.insert(codespresent,ID)
+      for prop,val in pairs(csT) do
+        if prop~="ID" then Codes[ID][prop] = val end
+      end
+       
+      -- Update Codeset page controls
+      Empty(set,false)
+      set.paste.Color = ""
+      set.brand.String = csT.Brand
+      set.devtype.String = csT.Type
+      set.devname.String = csT.Name
+      set.func.Choices = GetCSFunctions(csT.Functions)
+      if set.func.String=="" then set.func.String=set.func.Choices[1] end
+    end
+  end
+  UpdateButtonPages() -- Update IR Port pages
+end
+
+-- IR Unit Sensor Functions
+notify.EventHandler = function(socket, port)
+  if port.Address==hw.ip.String then -- Coming from the target iTach IR unit
+    local cmd,dev,state = string.match(port.Data,"(sensornotify),(%d:%d),(%d)")
+    if cmd=="sensornotify" then
+      local mod,port = numbrify(dev:match("(%d):(%d)"))
+      if mod==1 then -- iTach only uses module 1
+        IR.Port[port].sensor.Boolean = state=="0"
+      end
+    end
+  end
+  if not iTach.IsConnected then notify:Close() end
+end
+
+--Creates the Control TCP socket Event Handlers
+iTach.EventHandler = function(sock, evt, err) -- Serial Port 1 socket (port 4999) data in eventHandler
+  if evt == TcpSocket.Events.Connected then
+    Status( "Connected", "OK" )
+    Send("getdevices")
+  elseif evt == TcpSocket.Events.Reconnect then
+    Status( "Reconnecting to iTach", "INITIALIZING" )
+  elseif evt == TcpSocket.Events.Data then
+    while sock:Search("\r") do
+      local rxdata = sock:ReadLine(TcpSocket.EOL.Any)
+      ITResponse(rxdata)
+    end
+  elseif evt == TcpSocket.Events.Closed then
+    Status( "Connection closed by iTach", "FAULT" )
+  elseif evt == TcpSocket.Events.Error then
+    Status( "Connection closed due to error: "..err, "FAULT" )
+    --iTach:Disconnect(hw.ip.String,4998)
+    --hw.connect.Boolean = false
+  elseif evt == TcpSocket.Events.Timeout then
+    Status( "Connection closed because of timeout", "FAULT" )
+  end
+  if not iTach.IsConnected then StopTimers() end
+end
+
+local function Connect()
+  if string.find(hw.units.String,"^Choose") and (hw.discman.String):find("^Discover") then
+    hw.ip.String = "Choose Unit First"
+    Status( "Choose Discovered Device", "OK" )
+  elseif not string.find(hw.ip.String,ippattern) and (hw.discman.String):find("^Manual") then
+    Status( "Invalid Device IP Address", "FAULT" )
+    hw.connect.Boolean = false
+  elseif hw.connect.Boolean and not iTach.IsConnected then
+    Status( "Connecting Control Socket...", "INITIALIZING" )
+    iTach:Connect(hw.ip.String,4998)
+  elseif not hw.connect.Boolean and not (hw.discman.String):find("^Disco") then
+    Status( "Disconnected...", "NOTPRESENT" )
+    iTach:Disconnect()
+    notify:Close()
+    if not iTach.IsConnected then StopTimers() end
+  end
+end
+
+-- Startup Initialization Sequence
+function Init()
+  -- Setup Control Aliases and EventHandlers
+  if GCType=="Serial" then
+    for _,s in ipairs{"status","baud","flowctl","parity","frameerr","parityerr","ovflowerr","save","saveconf"} do Serial[s] = Controls["serial."..s] end
+    Serial.status.Value = 0 Serial.status.IsDisabled = true
+    Serial.status.String = "connection monitoring not yet implemented"
+    Serial.baud.Choices,Serial.flowctl.Choices,Serial.parity.Choices = BChoices,FCChoices,PChoices
+    for i,s in ipairs{"frameerr","parityerr","ovflowerr","saveconf"} do
+      Controls["serial."..s].String = i>3 and "" or "0"
+    end
+    if Serial.baud.String=="" then Serial.baud.String = BChoices[1] end
+    if Serial.flowctl.String=="" then Serial.flowctl.String = FCChoices[1] end
+    if Serial.parity.String=="" then Serial.parity.String = PChoices[1] end
+    Serial.save.EventHandler = SerialSave
+  elseif GCType=="Relay" then
+    for i=1,3 do
+      table.insert(CC,Controls[string.format("relay.%i",i)])
+      Controls[string.format("relay.%i",i)].EventHandler = function(r) RelayOut(r,i) end
+    end
+  elseif GCType=="Infrared/Sensor" then
+    local cscnt,useircodes = Properties["IR Codeset Count"].Value,false
+    for i = 1,3 do
+      local port = { mode = Properties[string.format("Output %i Mode", i)].Value }
+      if port.mode=="IR Out" then
+        RepeatTimer[i].Timer.EventHandler = function() RepeatIR(i) end
+        useircodes = true -- triggers last page and codeset paste boxes
+        local function LegendYN(l) l.Legend = l.Boolean and "Yes" or "No" end
+        for _,lc in ipairs{"legend","camel"} do
+          port[lc] = Controls[string.format("ir.%i.%s",i,lc)]
+          port[lc].EventHandler = function(c)
+            LegendYN(c)
+            UpdateButtonPages()
+          end
+          LegendYN(port[lc])
+        end
+        port.count = Properties[string.format("Output %i Button Count", i)].Value
+        port.button = {} -- Initialize Button Subtable
+        for row=1,port.count do
+          local button,prefix = {},string.format("ir.%i.btn.%i.",i,row)
+          for s,suf in ipairs{"brand","codeset","fnset","func","trig","mom","loop"} do
+            button[suf] = Controls[string.format("%s%s",prefix,suf)]
+            if s<4 then button[suf].EventHandler = UpdateButtonPages
+            elseif suf=="loop" then
+              local loop = button[suf]
+              local function LoopingLegend(c) c.Legend = c.Boolean and "Yes" or "No" end
+              loop.EventHandler = LoopingLegend
+              LoopingLegend(loop)
+            elseif suf=="trig" then button[suf].EventHandler = function() SendIR(i,row,"trig") end
+            elseif suf=="mom" then button[suf].EventHandler = function(mom) SendIR(i,row,"mom",mom.Boolean) end
+            end
+          end
+          table.insert(port.button,button)
+        end
+        if i==3 then -- Add IR output mode only for port 3
+          port.irmode = Controls[string.format("ir.%i.irmode",i)]
+          port.irmode.Choices = {"Emitter","Blaster"}
+          if port.irmode.String == "" then port.irmode.String = "Emitter" end
+          port.irmode.EventHandler = function(p3m) Send(string.format("set_IR,1:3,%s",IRModeTo.iTach[P3ModeTo.iTach[p3m.String] ])) end
+        end
+      elseif port.mode=="Sensor" then
+        port.sensor = Controls[string.format("sensor.%i",i)]
+      elseif port.mode=="LED Lighting" then
+        port.ledlighting = {}
+        local timername = string.format("port%i",i)
+        LLTimer[timername] = {Touch=Timer.New(),Calc=Timer.New(),Running=false}
+        LLTimer[timername].Calc.EventHandler = function() LEDLighting.Calc(i) end
+        LLTimer[timername].Touch.EventHandler = function()
+          LLTimer[timername].Running=false
+          LLTimer[timername].Calc:Stop()
+          LLTimer[timername].Touch:Stop()
+          LEDLighting.Set(i)
+        end
+        for ix,llname in ipairs{"intensity","ramprate","rampcalc","intreadout"} do
+          port.ledlighting[llname] = Controls[string.format("ledlighting.%i.%s",i,llname)]
+          if ix<3 then
+            port.ledlighting[llname].EventHandler = function()
+              LLTimer[timername].Touch:Start(.4)
+              if not LLTimer[timername].Running then
+                LLTimer[timername].Running=true
+                LLTimer[timername].Calc:Start(.2)
+              end
+            end
+          end
+        end
+      end
+      table.insert(IR.Port,port) -- Insert port info into the IR.Port table
+    end
+    if useircodes then   -- Put IR Codeset paste boxes on last page
+      for csid=1,Properties["IR Codeset Count"].Value do
+        local cs={}
+        for _,csctl in ipairs{"notice","paste","brand","devtype","devname","func"} do
+          cs[csctl] = Controls[string.format("cs.%i.%s",csid,csctl)]
+        end
+        table.insert(IR.Set,cs)
+        cs.paste.EventHandler = PasteParse
+      end
+      PasteParse()
+    end
+  end
+
+  local disc = hw.discman
+  hw.discman.Choices = MDchoices
+  if hw.discman.String == "" then hw.discman.String = "Discovery" end
+  hw.discman.EventHandler = ConnectDisable
+  hw.ip.EventHandler = IPHandler
+  ConnectDisable()
+  hw.units.EventHandler = ShowStats
+  hw.connect.EventHandler = Connect
+  if hw.connect.Boolean then Connect() end
+  PollTimer.EventHandler = SendPoll
+end
+
+Init()
+
+end

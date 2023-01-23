@@ -1,0 +1,1291 @@
+PluginInfo = 
+{
+	Name = "sACN Mixer",
+	Version = "2.1.4",
+	Id = "ff4a7452-6edd-4280-9431-1b2c0124bc11",
+	Description = "sACN Mixer",
+	ShowDebug = false,
+	Author = "AD-DA"
+}
+
+function GetProperties() 
+  	props = {
+  		{
+			Name = "DMX Universe",
+			Type = "integer",
+			Value = 1,
+			Min = 1,
+			Max = 65535
+		},
+  		{
+			Name = "Mode",
+			Type = "enum",
+			Choices = { "MULTICAST", "UNICAST" },
+			Value = "MULTICAST"
+		},
+	  	{
+			Name = "Unicast IP",
+			Type = "string",
+			Value = ""
+		},
+		{
+			Name = "Priority",
+			Type = "integer",
+			Value = 100,
+			Min = 1,
+			Max = 200,
+		},
+
+	}
+
+	return props
+end
+
+function RectifyProperties(props)
+  props["Unicast IP"].IsHidden = props["Mode"].Value == "MULTICAST" 
+  return props
+end
+
+function GetComponents(props)
+	local comp = {}
+
+
+	table.insert(comp,
+		{   
+			Name = "mixer",
+	    	Type = "mixer", 
+		   	Properties = {
+        		["n_inputs"] = 512,
+        		["n_outputs"] = 1,
+        		['input_bank_strategy'] = 5, 
+				['input_bank_custom'] = 8
+      		}
+	    }
+	)
+
+	return comp
+end
+
+function GetControls(props)
+	ctrl = {}
+
+	table.insert(ctrl,
+		{
+			Name = "power",
+			ControlType = "Button",
+			ButtonType = "Toggle",
+			Count = 1,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "meter",
+			ControlType = "Indicator",
+			IndicatorType = "Text",
+			Count = 512,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "fader",
+			ControlType = "Knob",
+			ControlUnit = "Integer",
+			Min = 0,
+			Max = 255,
+			Count = 512,
+			PinStyle = "Both",
+			UserPin = true,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "bankMeter",
+			ControlType = "Indicator",
+			IndicatorType = "Text",
+			Count = 8,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "bankFader",
+			ControlType = "Knob",
+			ControlUnit = "Integer",
+			Min = 0,
+			Max = 255,
+			Count = 8,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "bankLabel",
+			ControlType = "Text",
+			Count = 8,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "bank",
+			ControlType = "Indicator",
+			IndicatorType = "Text",
+			Count = 1,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "bankKnob",
+			ControlType = "Knob",
+			ControlUnit = "Integer",
+			Min = 1,
+			Max = 64,
+			Count = 1,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "bankPlus",
+			ControlType = "Button",
+			ButtonType = "Trigger",
+			Count = 1,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "bankMinus",
+			ControlType = "Button",
+			ButtonType = "Trigger",
+			Count = 1,
+		}
+	)
+
+	--[[ KEY PAD ]]--
+	table.insert(ctrl,
+		{
+			Name = "keypad_num",
+			ControlType = "Button",
+			ButtonType = "Trigger",
+			Count = 10,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "keypad_thru",
+			ControlType = "Button",
+			ButtonType = "Trigger",
+			Count = 1,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "keypad_at",
+			ControlType = "Button",
+			ButtonType = "Trigger",
+			Count = 1,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "keypad_full",
+			ControlType = "Button",
+			ButtonType = "Trigger",
+			Count = 1,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "keypad_enter",
+			ControlType = "Button",
+			ButtonType = "Trigger",
+			Count = 1,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "keypad_string",
+			ControlType = "Text",
+			Count = 1,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "keypad_clear",
+			ControlType = "Button",
+			ButtonType = "Trigger",
+			Count = 1,
+		}
+	)
+
+	-- [[ SUB MASTER SECTION ]] --
+		table.insert(ctrl,
+			{
+				Name = "subSave",
+				ControlType = "Button",
+				ButtonType = "Trigger",
+				Count = 16,
+			}
+		)
+
+		table.insert(ctrl,
+			{
+				Name = "subMeter",
+				ControlType = "Indicator",
+				IndicatorType = "Text",
+				Count = 16,
+			}
+		)
+
+		table.insert(ctrl,
+			{
+				Name = "subFader",
+				ControlType = "Knob",
+				ControlUnit = "Integer",
+				Min = 0,
+				Max = 255,
+				Count = 16,
+			}
+		)
+
+		table.insert(ctrl,
+			{
+				Name = "sub",
+				ControlType = "Text",
+				Count = 16,
+			}
+		)
+	-- [[ SUB MASTER SECTION END ]] --
+
+	table.insert(ctrl,
+		{
+			Name = "Layout",
+			ControlType = "Button",
+			ButtonType = "Toggle",
+			Count = 3,
+		}
+	)
+
+
+	return ctrl
+end
+
+function GetControlLayout(props)
+	layout = {}
+	graphics = {}
+
+	table.insert(graphics,
+		{
+		    Type = "GroupBox",
+		   	HTextAlign = "Left",
+		   	StrokeWidth = 1,
+		   	CornerRadius = 4,
+	    	Position = { 0, 0 },
+	    	Size = { 860, 265 }
+  		}
+  	)
+
+  	for i = 1, 32 do
+  		table.insert(graphics,
+			{
+				Type = "Label",
+		    	Text = tostring(i),
+		    	HTextAlign = "Center",
+		    	StrokeWidth = 1,
+		    	Fill = { 255, 255, 255 },
+		    	Position = { i*25 + 30, 5},
+		    	Size = { 25, 15 }
+  			}
+	  	)
+	  	
+  	end
+
+  	table.insert(graphics,
+			{
+				Type = "Label",
+		    	Text = "",
+		    	HTextAlign = "Center",
+		    	StrokeWidth = 1,
+		    	Fill = { 255, 255, 255  },
+		    	Position = { 5, 5},
+		    	Size = { 50, 15 }
+  			}
+	  	)
+
+  	for i = 1, 16 do
+  		table.insert(graphics,
+			{
+				Type = "Label",
+		    	Text = ((i*16)-15).."-"..((i*16)*2),
+		    	HTextAlign = "Center",
+		    	StrokeWidth = 1,
+		    	Fill = { 255, 255, 255  },
+		    	Position = { 5, i * 15 + 5},
+		    	Size = { 50, 15 }
+  			}
+	  	)
+  	end
+
+  	tbl = {}
+
+	for yi = 1, 16 do
+		for xi = 1, 32 do
+			table.insert(tbl,
+	      		{
+	        		(xi * 25) + 30, (yi * 15) + 5 
+	      		}
+	    	)
+	  	end
+	end
+
+
+  	for i = 1, 512 do
+  		layout["fader "..i] = {
+			PrettyName = "Channel Fader "..i,
+		    Style = "fader",
+		    Position = tbl[i],
+			Size = { 25, 15 },
+			Color = { 255, 255, 255 },
+		    IsReadOnly = false
+		}
+
+  		layout["meter "..i] = {
+			PrettyName = "Channel "..i,
+		    Style = "Text",
+		    Position = tbl[i],
+			Size = { 25, 15 },
+			Color = { 255, 255, 255 },
+		    IsReadOnly = true
+		}
+  	end
+
+  	table.insert(graphics,
+		{
+		    Type = "GroupBox",
+		   	HTextAlign = "Left",
+		   	StrokeWidth = 1,
+		   	CornerRadius = 4,
+	    	Position = { 0, 270 },
+	    	Size = { 410, 240 }
+  		}
+  	)
+
+  	for i = 1, 8 do
+
+  		layout["bankMeter "..i] = {
+			PrettyName = "Bank Meter "..i,
+		    Style = "Text",
+		    Position = { (50 * i) - 45 , 275 },
+		    Color = { 255, 255, 255 },
+			Size = { 50, 15 },
+			TextFontSize = 11,
+			HTextAlign = "Center",
+			IsReadOnly = true,
+		}
+  		
+  		layout["bankFader "..i] = {
+			PrettyName = "Bank Fader "..i,
+		    Style = "Fader",
+		    Position = { (50 * i) - 45 , 290 },
+			Size = { 50, 200 },
+			ShowTextbox = false,
+			Legend = "=",
+		}
+
+		layout["bankLabel "..i] = {
+			PrettyName = "Bank Label "..i,
+		    Style = "Text",
+		    Position = { (50 * i) - 45 , 490 },
+			Size = { 50, 15 },
+			TextFontSize = 11,
+			HTextAlign = "Center",
+			IsReadOnly = true,
+		}
+	end
+
+	for i = 1, 8 do
+		layout["subFader "..i] = {
+			PrettyName = "Sub Fader "..i,
+		    Style = "Fader",
+		    Position = { (50 * i) - 45 , 290 },
+			Size = { 50, 200 },
+			ShowTextbox = false,
+			Legend = "=",
+		}
+
+		layout["subSave "..i] = {
+			PrettyName = "Save "..i,
+		    Style = "Button",
+		    ButtonStyle = "Trigger",
+		    Position = { (50 * i) - 45 , 490 },
+			Size = { 50, 15 },
+			TextFontSize = 11,
+			HTextAlign = "Center",
+		}
+
+		layout["subMeter "..i] = {
+			PrettyName = "Sub Meter "..i,
+		    Style = "Text",
+		    Position = { (50 * i) - 45 , 275 },
+		    Color = { 255, 255, 255 },
+			Size = { 50, 15 },
+			TextFontSize = 11,
+			HTextAlign = "Center",
+			IsReadOnly = true,
+		}
+	end
+
+	for i = 1, 8 do
+		layout["subFader "..i + 8] = {
+			PrettyName = "Sub Fader "..i + 8,
+		    Style = "Fader",
+		    Position = { (50 * i) - 45 , 290 },
+			Size = { 50, 200 },
+			ShowTextbox = false,
+			Legend = "=",
+		}
+
+		layout["subSave "..i + 8] = {
+			PrettyName = "Save "..i + 8,
+		    Style = "Button",
+		    ButtonStyle = "Trigger",
+		    Position = { (50 * i) - 45 , 490 },
+			Size = { 50, 15 },
+			TextFontSize = 11,
+			HTextAlign = "Center",
+		}
+
+		layout["subMeter "..i + 8] = {
+			PrettyName = "Sub Meter "..i + 8,
+		    Style = "Text",
+		    Position = { (50 * i) - 45 , 275 },
+		    Color = { 255, 255, 255 },
+			Size = { 50, 15 },
+			TextFontSize = 11,
+			HTextAlign = "Center",
+			IsReadOnly = true,
+		}
+	end
+
+
+
+
+	table.insert(graphics,
+		{
+		    Type = "GroupBox",
+		   	HTextAlign = "Center",
+		   	StrokeWidth = 1,
+		   	CornerRadius = 4,
+	    	Position = { 415, 270 },
+	    	Size = { 100, 240 }
+  		}
+  	)
+
+  	table.insert(graphics,
+		{
+		    Type = "Label",
+		    Text = "Bank Control",
+		   	HTextAlign = "Center",
+	    	Position = { 420, 275 },
+	    	Size = { 90, 15 }
+  		}
+  	)
+
+  	layout["bank"] = {
+			PrettyName = "Bank",
+		    Style = "Text",
+		    Position = { 420 , 490 },
+			Size = { 90, 15 },
+			Color = { 255, 255, 255 },
+		    IsReadOnly = true
+	}
+
+	layout["bankKnob"] = {
+			PrettyName = "Bank",
+			Style = "Text",
+		    TextBoxStyle = "Meter",
+		    Position = { 440 , 438 },
+			Size = { 50, 30 },
+	}
+
+	layout["bankMinus"] = {
+			PrettyName = "Bank",
+			Style = "Button",
+			Legend = "-",
+			ButtonStyle = "Trigger",
+		    Position = { 420 , 435 },
+			Size = { 20, 35 },
+	}
+
+	layout["bankPlus"] = {
+			PrettyName = "Bank",
+			Style = "Button",
+			Legend = "+",
+			ButtonStyle = "Trigger",
+		    Position = { 490 , 435 },
+			Size = { 20, 35 },
+	}
+
+	table.insert(graphics,
+		{
+		    Type = "GroupBox",
+		   	HTextAlign = "Center",
+		   	StrokeWidth = 1,
+		   	CornerRadius = 4,
+	    	Position = { 520, 270 },
+	    	Size = { 250, 240 }
+  		}
+  	)
+
+  	table.insert(graphics,
+		{
+		    Type = "Label",
+		    Text = "Controller",
+		   	HTextAlign = "Center",
+	    	Position = { 520, 275 },
+	    	Size = { 250, 15 }
+  		}
+  	)
+
+	XY = {}
+
+	table.insert(XY, { 585, 435 } )
+	table.insert(XY, { 525, 400 } )
+	table.insert(XY, { 585, 400 } )
+	table.insert(XY, { 645, 400 } )
+	table.insert(XY, { 525, 365 } )
+	table.insert(XY, { 585, 365 } )
+	table.insert(XY, { 645, 365 } )
+	table.insert(XY, { 525, 330 } )
+	table.insert(XY, { 585, 330 } )
+	table.insert(XY, { 645, 330 } )
+
+	for i = 1, 10 do
+		layout["keypad_num "..i] = {
+			PrettyName = "Keypad",
+		    Style = "Button",
+		    ButtonStyle = "Trigger",
+		    Position = XY[i],
+			Size = { 60, 35 },
+		}
+	end
+
+	layout["keypad_thru"] = {
+		PrettyName = "Keypad",
+	    Style = "Button",
+	    ButtonStyle = "Trigger",
+		Position = { 525, 435 },
+		Size = { 60, 35 },
+	}
+
+	layout["keypad_at"] = {
+		PrettyName = "Keypad",
+	    Style = "Button",
+	    ButtonStyle = "Trigger",
+		Position = { 645, 435 },
+		Size = { 60, 35 },
+	}
+
+	layout["keypad_full"] = {
+		PrettyName = "Keypad",
+	    Style = "Button",
+	    ButtonStyle = "Trigger",
+		Position = { 525, 470 },
+		Size = { 180, 35 },
+	}
+
+	layout["keypad_enter"] = {
+		PrettyName = "Keypad",
+	    Style = "Button",
+	    ButtonStyle = "Trigger",
+		Position = { 705, 300 },
+		Size = { 60, 170 },
+	}
+
+	layout["keypad_string"] = {
+		PrettyName = "Keypad",
+	    Style = "Text",
+		Position = { 527, 305 },
+		Size = { 175, 20 },
+	}
+
+	layout["keypad_clear"] = {
+		PrettyName = "Keypad",
+	    Style = "Button",
+	    ButtonStyle = "Trigger",
+		Position = { 705, 470 },
+		Size = { 60, 35 },
+	}
+
+	table.insert(graphics,
+		{
+		    Type = "GroupBox",
+		   	HTextAlign = "Center",
+		   	StrokeWidth = 1,
+		   	CornerRadius = 4,
+	    	Position = { 775, 270 },
+	    	Size = { 85, 240 }
+  		}
+  	)
+
+  	table.insert(graphics,
+		{
+		    Type = "Label",
+		    Text = "Settings",
+		   	HTextAlign = "Center",
+	    	Position = { 775, 275 },
+	    	Size = { 85, 15 }
+  		}
+  	)
+
+  	layout["power"] = {
+		PrettyName = "Power",
+	    Style = "Button",
+	    ButtonStyle = "Toggle",
+	    Legend = "Power",
+		Position = { 780, 470 },
+		Size = { 75, 35 },
+	}
+
+  	for i = 3, 1, -1 do
+  		layout["Layout "..i] = {
+		PrettyName = "Layout",
+	    Style = "Button",
+	    ButtonStyle = "Toggle",
+		Position = { 420 , 400 - ((i-1) * 35 ) },
+		Size = { 90, 35 },
+	}
+
+  	end
+
+	return layout, graphics
+
+end
+
+if Controls then
+
+function layout(x)
+	x = tonumber(x)
+	if x == 1 then
+		for i = 1, 8 do
+			Controls["bankFader"][i].IsInvisible = false
+			Controls["bankMeter"][i].IsInvisible = false
+			Controls["bankLabel"][i].IsInvisible = false
+
+			Controls["subFader"][i].IsInvisible = true
+			Controls["subSave"][i].IsInvisible = true
+			Controls["subMeter"][i].IsInvisible = true
+			Controls["subFader"][i+8].IsInvisible = true
+			Controls["subSave"][i+8].IsInvisible = true
+			Controls["subMeter"][i+8].IsInvisible = true
+
+		end
+
+		Controls["bankKnob"].IsDisabled = false
+		Controls["bankPlus"].IsDisabled = false
+		Controls["bankMinus"].IsDisabled = false
+		Controls["bank"].IsDisabled = false
+
+		Controls["Layout"][1].Value = true
+		Controls["Layout"][3].Value = false
+		Controls["Layout"][2].Value = false
+
+		return
+	elseif x == 3 then
+		for i = 1, 8 do
+			Controls["bankFader"][i].IsInvisible = true
+			Controls["bankMeter"][i].IsInvisible = true
+			Controls["bankLabel"][i].IsInvisible = true
+
+			Controls["subFader"][i].IsInvisible = false
+			Controls["subSave"][i].IsInvisible = false
+			Controls["subMeter"][i].IsInvisible = false
+			Controls["subFader"][i+8].IsInvisible = true
+			Controls["subSave"][i+8].IsInvisible = true
+			Controls["subMeter"][i+8].IsInvisible = true
+		end
+
+		Controls["bankKnob"].IsDisabled = true
+		Controls["bankPlus"].IsDisabled = true
+		Controls["bankMinus"].IsDisabled = true
+		Controls["bank"].IsDisabled = true
+
+		Controls["Layout"][1].Value = false
+		Controls["Layout"][3].Value = true
+		Controls["Layout"][2].Value = false
+
+		return
+	elseif x == 2 then
+		for i = 1, 8 do
+			Controls["bankFader"][i].IsInvisible = true
+			Controls["bankMeter"][i].IsInvisible = true
+			Controls["bankLabel"][i].IsInvisible = true
+
+			Controls["subFader"][i].IsInvisible = true
+			Controls["subSave"][i].IsInvisible = true
+			Controls["subMeter"][i].IsInvisible = true
+			Controls["subFader"][i+8].IsInvisible = false
+			Controls["subSave"][i+8].IsInvisible = false
+			Controls["subMeter"][i+8].IsInvisible = false
+		end
+
+		Controls["bankKnob"].IsDisabled = true
+		Controls["bankPlus"].IsDisabled = true
+		Controls["bankMinus"].IsDisabled = true
+		Controls["bank"].IsDisabled = true
+
+		Controls["Layout"][1].Value = false
+		Controls["Layout"][3].Value = false
+		Controls["Layout"][2].Value = true
+
+		return
+	end
+end
+layout(1)
+
+Controls["Layout"][1].Legend = "Channel"
+Controls["Layout"][3].Legend = "Sub 1-8"
+Controls["Layout"][2].Legend = "Sub 9-16"
+
+for i = 1, 3 do
+	Controls["Layout"][i].EventHandler = function() layout(i)
+		
+	end
+end
+
+
+bank = {}
+for i = 1, 512, 8 do table.insert(bank, i.."-"..i+7) end
+
+
+Controls["bankKnob"].EventHandler = function()
+	k = math.floor(Controls["bankKnob"].Value)
+	
+	mixer["input.bank."..k..".select"].Value = true
+	Controls["bank"].String = bank[k]
+
+    for i = 1, 8 do
+      	Controls["bankFader"][i].Position = mixer["bank.input."..i..".gain"].Position
+      	Controls["bankMeter"][i].String = tostring(math.floor(Controls["bankFader"][i].Position * 100))
+      	Controls["bankLabel"][i].String = ((k * 8) - 8) + i 
+    end
+
+end
+
+Controls["bank"].String = "1-8"
+for i = 1, 8 do
+	Controls["bankMeter"][i].String = tostring(math.floor(Controls["bankFader"][i].Position * 100))
+	Controls["bankLabel"][i].String = i 
+end
+
+
+
+numFader = #Controls["fader"]
+fader = Controls["fader"]
+
+
+for i = 1, numFader do
+	Controls["meter"][i].String = tostring(math.floor(Controls["fader"][i].Position * 100))
+	mixer["input."..i..".gain"].Position = Controls["fader"][i].Position
+
+	fader[i].EventHandler = function()
+		mixer["input."..i..".gain"].Position = fader[i].Position
+		Controls["meter"][i].String = tostring(math.floor(Controls["fader"][i].Position * 100))
+
+		for j = 1, 8 do
+			Controls["bankFader"][j].Position = mixer["bank.input."..j..".gain"].Position
+		end
+	end
+
+end
+
+
+for i = 1, 8 do
+	Controls["bankFader"][i].EventHandler = function()
+		mixer["bank.input."..i..".gain"].Position = Controls["bankFader"][i].Position
+		Controls["bankMeter"][i].String = tostring(math.floor(Controls["bankFader"][i].Position * 100))
+	end
+end
+
+Controls["bankPlus"].EventHandler = function()
+	Controls["bankKnob"].Value = Controls["bankKnob"].Value + 1
+
+	k = math.floor(Controls["bankKnob"].Value)
+	
+	mixer["input.bank."..k..".select"].Value = true
+	Controls["bank"].String = bank[k]
+
+	for i = 1, 8 do
+      	Controls["bankFader"][i].Position = mixer["bank.input."..i..".gain"].Position
+      	Controls["bankMeter"][i].String = tostring(math.floor(Controls["bankFader"][i].Position * 100))
+      	Controls["bankLabel"][i].String = ((k * 8) - 8) + i 
+    end
+
+end
+
+Controls["bankMinus"].EventHandler = function()
+	Controls["bankKnob"].Value = Controls["bankKnob"].Value - 1
+
+	k = math.floor(Controls["bankKnob"].Value)
+	
+	mixer["input.bank."..k..".select"].Value = true
+	Controls["bank"].String = bank[k]
+
+	for i = 1, 8 do
+      	Controls["bankFader"][i].Position = mixer["bank.input."..i..".gain"].Position
+      	Controls["bankMeter"][i].String = tostring(math.floor(Controls["bankFader"][i].Position * 100))
+      	Controls["bankLabel"][i].String = ((k * 8) - 8) + i 
+    end
+
+end
+
+
+
+for k,v in pairs(mixer) do
+
+  v.EventHandler = function()
+    if k == string.match(k,"input.%d.gain") then 
+      ch = tonumber(string.match(k,'%d'))
+      print(v.Position)
+      Controls["fader"][ch].Position = v.Position
+      Controls["meter"][ch].String = tostring(math.floor(Controls["fader"][ch].Position * 100))
+    end
+    
+    if k == string.match(k,"input.%d%d.gain") then
+      ch = tonumber(string.match(k,'%d%d'))
+      print(v.Position)
+      Controls["fader"][ch].Position = v.Position
+      Controls["meter"][ch].String = tostring(math.floor(Controls["fader"][ch].Position * 100))
+    end
+    
+    if k == string.match(k,"input.%d%d%d.gain") then
+      ch = tonumber(string.match(k,'%d%d%d'))
+      print(v.Position)
+      Controls["fader"][ch].Position = v.Position
+      Controls["meter"][ch].String = tostring(math.floor(Controls["fader"][ch].Position * 100))
+    end
+  end
+  
+  
+end
+
+
+
+function num2hex(num)
+    local hexstr = '0123456789abcdef'
+    local s = ''
+    while num > 0 do
+        local mod = math.fmod(num, 16)
+        s = string.sub(hexstr, mod+1, mod+1) .. s
+        num = math.floor(num / 16)
+    end
+    if s == '' then s = '0' end
+    s = "0x"..s
+    return s
+end
+
+prio = Properties["Priority"].Value
+
+-------------------------------------------------------------------------------------
+
+
+--[[
+
+        /* Configure the script here */
+  
+                                            ]] --
+
+-- Which DMX universe do you want to send? (1-65535) --
+DMX_UNIVERSE = Properties["DMX Universe"].Value;
+
+-- Uncomment this line if you want to unicast the sACN stream to a specific IP.
+
+if Properties["Mode"].Value == "MULTICAST" then 
+	UNICAST_IP = nil 
+else
+	UNICAST_IP = Properties["Unicast IP"].Value
+end
+
+-- [[ DO NOT MODIFY BELOW THIS POINT ]] --
+
+if(not (DMX_UNIVERSE >= 1 and DMX_UNIVERSE <= 65535)) then print('ERROR: Invalid DMX universe'); return; end;
+
+SACN_FORMAT = bitstring.compile(''
+
+--[[ Root Layer ]] --
+ .. '16:int, '  -- Preamble Size
+ .. '16:int, '  -- Postamble Size
+ .. '12:bin, '  -- ACN Packet identifier
+ .. '4:int,  '  -- Flags
+ .. '12:int, '  -- Length
+ .. '32:int, '  -- RLP Data 1.31 PDU Identifier
+ .. '16:bin, '  -- Sender CID
+ 
+--[[ E1.31 Framing Layer ]]--
+ .. '4:int,  '  -- Flags
+ .. '12:int, '  -- Length
+ .. '32:int, '  -- DMP PDU Identifier
+ .. '64:bin, '  -- Source name
+ .. '8:int,  '  -- Priority
+ .. '16:int, '  -- Reserved
+ .. '8:int,  '  -- Sequence number
+ .. '1:int,  '  -- Preview_Data
+ .. '1:int,  '  -- Stream_Terminated
+ .. '6:int,  '  -- Misc flags
+ .. '16:int, '  -- DMX Universe number
+ 
+--[[ DMP Layer ]]--
+ .. '4:int,  '  -- Flags
+ .. '12:int, '  -- PDU length
+ .. '8:int,  '  -- DMP Set Property Message PDU Identifier
+ .. '8:int,  '  -- Address and data type
+ .. '16:int, '  -- First property address
+ .. '16:int, '  -- Address increment
+ .. '16:int, '  -- Property value count
+ 
+);
+
+NUM_CHANNELS = numFader;
+SEQ_NUMBER = 1;
+DESIGN_CODE = Design.GetStatus().DesignCode;
+DESIGN_NAME = Design.GetStatus().DesignName;
+local highUniverseByte = math.floor((DMX_UNIVERSE-1) / 0xFF);
+local lowUniverseByte = DMX_UNIVERSE % 0x100
+MULTICAST_IP = ('239.255.' .. highUniverseByte .. '.' .. lowUniverseByte);
+
+UDP_SOCKET = UdpSocket.New();
+UDP_SOCKET:Open();
+
+-- sACN Packet Formatter
+function sendPacket()
+	local dmx_ch_blob = '';
+	for i=1,NUM_CHANNELS do
+		local inputValue = Controls.fader[i].Value;
+		if(inputValue < 0) then inputValue = 0; end;
+		if(inputValue > 255) then inputValue = 255; end;
+		dmx_ch_blob = dmx_ch_blob .. string.char(inputValue);
+	end;
+	local sACNpacket = bitstring.pack(SACN_FORMAT,
+
+	--[[ Root Layer ]] --
+	0x0010,                -- Preamble Size
+	0x0000,                -- Postamble Size
+	'ASC-E1.17\0\0\0',     -- ACN Packet identifier
+	0x07,                  -- Flags
+	NUM_CHANNELS + 0x6E ,  -- Length
+	0x04,                  -- RLP PDU Identifier
+	DESIGN_CODE .. string.rep('\0', 16-#DESIGN_CODE), -- Sender CID
+		   
+	--[[ E1.31 Framing Layer ]]--
+	0x07  ,                -- Flags
+	NUM_CHANNELS + 0x58 ,  -- Length
+	0x02 ,                 -- DMP PDU Identifier
+	'Q-SYS sACN Module in "' .. DESIGN_NAME .. '"' .. string.rep('\0', 41-#DESIGN_NAME) , -- Source name
+	num2hex(prio) ,        -- Priority
+	0x00,                  -- Reserved
+	SEQ_NUMBER ,           -- Sequence number
+	0x00 ,                 -- Preview_Data
+	0x00 ,                 -- Stream_Terminated
+	0x00 ,                 -- Misc flags
+	DMX_UNIVERSE ,         -- DMX Universe number
+		   
+	--[[ DMP Layer ]]--
+	0x07  ,                -- Flags
+	NUM_CHANNELS + 0x0B ,  -- PDU length
+	0x02  ,                -- DMP Set Property Message PDU Identifier
+	0xA1  ,                -- Address and data type
+	0x0000 ,               -- First property address
+	0x0001 ,               -- Address increment
+	NUM_CHANNELS + 0x01    -- Property value count
+		   
+	) .. '\0' .. dmx_ch_blob;
+
+	--print(bitstring.hexstream(sACNpacket));
+		  
+	UDP_SOCKET:Send(UNICAST_IP ~= nil and UNICAST_IP or MULTICAST_IP, 5568, sACNpacket);
+		  
+	SEQ_NUMBER = (SEQ_NUMBER + 1) % 0xFF;
+  
+end;
+
+Controls["power"].EventHandler = function(c)
+	if c.Boolean then 
+		UDP_SOCKET:Open()
+		SendTimer:Start(0.03);
+	else
+		UDP_SOCKET:Close()
+		SendTimer:Stop()
+	end
+end
+
+SendTimer = Timer.New();
+SendTimer.EventHandler = sendPacket;
+SendTimer:Start(0.03);
+
+
+
+
+
+--[[ KEYPAD ]]--
+
+json = require("rapidjson")
+
+-- [[ Controls Definition ]] --
+STRING = Controls["keypad_string"]
+ENTER = Controls["keypad_enter"]
+ENTER.Legend = "ENTER"
+
+CTRL = {}
+CTRL["AT"] = Controls["keypad_at"]
+CTRL["AT"].Legend = "AT"
+CTRL["THRU"] = Controls["keypad_thru"]
+CTRL["THRU"].Legend = "THRU"
+CTRL["FULL"] = Controls["keypad_full"]
+CTRL["FULL"].Legend = "FULL"
+
+for i = 1, 10 do
+  CTRL[i] = Controls["keypad_num"][i]
+  CTRL[i].Legend = i - 1
+end
+
+
+for _, v in pairs(CTRL) do
+  v.EventHandler = function(c)
+    if string.match(v.Legend, '%d') then
+      STRING.String = STRING.String..c.Legend
+    else
+      STRING.String = STRING.String.." "..c.Legend.." "
+    end
+  end
+end
+
+function processor(CH1, CH2, LVL)
+
+	if CH2 ~= nil then
+		for i = CH1, CH2 do
+			Controls["fader"][i].Position = LVL/100
+			Controls["meter"][i].String = tostring(math.floor(Controls["fader"][i].Position * 100))
+			mixer["input."..i..".gain"].Position = Controls["fader"][i].Position
+		end
+  	else
+    	Controls["fader"][CH1].Position = LVL/100
+    	Controls["meter"][CH1].String = tostring(math.floor(Controls["fader"][CH1].Position * 100))
+    	mixer["input."..CH1..".gain"].Position = Controls["fader"][CH1].Position
+  	end
+
+  	for j = 1, 8 do
+		Controls["bankFader"][j].Position = mixer["bank.input."..j..".gain"].Position
+	end
+
+  	CH1 = nil
+  	CH2 = nil
+  	LVL = nil
+end
+
+
+
+
+function parse(str) 
+  local OK = true
+  local THRU = false
+  local AT = false
+  local TBL = {}
+  local CH1 = nil
+  local CH2 = nil
+  local LVL = nil
+  local NUMW = 1
+  local END = false
+  
+  for w in string.gmatch(str, '%w+') do
+    if END then
+      OK = false
+      break
+    end
+  
+    if NUMW == 1 then
+      if string.match(w, '%d+') then
+        w = tonumber(w)
+        if w < 1 or w > 512 then
+          OK = false
+          break
+        else
+          CH1 = tonumber(w)
+        end
+      else 
+        OK = false
+        break
+      end
+    end
+      
+    if NUMW == 2 then 
+      if w == "AT" then
+        AT = true
+      elseif w == "THRU" then
+        THRU = true
+      else
+        OK = false
+        break
+      end
+    end
+    
+    if NUMW == 3 then
+      if AT then
+        if string.match(w, '%d+') then
+          w = tonumber(w)
+          if w > 100 then
+            LVL = tonumber(100)
+            END = true
+          elseif w < 0 then
+            LVL = 0
+            END = true
+          else
+            LVL = tonumber(w)
+            END = true
+          end
+        elseif w == "FULL" then
+          LVL = 100
+          END = true
+        end
+      elseif THRU then
+        if string.match(w, '%d+') then
+          w = tonumber(w)
+          if w < 1 or w > 512 then
+            OK = false
+            break
+          else
+            w = tonumber(w)
+            if w > CH1 then
+              CH2 = tonumber(w)
+            else
+              OK = false
+              break
+            end
+          end
+        else
+          OK = false
+          break
+        end
+      else
+        OK = false
+        break
+      end
+    end
+    
+    if NUMW == 4 then
+      if w == "AT" then
+        --
+      else
+        OK = false
+        break
+      end
+    end
+    
+    if NUMW == 5 then
+      if string.match(w, '%d+') then
+        w = tonumber(w)
+        if w > 100 then
+          LVL = tonumber(100)
+          END = true
+        elseif w < 0 then
+          LVL = 0
+          END = true
+        else
+          LVL = tonumber(w)
+          END = true
+        end
+      elseif w == "FULL" then
+        LVL = 100
+        END = true
+      else 
+        OK = false
+        break
+      end
+    end
+
+    NUMW = NUMW + 1
+  -- END OF LOOP
+  end
+
+
+
+  if OK then
+    print("YAY")
+    print("CH1 : ".. CH1)
+    if CH2 == nil then else
+      print("CH2 : ".. CH2)
+    end
+    print("LVL : ".. LVL)
+    STRING.String = ""
+
+    processor(CH1, CH2, LVL)
+  
+  else
+    STRING.String = ""
+    print ("WRONG COMMAND")
+  end
+  
+end
+
+ENTER.EventHandler = function() parse(STRING.String) end
+Controls["keypad_clear"].EventHandler = function() STRING.String = "" end
+Controls["keypad_clear"].Legend = "CLEAR"
+
+--[[ SUBMASTER SECTION ]]--
+SUB = {}
+
+numSub = #Controls["subFader"]
+
+for i = 1, numSub do
+  SUB[i] = {}
+  if Controls["sub"][i].String ~= "" then SUB[i] = json.decode(Controls["sub"][i].String) end
+  Controls["subSave"][i].Legend = "Save "..i
+  Controls["subMeter"][i].String = tostring(math.floor(Controls["subFader"][i].Position * 100))
+
+  
+  Controls["subSave"][i].EventHandler = function()
+    SUB[i] = {}
+    for ch = 1, 512 do
+      if Controls["fader"][ch].Position > 0 then
+        table.insert(SUB[i],
+          {
+            CH = ch,
+            LVL = Controls["fader"][ch].Position
+          }
+        )
+      end
+    end
+    Controls["sub"][i].String = json.encode(SUB[i])
+    print(json.encode(SUB[i]))
+  end
+  
+  Controls["subFader"][i].EventHandler = function()
+  	Controls["subMeter"][i].String = tostring(math.floor(Controls["subFader"][i].Position * 100))
+    for k, v in ipairs(SUB[i]) do
+      Controls["fader"][SUB[i][k].CH].Position = SUB[i][k].LVL * Controls["subFader"][i].Position
+      Controls["meter"][SUB[i][k].CH].String = tostring(math.floor(Controls["fader"][SUB[i][k].CH].Position * 100))
+      mixer["input."..SUB[i][k].CH..".gain"].Position = Controls["fader"][SUB[i][k].CH].Position
+ 
+    end
+    for j = 1, 8 do
+		Controls["bankFader"][j].Position = mixer["bank.input."..j..".gain"].Position
+	end
+  end
+end
+-- [[ SUBMASTER SECTION ]]--
+
+
+-- MASTER = 1 - (CTRL.MASTER.POSITION )
+-- FADER.POSITION = FADER.POSITION / MASTER
+
+end

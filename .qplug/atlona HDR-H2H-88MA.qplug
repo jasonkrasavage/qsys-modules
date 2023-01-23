@@ -1,0 +1,578 @@
+﻿-- Atlona HDR-H2H-88MA
+-- adapted by Stuart Marks / AVL Systems
+-- from Atlona AT-UHD-CLSO-840 Plugin
+-- by Joe Peavey / QSC Boulder
+-- December 2016
+-- Modified by Caitlyn Sullivan / QSC Boulder July 2018
+
+PluginInfo = 
+{
+  Name = "Atlona~HDR-H2H-88MA", 
+  Version = "1.0",
+  Id = "9c6306e9-c539-43d1-80c7-98a5c7390c05", -- Production
+  --Id = "0ae88a28-118f-4e18-a588-3c0f7eee3d71", --Dev
+  Description = "HDR-H2H-88MA Plugin",
+  ShowDebug = false,
+  Author = "SWM"
+}
+
+Source = {
+  pretty = {"HDMI","HDMI","HDMI","HDMI","HDMI","HDMI","HDMI","HDMI"},
+  cmd = {"HDMI","HDMI"},
+}
+
+local Color = {
+  Atlona = { 255, 103, 27 },
+  LtGray = { 153, 153, 153 },
+  GrayTxt = { 102, 102, 102 },
+}
+
+function GetColor(props) return Color.Atlona end
+function GetPrettyName(props) return "Atlona\rHDR-H2H-88MA" end
+
+function GetProperties() -- No properties needed
+    props = {}
+  return props
+end
+
+function GetControls(props)
+  ctls = {
+    --[[{
+      Name = "code",
+      ControlType = "Text",
+      UserPin = true,
+      PinStyle = "Input",
+      Count = 1
+    },]]
+    {
+      Name = "power",
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      UserPin = true,
+      PinStyle = "Both",
+      Count = 1,
+    },
+    {
+      Name = "panellock",
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      UserPin = true,
+      PinStyle = "Both",
+      Count = 1,
+    },
+    {
+      Name = "connect",
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      UserPin = true,
+      PinStyle = "Both",
+      Count = 1,
+    },
+    {
+      Name = "ip",
+      ControlType = "Text",
+      Count = 1,
+    },
+    {
+      Name = "port",
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 1,
+      Max = 65535,
+      UserPin = true,
+      PinStyle = "Both",
+      Count = 1,
+    },
+    {
+      Name = "status",
+      ControlType = "Indicator",
+      IndicatorType = "Status",
+      UserPin = true,
+      PinStyle = "Output",
+      Count = 1,
+    },
+  }
+  for i=1,8 do -- HDCP
+    table.insert(ctls,{
+      Name = string.format("inhdcp%i",i),
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      UserPin = true,
+      PinStyle = "Both",
+      Count = 1,
+      })
+  end
+  for out=1,8 do -- Outputs
+    table.insert(ctls,{
+      Name = string.format("outsel%i",out),
+      ControlType = "Text",
+      UserPin = true,
+      PinStyle= "Both",
+      Count = 1,
+    })
+    for inp=1,8 do -- Inputs
+      table.insert(ctls,{
+        Name = string.format("out%iin%i",out,inp),
+        ControlType = "Button",
+        ButtonType = "Trigger",
+        UserPin = true,
+        PinStyle = "Both",
+        Count = 1,
+      })
+    end
+  end
+  return ctls
+end
+
+function GetControlLayout(props)
+  layout = {
+    --[[code = {
+      PrettyName = "Code",
+      Style = "Text",
+      Position = {17,158},
+      Size = {6,16},
+      TextFontSize = 12,
+    },]]
+    power = {
+      PrettyName = "Power",
+      Style = "Button",
+      ButtonStyle = "Toggle",
+      Color = Color.Atlona,
+      OffColor = Color.LtGray,
+      IsBold = true,
+      UnlinkOffColor = true,
+      Position = { 147, 144 },
+      Size = { 52, 16 },
+      Radius = 1,
+      Margin = 1,
+    },
+    panellock =
+    {
+      PrettyName = "Panel Lock",
+      Style = "Button",
+      ButtonStyle = "Toggle",
+      Color = Color.Atlona,
+      OffColor = Color.LtGray,
+      IsBold = true,
+      UnlinkOffColor = true,
+      Position = { 304, 144 },
+      Size = { 52, 16 },
+      Radius = 1,
+      Margin = 1,
+    },
+    connect = {
+      PrettyName = "Connect",
+      Style = "Button",
+      ButtonStyle = "Toggle",
+      Color = Color.Atlona,
+      OffColor = Color.LtGray,
+      IsBold = true,
+      UnlinkOffColor = true,
+      Position = { 16, 98 },
+      Size = { 89, 24 },
+      Radius = 1,
+      Margin = 1,
+    },
+    ip = {
+      PrettyName = "IP Address",
+      Style = "Text",
+      Position = { 181, 63 },
+      Size = { 94, 16 },
+      TextFontSize = 12,
+    },
+    port =
+    {
+      PrettyName = "Port",
+      Style = "Textbox",
+      TextBoxStyle = "Meter",
+      Position = { 311, 63 },
+      Size = { 45, 16 },
+    },
+    status = {
+      PrettyName = "Status",
+      Style = "Text",
+      Position = { 160, 98 },
+      Size = { 196, 24 },
+    },
+  }
+  for i=1,8 do
+    local nice = string.format("%s %i",Source.pretty[i],i)
+    layout[string.format("inhdcp%i",i)] = {
+      PrettyName = string.format("HDCP~Input %i %s",i,Source.pretty[i]),
+      Legend = nice,
+      Style = "Button",
+      ButtonStyle = "Toggle",
+      Color = Color.Atlona,
+      OffColor = Color.LtGray,
+      UnlinkOffColor = true,
+      IsBold = true,
+      Position = {14+(i-1)*43,611},
+      Size = {42,16},
+      Radius = 1,
+      Margin = 1,
+  }
+  end
+  for out=1,8 do
+    layout[string.format("outsel%i",out)] = {
+      PrettyName = string.format("Output %i~Input Select",out),
+      Style = "ComboBox",
+      Position = {305,146+(out*49)},
+      Size = {51,16},
+    }
+    for inp=1,8 do
+      local nice = string.format("%s %i",Source.pretty[inp],inp)
+      layout[string.format("out%iin%i",out,inp)] = {
+        PrettyName = string.format("Output %i~Input %i %s",out,inp,Source.pretty[inp]),
+        Legend = nice,
+        Style = "Button",
+        ButtonStyle = "Trigger",
+        Color = Color.Atlona,
+        OffColor = Color.LtGray,
+        UnlinkOffColor = true,
+        IsBold = true,
+        Position = {14+(inp-1)*43,164+(out*49)},
+        Size = {42,16},
+        Radius = 1,
+        Margin = 1,
+      }
+    end
+  end
+	
+  graphics =
+  {
+    { -- Overall GroupBox to give plugin a more "contained" look
+      Type = "GroupBox",
+      Fill = {255,255,255},
+      CornerRadius = 8,
+      StrokeWidth = 1,
+      StrokeColor = {0,0,0},
+      Position = {0,0},
+      Size = {370,643}
+    },
+    {
+      Type = "Svg", -- Atlona Logo
+      Image = "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz48IURPQ1RZUEUgc3ZnIFBVQkxJQyAiLS8vVzNDLy9EVEQgU1ZHIDEuMS8vRU4iICJodHRwOi8vd3d3LnczLm9yZy9HcmFwaGljcy9TVkcvMS4xL0RURC9zdmcxMS5kdGQiPjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iTGF5ZXJfMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeD0iMHB4IiB5PSIwcHgiIHdpZHRoPSIyMTguMDgzcHgiIGhlaWdodD0iNDIuMTY3cHgiIHZpZXdCb3g9IjAgMCAyMTguMDgzIDQyLjE2NyIgZW5hYmxlLWJhY2tncm91bmQ9Im5ldyAwIDAgMjE4LjA4MyA0Mi4xNjciIHhtbDpzcGFjZT0icHJlc2VydmUiPjxnPjxkZWZzPjxyZWN0IGlkPSJTVkdJRF8xXyIgeD0iMS40MjMiIHk9IjAuNzQ4IiB3aWR0aD0iMjE1LjcxNiIgaGVpZ2h0PSI0MC40ODciLz48L2RlZnM+PGNsaXBQYXRoIGlkPSJTVkdJRF8yXyI+PHVzZSB4bGluazpocmVmPSIjU1ZHSURfMV8iICBvdmVyZmxvdz0idmlzaWJsZSIvPjwvY2xpcFBhdGg+PHBhdGggY2xpcC1wYXRoPSJ1cmwoI1NWR0lEXzJfKSIgZD0iTTE3OS4xNTIsMTMuNjY1Yy0wLjc1NiwwLTIuNTE4LDAuMjAyLTIuNTE4LDIuMDc3djguNTk1Yy0xLjY2Ny0xLjg2Ny0xMS4wMjYtMTAuODc5LTE4LjA0NC0xMC44NDJjLTEuMTM1LDAuMDA2LTEuOTA3LDAuMjA2LTIuMDUsMC4yNDdsLTEuMDI5LDAuMjk0bC0wLjA1MSwwLjAxNXYwLjA1M3YxMy4xMDh2MC4wNjVsMC4wNjYsMC4wMDVjMCwwLDAuMDc1LDAuMDA2LDAuMjAzLDAuMDA2YzAuNjM2LDAsMi43MTEtMC4xNDksMi43MTEtMi4wNjV2LTguOTMxYzAuMTk5LTAuMDIxLDAuMzg2LTAuMDMyLDAuNTY4LTAuMDMyYzEuMzE2LDAsMy43MjgsMS4xMDYsNS43MjgsMi4yMTFjOC43OTIsNC44NTQsOC40MTYsOS4wMTQsMTMuODgxLDguODE3YzAuMzQyLDAsMC45OTktMC4xMjksMC45OTktMC40MTN2LTEzLjEydi0wLjA2M2wtMC4wNjItMC4wMDhDMTc5LjU0NiwxMy42ODQsMTc5LjM5MSwxMy42NjUsMTc5LjE1MiwxMy42NjUiLz48cGF0aCBjbGlwLXBhdGg9InVybCgjU1ZHSURfMl8pIiBkPSJNOTYuNjMsMTMuNzYxaC0wLjA2M0g3NS4xNDJjLTAuNjMzLDAtMS4xNDEsMC4yMDUtMS41MDgsMC42MDhjLTAuNzg3LDAuODY1LTAuNjU5LDIuMzI0LTAuNjUzLDIuMzg2bDAuMDA2LDAuMDYzaDAuMDY0aDkuNzY5djMuMTYydjQuNjAxYzAsMi40NDIsMi4xMDEsMi43MDcsMy4wMDUsMi43MDdjMC4yNjgsMCwwLjQ0MS0wLjAyMiwwLjQ0OC0wLjAyNGwwLjA2Mi0wLjAwN3YtMC4wNjN2LTcuMjA4di0zLjE2OGg4LjA5M2MwLjY5MywwLDEuMjM4LTAuMjE4LDEuNjE5LTAuNjVjMC43NjgtMC44NzEsMC42MDEtMi4yODYsMC41OTMtMi4zNDVMOTYuNjMsMTMuNzYxeiIvPjxwYXRoIGNsaXAtcGF0aD0idXJsKCNTVkdJRF8yXykiIGQ9Ik0xMTkuMTQ3LDI0LjA5MWgtMTMuMjg2Yy0wLjMzNCwwLTAuNjMzLTAuMTA2LTAuODg4LTAuMzE3Yy0wLjI1MS0wLjIwNy0wLjM3OC0wLjQ1NC0wLjM3OC0wLjczNHYtMi42MjZWMTYuMDJjMC0yLjIwOC0yLjQzOC0yLjM4LTMuMTg2LTIuMzhjLTAuMTYyLDAtMC4yNiwwLjAwOC0wLjI2NCwwLjAwOGwtMC4wNjUsMC4wMDV2MC4wNjZ2Ni41NzN2Mi43NDljMCwwLjU3NiwwLjEzMywxLjExOSwwLjM5NSwxLjYxM2MwLjI2MSwwLjQ5MSwwLjYxNiwwLjkyNywxLjA1NSwxLjI5N2MwLjQzNSwwLjM2NywwLjk1NiwwLjY2MywxLjU0OCwwLjg3OWMwLjU4NSwwLjIxNCwxLjIyMiwwLjMyMiwxLjg4OSwwLjMyMmgxNS43OThoMC4wNjZsMC4wMDUtMC4wNjVjMC4wMDUtMC4wNTQsMC4xMDgtMS4zNTUtMC42OTYtMi4yMzJDMTIwLjY3NywyNC4zNDgsMTIwLjAwNiwyNC4wOTEsMTE5LjE0NywyNC4wOTEiLz48cGF0aCBjbGlwLXBhdGg9InVybCgjU1ZHSURfMl8pIiBkPSJNMTQ2LjI1MywxMy41MWgtMTQuMjY1Yy0zLjc1MiwwLTYuODA0LDMuMDUyLTYuODA0LDYuODA0djIuNzY1YzAsMi4yODcsMS44NTksNC4xNDYsNC4xNDYsNC4xNDZoMTQuMjY2YzMuNzUxLDAsNi44MDQtMy4wNTIsNi44MDQtNi44MDN2LTIuNzY2QzE1MC40LDE1LjM3LDE0OC41NCwxMy41MSwxNDYuMjUzLDEzLjUxIE0xMjguMTYyLDIwLjMxNGMwLTIuMTEsMS43MTYtMy44MjcsMy44MjctMy44MjdoMTQuMjY1YzAuNjQ2LDAsMS4xNywwLjUyNCwxLjE3LDEuMTY5djIuNzY2YzAsMi4xMS0xLjcxNywzLjgyNi0zLjgyNywzLjgyNkgxMjkuMzNjLTAuNjQ1LDAtMS4xNjgtMC41MjQtMS4xNjgtMS4xNjlWMjAuMzE0eiIvPjxwYXRoIGNsaXAtcGF0aD0idXJsKCNTVkdJRF8yXykiIGQ9Ik03MC42NDYsMjEuODU1bC01Ljc3NS02LjcxN2MtMC40MDEtMC40NzItMC45NDItMC44NjItMS42MDYtMS4xNTljLTAuNjYzLTAuMjk3LTEuMzgyLTAuNDQ3LTIuMTM3LTAuNDQ3Yy0wLjc1NiwwLTEuNDc0LDAuMTUtMi4xMzcsMC40NDdjLTAuNjY2LDAuMjk3LTEuMjA2LDAuNjg3LTEuNjA3LDEuMTU5bC01Ljc3NSw2LjcxN2MtMC4wMzcsMC4wNDQtMy42OTIsNC4zNjgtNC4xMDIsNC44MjdjLTAuMTU4LDAuMTc4LTAuMjEyLDAuMzE5LTAuMTYzLDAuNDM0YzAuMDY2LDAuMTU0LDAuMjg2LDAuMTY3LDAuMzEsMC4xNjdjMC4xMjUsMC4wMDMsMC4yNjcsMC4wMDQsMC40MjMsMC4wMDRjMS4xNjgsMCwzLjIyOC0wLjEwNCwzLjktMC44YzEuNTYtMS42MTgsNC4zMDItNC45MSw0LjMyOS00Ljk0M2wzLjU0LTQuMDY0YzAuMTM4LTAuMTYsMC4zMy0wLjMzNiwwLjU3MS0wLjUyMmMwLjIzLTAuMTgyLDAuNDY5LTAuMjczLDAuNzExLTAuMjczczAuNDgxLDAuMDkxLDAuNzEsMC4yNzNjMC4yNDIsMC4xODcsMC40MzQsMC4zNjMsMC41NzIsMC41MjJsMy41NDIsNC4wNjZjMC4wMjcsMC4wMzIsMi44NTEsMy4zMjUsNC40MTEsNC45NDFjMC42NzIsMC42OTYsMi43MzIsMC44MDEsMy44OTksMC44MDFjMC4xNTYsMCwwLjI5OS0wLjAwMSwwLjQyMi0wLjAwNGMwLjAyNiwwLDAuMjQ2LTAuMDEzLDAuMzEyLTAuMTY2YzAuMDQ4LTAuMTE1LTAuMDA1LTAuMjU3LTAuMTY0LTAuNDM1Qzc0LjQyMSwyNi4yMjMsNzAuNjgzLDIxLjg5OCw3MC42NDYsMjEuODU1Ii8+PHBhdGggY2xpcC1wYXRoPSJ1cmwoI1NWR0lEXzJfKSIgZD0iTTIwNi41ODQsMjEuODU1bC01Ljc3NS02LjcxN2MtMC40MDEtMC40NzItMC45NDItMC44NjItMS42MDYtMS4xNTljLTAuNjYzLTAuMjk3LTEuMzgxLTAuNDQ3LTIuMTM4LTAuNDQ3Yy0wLjc1NSwwLTEuNDc0LDAuMTUtMi4xMzcsMC40NDdjLTAuNjY1LDAuMjk3LTEuMjA2LDAuNjg3LTEuNjA2LDEuMTU5bC01Ljc3Niw2LjcxN2MtMC4wMzcsMC4wNDQtMy42OTIsNC4zNjgtNC4xMDIsNC44MjdjLTAuMTU5LDAuMTc4LTAuMjEyLDAuMzE5LTAuMTY0LDAuNDM0YzAuMDY2LDAuMTU0LDAuMjg1LDAuMTY3LDAuMzEsMC4xNjdjMC4xMjUsMC4wMDMsMC4yNjcsMC4wMDQsMC40MjMsMC4wMDRjMS4xNjcsMCwzLjIyOC0wLjEwNCwzLjg5OS0wLjhjMS41Ni0xLjYxOCw0LjMwMi00LjkxLDQuMzI5LTQuOTQzbDMuNTQxLTQuMDY0YzAuMTM4LTAuMTYsMC4zMy0wLjMzNiwwLjU3MS0wLjUyMmMwLjIzLTAuMTgyLDAuNDY5LTAuMjczLDAuNzEtMC4yNzNjMC4yNDIsMCwwLjQ4MSwwLjA5MSwwLjcxLDAuMjczYzAuMjQyLDAuMTg3LDAuNDM1LDAuMzYzLDAuNTcyLDAuNTIybDMuNTQxLDQuMDY2YzAuMDI3LDAuMDMyLDIuODUxLDMuMzI1LDQuNDExLDQuOTQxYzAuNjcyLDAuNjk2LDIuNzMyLDAuODAxLDMuOSwwLjgwMWMwLjE1NiwwLDAuMjk4LTAuMDAxLDAuNDIyLTAuMDA0YzAuMDI2LDAsMC4yNDUtMC4wMTMsMC4zMTEtMC4xNjZjMC4wNDgtMC4xMTUtMC4wMDQtMC4yNTctMC4xNjQtMC40MzVDMjEwLjM1OCwyNi4yMjMsMjA2LjYyMSwyMS44OTgsMjA2LjU4NCwyMS44NTUiLz48cGF0aCBjbGlwLXBhdGg9InVybCgjU1ZHSURfMl8pIiBkPSJNMjE2Ljc4MiwyNi45MzJjLTAuMjM4LDAuMjQtMC41MjYsMC4zNTktMC44NjUsMC4zNTljLTAuMzM4LDAtMC42MjYtMC4xMi0wLjg2My0wLjM1OWMtMC4yMzYtMC4yMzgtMC4zNTQtMC41MjctMC4zNTQtMC44NjZjMC0wLjMzNywwLjExOS0wLjYyNCwwLjM1Ny0wLjg2MmMwLjIzOC0wLjIzNywwLjUyNC0wLjM1NiwwLjg2LTAuMzU2YzAuMzM4LDAsMC42MjYsMC4xMTksMC44NjUsMC4zNTZzMC4zNTcsMC41MjQsMC4zNTcsMC44NjJTMjE3LjAyMSwyNi42OTIsMjE2Ljc4MiwyNi45MzIgTTIxNS4xNzYsMjUuMzI1Yy0wLjIwNSwwLjIwNS0wLjMwNywwLjQ1Mi0wLjMwNywwLjc0M2MwLDAuMjkyLDAuMTAyLDAuNTQyLDAuMzA1LDAuNzQ4YzAuMjA0LDAuMjA3LDAuNDUyLDAuMzEsMC43NDMsMC4zMWMwLjI5MiwwLDAuNTQtMC4xMDQsMC43NDQtMC4zMWMwLjIwNC0wLjIwNiwwLjMwNi0wLjQ1NiwwLjMwNi0wLjc0OGMwLTAuMjkxLTAuMTAyLTAuNTM4LTAuMzA2LTAuNzQzYy0wLjIwNS0wLjIwNy0wLjQ1My0wLjMxLTAuNzQ0LTAuMzFDMjE1LjYyOCwyNS4wMTUsMjE1LjM4MSwyNS4xMTgsMjE1LjE3NiwyNS4zMjUgTTIxNS44OTUsMjUuMzkzYzAuMTY3LDAsMC4yODgsMC4wMTYsMC4zNjYsMC4wNDhjMC4xMzksMC4wNTgsMC4yMDgsMC4xNzEsMC4yMDgsMC4zNGMwLDAuMTItMC4wNDMsMC4yMDgtMC4xMzEsMC4yNjRjLTAuMDQ2LDAuMDMtMC4xMTEsMC4wNTItMC4xOTQsMC4wNjZjMC4xMDUsMC4wMTcsMC4xODIsMC4wNiwwLjIzLDAuMTNjMC4wNDksMC4wNzEsMC4wNzMsMC4xNCwwLjA3MywwLjIwOHYwLjA5OGMwLDAuMDMxLDAuMDAxLDAuMDY0LDAuMDAzLDAuMDk5YzAuMDAyLDAuMDM2LDAuMDA2LDAuMDU5LDAuMDEyLDAuMDdsMC4wMDgsMC4wMTdoLTAuMjIxYy0wLjAwMS0wLjAwNS0wLjAwMi0wLjAwOS0wLjAwNC0wLjAxNGMwLTAuMDA0LTAuMDAyLTAuMDA5LTAuMDAzLTAuMDE1bC0wLjAwNS0wLjA0M3YtMC4xMDVjMC0wLjE1NS0wLjA0Mi0wLjI1Ny0wLjEyNi0wLjMwN2MtMC4wNS0wLjAyOS0wLjEzOC0wLjA0My0wLjI2My0wLjA0M2gtMC4xODZ2MC41MjdoLTAuMjM3di0xLjM0SDIxNS44OTV6IE0yMTYuMTQ5LDI1LjYwNGMtMC4wNi0wLjAzMy0wLjE1NS0wLjA1LTAuMjg2LTAuMDVoLTAuMjAxdjAuNDg2aDAuMjEyYzAuMTAxLDAsMC4xNzUtMC4wMSwwLjIyNi0wLjAzYzAuMDkyLTAuMDM3LDAuMTM4LTAuMTA2LDAuMTM4LTAuMjA5QzIxNi4yMzgsMjUuNzAyLDIxNi4yMDksMjUuNjM3LDIxNi4xNDksMjUuNjA0Ii8+PHBhdGggY2xpcC1wYXRoPSJ1cmwoI1NWR0lEXzJfKSIgZmlsbD0iI0ZGNjcxQiIgZD0iTTIxLjA0MiwwLjc0OGMtMTAuODM1LDAtMTkuNjE5LDguNzg0LTE5LjYxOSwxOS42MnM4Ljc4NCwxOS42MTksMTkuNjE5LDE5LjYxOWMxMC44MzUsMCwxOS42MTktOC43ODMsMTkuNjE5LTE5LjYxOVMzMS44NzcsMC43NDgsMjEuMDQyLDAuNzQ4IE0yMC4yNDMsMjYuNjAyYy0wLjI1NiwwLjIwNi0wLjQ2MiwwLjM5OS0wLjYxNSwwLjU3N2wtNi4zMjQsNy4yNzljLTEuNzQ2LTAuOTc5LTMuMjg1LTIuMjc2LTQuNTM4LTMuODIzbDExLjI0Mi0xMi45MjNjLTAuMDExLDAuMDEtMC4wMjIsMC4wMTktMC4wMzMsMC4wMjhjMC4xNTEtMC4xNzYsMC4zMDUtMC4zNDUsMC40NTYtMC41MTJsMC4wNDUtMC4wNTFjMC4wNTMtMC4wNjQsMC4xMTItMC4xMjYsMC4xNzYtMC4xOTJjMS42OS0xLjgyNywzLjMyNy0zLjEyOSw0Ljc3My0zLjYwMmMtMS45OTYsMS4wNTctMy43MzIsNC4xNDItMy43MzIsNC4xNDJjMC45NzEtMC4wMDksMS41MDUsMC42NywxLjc2MSwwLjkyNWwxMC4yNSwxMi4xMTZjLTEuMjAyLDEuNTYyLTIuNjkxLDIuODg0LTQuMzkxLDMuOTAxbC01LjE0OC02LjAxNmwtMS4xMDMtMS4yNzFjLTAuMjA4LTAuMjA3LTAuNDY5LTAuNDM0LTAuNzg0LTAuNjc2Yy0wLjMwOS0wLjI0Ny0wLjYyOC0wLjM2Ny0wLjk1OC0wLjM2N2MtMC4zMjcsMC0wLjY0NiwwLjEyLTAuOTU2LDAuMzY3QzIwLjMyMywyNi41MzYsMjAuMjg0LDI2LjU2OCwyMC4yNDMsMjYuNjAyIE0yNy45NzEsMTMuNTA2Yy0wLjAwNi0wLjAwNC0wLjAxMi0wLjAwNi0wLjAxOS0wLjAxM2wtMC45NjUtMS4xMTZjLTAuNjI1LTAuNzI4LTEuNDMtMS4zMDEtMi40Mi0xLjcxMWMtMC45ODktMC40MTQtMi4wMzYtMC42MjEtMy4xMzUtMC42MjFjLTEuMTc0LDAtMi4yNzMsMC4yMzEtMy4zMDEsMC42OWMtMS4wMywwLjQ2Mi0xLjg1NSwxLjA1Ni0yLjQ3NiwxLjc4N0w1LjczOCwyNC4wNDZjLTAuMjQyLTEuMDk0LTAuMzc5LTIuMjI5LTAuMzc5LTMuMzk3YzAtOC42NjMsNy4wMjEtMTUuNjgyLDE1LjY4NC0xNS42ODJjOC42NjEsMCwxNS42ODIsNy4wMiwxNS42ODIsMTUuNjgyYzAsMC45MjMtMC4wOTQsMS44MjMtMC4yNDcsMi43MDJMMjcuOTcxLDEzLjUwNnoiLz48cGF0aCBjbGlwLXBhdGg9InVybCgjU1ZHSURfMl8pIiBkPSJNODMuMzg3LDMzLjM2MWMtMC40ODItMC4yNTUtMS4wMjItMC4zMjItMS41OS0wLjMyMmMtMS45MjEsMC0zLjIzNywxLjQ2Ny0zLjIzNywzLjM3OWMwLDEuMjg3LDEuMDEzLDIuMzE5LDIuNDA0LDIuMzE5YzAuODIzLDAsMS4wMzItMC4xMTQsMS40MS0wLjIxOGwtMC4wNzYsMC41NzdjLTAuMjY1LDAuMDc2LTAuNTg3LDAuMjA4LTEuMjg3LDAuMjA4Yy0xLjY5NCwwLTMuMTA0LTEuMTA3LTMuMTA0LTIuODk2YzAtMi4zMDksMS42NDctMy45MzcsMy45MjgtMy45MzdjMC43MSwwLDEuMjMsMC4wODUsMS43NzksMC4zNEw4My4zODcsMzMuMzYxeiIvPjxwYXRoIGNsaXAtcGF0aD0idXJsKCNTVkdJRF8yXykiIGQ9Ik04Ni4zNzcsMzQuMjVjMS4yMywwLDEuOTIxLDAuODI0LDEuOTIxLDIuMDczYzAsMS42MDgtMS4wMTMsMi45ODEtMi42NzgsMi45ODFjLTEuMTkzLDAtMS45MzEtMC44OTgtMS45MzEtMi4xMDFDODMuNjg5LDM1LjU4NSw4NC43NCwzNC4yNSw4Ni4zNzcsMzQuMjUgTTg1LjY5NSwzOC43OTNjMS4yNSwwLDEuOTUtMS4zMjUsMS45NS0yLjQ2YzAtMC45MDktMC40MDctMS41NzEtMS4zNDQtMS41NzFjLTEuMzM0LDAtMS45NTksMS4zMDYtMS45NTksMi41MzZDODQuMzQyLDM4LjEzMSw4NC44NTQsMzguNzkzLDg1LjY5NSwzOC43OTMiLz48cGF0aCBjbGlwLXBhdGg9InVybCgjU1ZHSURfMl8pIiBkPSJNOTAuMDExLDM1LjEzYzAuMDU3LTAuMzIyLDAuMDk1LTAuNTMsMC4xMTQtMC43NjdoMC41OTZjLTAuMDI4LDAuMzAzLTAuMDU3LDAuNTU5LTAuMTA0LDAuNzI5aDAuMDE5YzAuMzMxLTAuNTExLDAuOTM3LTAuODQyLDEuNTMzLTAuODQyYzAuODcxLDAsMS41MTQsMC40OTMsMS41MTQsMS40MDFjMCwwLjMzMS0wLjA3NiwwLjY5LTAuMTQyLDAuOTk0bC0wLjU0LDIuNTQ2aC0wLjYyNWwwLjU0OS0yLjY2YzAuMDY2LTAuMzEzLDAuMTA0LTAuNTIxLDAuMTA0LTAuODQyYzAtMC41NjctMC4zMjEtMC45MjctMC45MjctMC45MjdjLTEuMDQxLDAtMS41OTksMS4wMzEtMS44MjcsMi4xMzlsLTAuNDczLDIuMjkxaC0wLjYyNUw5MC4wMTEsMzUuMTN6Ii8+PHBhdGggY2xpcC1wYXRoPSJ1cmwoI1NWR0lEXzJfKSIgZD0iTTk1LjYwNSwzNS4xM2MwLjA1Ny0wLjMyMiwwLjA5NC0wLjUzLDAuMTE0LTAuNzY3aDAuNTk2Yy0wLjAyOSwwLjMwMy0wLjA1NywwLjU1OS0wLjEwNCwwLjcyOWgwLjAxOWMwLjMzMi0wLjUxMSwwLjkzNy0wLjg0MiwxLjUzMy0wLjg0MmMwLjg3MSwwLDEuNTE0LDAuNDkzLDEuNTE0LDEuNDAxYzAsMC4zMzEtMC4wNzYsMC42OS0wLjE0MiwwLjk5NGwtMC41MzksMi41NDZoLTAuNjI1bDAuNTQ5LTIuNjZjMC4wNjYtMC4zMTMsMC4xMDQtMC41MjEsMC4xMDQtMC44NDJjMC0wLjU2Ny0wLjMyMS0wLjkyNy0wLjkyNy0wLjkyN2MtMS4wNDEsMC0xLjU5OSwxLjAzMS0xLjgyNywyLjEzOWwtMC40NzMsMi4yOTFoLTAuNjI1TDk1LjYwNSwzNS4xM3oiLz48cGF0aCBjbGlwLXBhdGg9InVybCgjU1ZHSURfMl8pIiBkPSJNMTAxLjA5NCwzNi45NDhjLTAuMDE4LDAuMTIzLTAuMDI4LDAuMjU1LTAuMDI4LDAuMzg4YzAsMC45MjgsMC42MTUsMS40NTgsMS40NjcsMS40NThjMC41OTYsMCwxLjAzMi0wLjE2MSwxLjQxMS0wLjMyMmwtMC4wNDgsMC41NzdjLTAuMjgzLDAuMTA0LTAuNjUyLDAuMjU1LTEuNDM4LDAuMjU1Yy0xLjEyNiwwLTEuOTg4LTAuNjcyLTEuOTg4LTEuOTY4YzAtMS42MTksMC45NDYtMy4wODUsMi40OTktMy4wODVjMS4xMzYsMCwxLjcwNCwwLjcsMS43MDQsMS43OThjMCwwLjI5My0wLjAzOCwwLjU5Ni0wLjA2NiwwLjg5OUgxMDEuMDk0eiBNMTA0LjA0NywzNi40MzdjMC4wMDktMC4xMzIsMC4wMjktMC4yNTUsMC4wMjktMC4zNjljMC0wLjc4NS0wLjMzMi0xLjMwNi0xLjEwOC0xLjMwNmMtMC45MjgsMC0xLjYwOSwwLjc5NS0xLjc3LDEuNjc1SDEwNC4wNDd6Ii8+PHBhdGggY2xpcC1wYXRoPSJ1cmwoI1NWR0lEXzJfKSIgZD0iTTEwOS40MTMsMzQuOTc5Yy0wLjE4LTAuMDk0LTAuNzM4LTAuMjE3LTEuMTE3LTAuMjE3Yy0xLjM3MiwwLTIuMTEsMS4wMDMtMi4xMSwyLjI5YzAsMC45OTQsMC42NjMsMS43NDEsMS41NjIsMS43NDFjMC4zNTksMCwwLjcyLTAuMTIzLDEuMDIyLTAuMjI3bC0wLjA3NiwwLjU5NmMtMC4yMjcsMC4wNzYtMC42MDUsMC4xNDItMS4wOTgsMC4xNDJjLTEuMzkxLDAtMi4wNjMtMS4xNjUtMi4wNjMtMi4yMDVjMC0xLjcwNCwwLjk2NS0yLjg0OSwyLjgzLTIuODQ5YzAuMzk4LDAsMC45NzUsMC4wOTUsMS4yMjEsMC4xODlMMTA5LjQxMywzNC45Nzl6Ii8+PHBhdGggY2xpcC1wYXRoPSJ1cmwoI1NWR0lEXzJfKSIgZD0iTTExMS41OCwzMy4yODVsMC42ODItMC4yMzdsLTAuMjk0LDEuMzE1aDEuMjZsLTAuMTI0LDAuNTExaC0xLjIzOWwtMC41MTEsMi4zODVjLTAuMDY2LDAuMzIyLTAuMTQyLDAuNjM0LTAuMTQyLDAuOTQ2YzAsMC4zNzgsMC4xOTksMC41ODcsMC41NDksMC41ODdjMC4xOCwwLDAuMzQtMC4wMzgsMC41MTEtMC4xMzJsLTAuMDU3LDAuNTExYy0wLjE3OSwwLjA4NS0wLjM1OSwwLjEzMi0wLjYwNSwwLjEzMmMtMC42NzIsMC0xLjA1MS0wLjM3OC0xLjA1MS0wLjg5OWMwLTAuNDE2LDAuMTcxLTEuMTgzLDAuMjE4LTEuMzkxbDAuNDY0LTIuMTM5aC0wLjk2NWwwLjEzMi0wLjUxMWgwLjk0NkwxMTEuNTgsMzMuMjg1eiIvPjxwYXRoIGNsaXAtcGF0aD0idXJsKCNTVkdJRF8yXykiIGQ9Ik0xMTQuNDY3LDM0LjM2NGgwLjYyNWwtMS4wMjIsNC44MjdoLTAuNjI1TDExNC40NjcsMzQuMzY0eiBNMTE1LjQwNCwzMy4wNzdoLTAuNzFsMC4xNy0wLjc5NGgwLjcxTDExNS40MDQsMzMuMDc3eiIvPjxwYXRoIGNsaXAtcGF0aD0idXJsKCNTVkdJRF8yXykiIGQ9Ik0xMTYuNzA5LDM1LjEzYzAuMDU3LTAuMzIyLDAuMDk1LTAuNTMsMC4xMTMtMC43NjdoMC41OTdjLTAuMDI5LDAuMzAzLTAuMDU3LDAuNTU5LTAuMTA0LDAuNzI5aDAuMDE5YzAuMzMyLTAuNTExLDAuOTM4LTAuODQyLDEuNTMzLTAuODQyYzAuODcxLDAsMS41MTUsMC40OTMsMS41MTUsMS40MDFjMCwwLjMzMS0wLjA3NiwwLjY5LTAuMTQyLDAuOTk0bC0wLjU0LDIuNTQ2aC0wLjYyNWwwLjU0OS0yLjY2YzAuMDY2LTAuMzEzLDAuMTA0LTAuNTIxLDAuMTA0LTAuODQyYzAtMC41NjctMC4zMjItMC45MjctMC45MjgtMC45MjdjLTEuMDQxLDAtMS42LDEuMDMxLTEuODI3LDIuMTM5bC0wLjQ3MywyLjI5MWgtMC42MjVMMTE2LjcwOSwzNS4xM3oiLz48cGF0aCBjbGlwLXBhdGg9InVybCgjU1ZHSURfMl8pIiBkPSJNMTIxLjMsNDAuMzA4YzAuNDczLDAuMzEzLDAuOTU2LDAuNDE3LDEuNDc3LDAuNDE3YzEuMzgxLDAsMS43NS0wLjY4MiwyLjAzNS0xLjg4NGwwLjA3Ni0wLjM1aC0wLjAxOWMtMC40MjYsMC40NzMtMC45NzUsMC43LTEuNjE5LDAuN2MtMS4xNDUsMC0xLjcyMy0wLjkyNy0xLjcyMy0xLjk2OWMwLTEuNTIzLDAuODUyLTIuOTcyLDIuNDYxLTIuOTcyYzAuNzU3LDAsMS40MSwwLjMxMiwxLjU2MSwxLjA5OGgwLjAyYzAuMDU2LTAuMzIyLDAuMTMyLTAuNjUzLDAuMjI3LTAuOTg1aDAuNTk3Yy0wLjA0NywwLjE5OS0wLjEzMywwLjU2OC0wLjIyNywwLjk4NWwtMC43MiwzLjMyMmMtMC4zNTksMS42NzUtMC43MDksMi41NjUtMi42NjgsMi41NjVjLTAuNTU5LDAtMS4wNjEtMC4wNjYtMS42MzgtMC4zMjJMMTIxLjMsNDAuMzA4eiBNMTIzLjQ2NywzOC42OGMxLjIwMiwwLDEuODE3LTEuMjc3LDEuODE3LTIuMzg1YzAtMC44NjEtMC40MjUtMS41MzMtMS4zMDYtMS41MzNjLTEuMTc0LDAtMS43OTgsMS40LTEuNzk4LDIuNDZDMTIyLjE4LDM4LjAyNywxMjIuNTc3LDM4LjY4LDEyMy40NjcsMzguNjgiLz48cG9seWdvbiBjbGlwLXBhdGg9InVybCgjU1ZHSURfMl8pIiBwb2ludHM9IjEzMC43MTYsMzIuNTg0IDEzNS4zODIsMzIuNTg0IDEzNS4yNjgsMzMuMTUyIDEzMy4yNjIsMzMuMTUyIDEzMS45OTQsMzkuMTkxIDEzMS4zMTMsMzkuMTkxIDEzMi41OTksMzMuMTUyIDEzMC41OTMsMzMuMTUyICIvPjxwYXRoIGNsaXAtcGF0aD0idXJsKCNTVkdJRF8yXykiIGQ9Ik0xMzQuOTQ3LDM2Ljk0OGMtMC4wMiwwLjEyMy0wLjAyOSwwLjI1NS0wLjAyOSwwLjM4OGMwLDAuOTI4LDAuNjE1LDEuNDU4LDEuNDY3LDEuNDU4YzAuNTk3LDAsMS4wMzItMC4xNjEsMS40MTEtMC4zMjJsLTAuMDQ3LDAuNTc3Yy0wLjI4NCwwLjEwNC0wLjY1MywwLjI1NS0xLjQzOSwwLjI1NWMtMS4xMjYsMC0xLjk4OC0wLjY3Mi0xLjk4OC0xLjk2OGMwLTEuNjE5LDAuOTQ2LTMuMDg1LDIuNDk5LTMuMDg1YzEuMTM2LDAsMS43MDMsMC43LDEuNzAzLDEuNzk4YzAsMC4yOTMtMC4wMzcsMC41OTYtMC4wNjYsMC44OTlIMTM0Ljk0N3ogTTEzNy44OTksMzYuNDM3YzAuMDEtMC4xMzIsMC4wMjktMC4yNTUsMC4wMjktMC4zNjljMC0wLjc4NS0wLjMzMi0xLjMwNi0xLjEwNy0xLjMwNmMtMC45MjcsMC0xLjYwOSwwLjc5NS0xLjc3LDEuNjc1SDEzNy44OTl6Ii8+PHBhdGggY2xpcC1wYXRoPSJ1cmwoI1NWR0lEXzJfKSIgZD0iTTE0My4yNjYsMzQuOTc5Yy0wLjE4LTAuMDk0LTAuNzM4LTAuMjE3LTEuMTE3LTAuMjE3Yy0xLjM3MiwwLTIuMTEsMS4wMDMtMi4xMSwyLjI5YzAsMC45OTQsMC42NjMsMS43NDEsMS41NjIsMS43NDFjMC4zNTksMCwwLjcxOS0wLjEyMywxLjAyMS0wLjIyN2wtMC4wNzYsMC41OTZjLTAuMjI3LDAuMDc2LTAuNjA1LDAuMTQyLTEuMDk4LDAuMTQyYy0xLjM5MSwwLTIuMDYzLTEuMTY1LTIuMDYzLTIuMjA1YzAtMS43MDQsMC45NjUtMi44NDksMi44MjktMi44NDljMC4zOTgsMCwwLjk3NiwwLjA5NSwxLjIyMSwwLjE4OUwxNDMuMjY2LDM0Ljk3OXoiLz48cGF0aCBjbGlwLXBhdGg9InVybCgjU1ZHSURfMl8pIiBkPSJNMTQ1LjMzOCwzMi4wOTNoMC42MjVsLTAuNzE5LDMuMDU3aDAuMDE5YzAuMzQxLTAuNTY3LDAuNzc2LTAuODUyLDEuNTQyLTAuODk5YzAuODcxLDAsMS41MTUsMC40OTIsMS41MTUsMS40MDFjMCwwLjMzMS0wLjA2NiwwLjY3Mi0wLjE0MiwwLjk5NGwtMC41NCwyLjU0NmgtMC42MjVsMC41NDktMi42NmMwLjA2Ni0wLjMxMywwLjEwNC0wLjUyMSwwLjEwNC0wLjg0MmMwLTAuNTY4LTAuMzIyLTAuOTI3LTAuOTI4LTAuOTI3Yy0xLjA0MiwwLTEuNTYyLDEuMDQxLTEuNzc5LDIuMDYzbC0wLjUyMSwyLjM2NmgtMC42MjRMMTQ1LjMzOCwzMi4wOTN6Ii8+PHBhdGggY2xpcC1wYXRoPSJ1cmwoI1NWR0lEXzJfKSIgZD0iTTE1MC4yNCwzNS4xM2MwLjA1Ny0wLjMyMiwwLjA5NS0wLjUzLDAuMTE0LTAuNzY3aDAuNTk2Yy0wLjAyOCwwLjMwMy0wLjA1NywwLjU1OS0wLjEwNCwwLjcyOWgwLjAxOWMwLjMzMi0wLjUxMSwwLjkzNy0wLjg0MiwxLjUzMy0wLjg0MmMwLjg3MSwwLDEuNTE1LDAuNDkzLDEuNTE1LDEuNDAxYzAsMC4zMzEtMC4wNzYsMC42OS0wLjE0MiwwLjk5NGwtMC41NCwyLjU0NmgtMC42MjVsMC41NDktMi42NmMwLjA2Ni0wLjMxMywwLjEwNC0wLjUyMSwwLjEwNC0wLjg0MmMwLTAuNTY3LTAuMzIyLTAuOTI3LTAuOTI4LTAuOTI3Yy0xLjA0MiwwLTEuNiwxLjAzMS0xLjgyNywyLjEzOWwtMC40NzQsMi4yOTFoLTAuNjI1TDE1MC4yNCwzNS4xM3oiLz48cGF0aCBjbGlwLXBhdGg9InVybCgjU1ZHSURfMl8pIiBkPSJNMTU3Ljc5MywzNC4yNWMxLjIzLDAsMS45MjEsMC44MjQsMS45MjEsMi4wNzNjMCwxLjYwOC0xLjAxMywyLjk4MS0yLjY3OSwyLjk4MWMtMS4xOTIsMC0xLjkzMS0wLjg5OC0xLjkzMS0yLjEwMUMxNTUuMTA1LDM1LjU4NSwxNTYuMTU1LDM0LjI1LDE1Ny43OTMsMzQuMjUgTTE1Ny4xMTEsMzguNzkzYzEuMjQ5LDAsMS45NS0xLjMyNSwxLjk1LTIuNDZjMC0wLjkwOS0wLjQwNy0xLjU3MS0xLjM0NC0xLjU3MWMtMS4zMzQsMC0xLjk1OSwxLjMwNi0xLjk1OSwyLjUzNkMxNTUuNzU4LDM4LjEzMSwxNTYuMjY5LDM4Ljc5MywxNTcuMTExLDM4Ljc5MyIvPjxwb2x5Z29uIGNsaXAtcGF0aD0idXJsKCNTVkdJRF8yXykiIHBvaW50cz0iMTYyLjEwOCwzMi4wOTMgMTYyLjczMywzMi4wOTMgMTYxLjIxOCwzOS4xOTEgMTYwLjU5NCwzOS4xOTEgIi8+PHBhdGggY2xpcC1wYXRoPSJ1cmwoI1NWR0lEXzJfKSIgZD0iTTE2NS44MTgsMzQuMjVjMS4yMzEsMCwxLjkyMiwwLjgyNCwxLjkyMiwyLjA3M2MwLDEuNjA4LTEuMDEzLDIuOTgxLTIuNjc5LDIuOTgxYy0xLjE5MywwLTEuOTMxLTAuODk4LTEuOTMxLTIuMTAxQzE2My4xMywzNS41ODUsMTY0LjE4MSwzNC4yNSwxNjUuODE4LDM0LjI1IE0xNjUuMTM3LDM4Ljc5M2MxLjI1LDAsMS45NTEtMS4zMjUsMS45NTEtMi40NmMwLTAuOTA5LTAuNDA3LTEuNTcxLTEuMzQ1LTEuNTcxYy0xLjMzNCwwLTEuOTU5LDEuMzA2LTEuOTU5LDIuNTM2QzE2My43ODQsMzguMTMxLDE2NC4yOTUsMzguNzkzLDE2NS4xMzcsMzguNzkzIi8+PHBhdGggY2xpcC1wYXRoPSJ1cmwoI1NWR0lEXzJfKSIgZD0iTTE2OC40NSw0MC4zMDhjMC40NzQsMC4zMTMsMC45NTYsMC40MTcsMS40NzcsMC40MTdjMS4zODEsMCwxLjc1MS0wLjY4MiwyLjAzNS0xLjg4NGwwLjA3Ni0wLjM1aC0wLjAyYy0wLjQyNiwwLjQ3My0wLjk3NCwwLjctMS42MTgsMC43Yy0xLjE0NiwwLTEuNzIzLTAuOTI3LTEuNzIzLTEuOTY5YzAtMS41MjMsMC44NTItMi45NzIsMi40Ni0yLjk3MmMwLjc1NywwLDEuNDEsMC4zMTIsMS41NjIsMS4wOThoMC4wMThjMC4wNTctMC4zMjIsMC4xMzMtMC42NTMsMC4yMjgtMC45ODVoMC41OTZjLTAuMDQ3LDAuMTk5LTAuMTMyLDAuNTY4LTAuMjI3LDAuOTg1bC0wLjcyLDMuMzIyYy0wLjM1OSwxLjY3NS0wLjcwOSwyLjU2NS0yLjY2OCwyLjU2NWMtMC41NTgsMC0xLjA2LTAuMDY2LTEuNjM3LTAuMzIyTDE2OC40NSw0MC4zMDh6IE0xNzAuNjE3LDM4LjY4YzEuMjAyLDAsMS44MTctMS4yNzcsMS44MTctMi4zODVjMC0wLjg2MS0wLjQyNi0xLjUzMy0xLjMwNy0xLjUzM2MtMS4xNzMsMC0xLjc5OCwxLjQtMS43OTgsMi40NkMxNjkuMzMsMzguMDI3LDE2OS43MjgsMzguNjgsMTcwLjYxNywzOC42OCIvPjxwYXRoIGNsaXAtcGF0aD0idXJsKCNTVkdJRF8yXykiIGQ9Ik0xNzUuMjY0LDQwLjMyN2MtMC4yOTMsMC41NDktMC42NDQsMC45MDktMS4yOTcsMC45MDljLTAuMjA4LDAtMC4zOTYtMC4wMjgtMC41NzYtMC4xMzJsMC4xNDItMC41MTFjMC4xMDQsMC4xMDQsMC4yNDYsMC4xMzMsMC4zODgsMC4xMzNjMC40MTcsMCwwLjczOS0wLjM3OSwwLjkxOC0wLjc1OGwwLjQwNy0wLjc2NmwtMC42ODEtNC44MzdoMC42MjVsMC40OTIsNC4xNTVoMC4wMTlsMi4yNjMtNC4xNTVoMC42NDNMMTc1LjI2NCw0MC4zMjd6Ii8+PC9nPjwvc3ZnPg==",
+      Position = { 9, 13 },
+      Size = { 172, 32 }
+    },
+    {
+      Type = "Text",
+      Text = "HDR-H2H-88MA",
+      Color = Color.Atlona,
+      IsBold = true,
+      Position = { 188, 9 },
+      Size = { 176, 32 }
+    },
+    {
+      Type = "Text",
+      Text = "Plugin v"..PluginInfo.Version,
+      Color = Color.Atlona,
+      Font = "Roboto",
+      FontSize = 8,
+      FontStyle = "Italic",
+      Position = { 188, 33 },
+      Size = { 176, 19 }
+    },
+    {
+      Type = "Text",
+      Text = "Connect",
+      Color = Color.GrayTxt,
+      Position = { 16, 79 },
+      Size = { 89, 19 }
+    },
+  }
+
+  local Labels = {
+    Text = {"IP Address","Port","Status","Power","Panel Lock"},
+    Pos = {  X = {123,280,238,112,234},
+             Y = {63,63,79,144,144}, },
+    Size = { X = {58,31,37,35,70},
+             Y = {16,16,18,15,16} } }
+
+  for i=1,8 do
+    table.insert(graphics,
+      {
+        Type = "Text",
+        Text = "Source Selection",
+        Color = Color.GrayTxt,
+        HTextAlign = "Right",
+        Position = {211,146+(i*49)},
+        Size = {94,16}
+      })
+  end
+
+  for i=1,#Labels.Pos.X do
+    table.insert(graphics,
+      {
+        Type = "Text",
+        Text = Labels.Text[i],
+        Color = Color.GrayTxt,
+        HTextAlign = "Right",
+        Position = { Labels.Pos.X[i], Labels.Pos.Y[i] },
+        Size = { Labels.Size.X[i], Labels.Size.Y[i] }
+      })
+  end
+
+  local GrBox = {
+    Text = {"Connection Settings","System Settings","Routing"},
+    PosY = {56,137,170},
+    SizeY = {78,30,465},
+  }
+
+  for i=1,#GrBox.PosY do
+    table.insert(graphics,
+      {
+        Type = "GroupBox",
+        Color = Color.LtGray,
+        StrokeColor = Color.Atlona,
+        Text = GrBox.Text[i],
+        HTextAlign = "Left",
+        StrokeWidth = 1,
+        Radius = 4,
+        Position = { 6, GrBox.PosY[i] },
+        Size = { 358, GrBox.SizeY[i] }
+      })
+  end
+
+  local Headers = {
+    Text = {"Output 1","Output 2","Output 3","Output 4","Output 5","Output 6","Output 7","Output 8","Input HDCP Compliance"},
+    PosY = {188,237,286,335,382,431,480,529,600},
+  }
+
+  for i=1,#Headers.PosY do
+    table.insert(graphics,
+    {
+      Type = "Header",
+      Text = Headers.Text[i],
+      Color = {51,51,51},
+      HTextAlign = "Center",
+      TextFontSize = 12,
+      Position = {14,Headers.PosY[i]},
+      Size = {342,6},
+    })
+  end
+
+  return layout , graphics
+end
+
+if Controls then
+--Subtract 60 from error line number for actual error line number
+-- Control Aliases
+power = Controls.power
+panellock = Controls.panellock
+connect = Controls.connect
+ip = Controls.ip 
+port = Controls.port
+status = Controls.status
+
+-- Timers and Sockets
+ATLONA = TcpSocket.New()
+BufferTimer = Timer.New() 
+StatusTimer = Timer.New()
+
+-- Constants
+local status_state = { OK = 0, COMPROMISED = 1, FAULT = 2, NOTPRESENT = 3, MISSING = 4, INITIALIZING = 5 }
+local ignoreresp = {"Welcome to TELNET.","HDR-H2H-88MA"}
+local Color = {
+  Atlona = "#FF671B",
+  LtGray = "#999999",
+  GrayTxt = "#666666",
+}
+ATLONA.ReconnectTimeout = 5
+
+-- Variables
+local Buffer = ""
+if ip.String=="" then port.Value=23 end
+
+-- Helper Functions
+function Status( msg, state )
+  status.Value = status_state[state]
+  status.String = msg
+  if DebugDesc or (status_state[state]>0) then print( msg ) end
+end
+
+local function find(a,t) local f = false for _,_a in pairs(t) do f=a==_a if f then break end end return f end
+local function findix(a,t) local f,ixout = false for ix,_a in pairs(t) do f=a==_a if f then ixout=ix break end end return ixout end
+local function retonoff(ctl,ul)
+  local state = "O"..(ctl.Boolean and "n" or "ff")
+  print(ul~=nil and (string[ul=="u" and "upper" or ul=="l" and "lower"](state)) or state )
+end
+
+local function DebugFormat(string) -- Format strings containing non-printable characters so we can see what they are
+  local visual = ""
+  if type(string) == "string" then
+    for i=1,#string do
+      local byte = string:sub(i,i)
+      if string.byte(byte) >= 32 and string.byte(byte) <= 126 then
+        visual = visual..byte
+      else
+        visual = visual..string.format("[%02xh]",string.byte(byte))
+      end
+    end
+  else
+    visual = "Type is: "..type(string)
+  end
+  return visual
+end
+
+function ResponseBuffer(sock)
+  local newrx = ATLONA:Read( ATLONA.BufferLength )
+  Buffer=Buffer..newrx 
+  BufferTimer:Start(0)
+end
+
+-------------------------
+function InitChoices()
+  Inputs = {}
+  for i=1,8 do
+    local inp = string.format(Source.pretty[i].." %i",i)
+    table.insert(Inputs,inp)
+  end
+  for i=1,4 do
+    local out = Controls[string.format("outsel%i",i)]
+    out.Choices = Inputs
+    if out.String=="" then out.String="Select" end
+  end
+end
+
+local function SourceMutual(ctl)
+  for k,v in pairs(Source.pretty) do
+    local o = string.match(ctl,"out(%d)")
+    local color = string.format("out%iin%i",o,k) == ctl and Color.Atlona or Color.LtGray
+    Controls[string.format("out%iin%i",o,k)].Color = color 
+  end
+end
+ 
+function CtlTableSetup()
+  -- EventHandlers
+  power.EventHandler = function() local state = power.Boolean and "ON" or "OFF" Send(string.format("PW%s",state)) end
+  panellock.EventHandler = function() local l = panellock.Boolean and "Lock" or "Unlock" Send(l) end
+  for out=1,8 do
+    Controls[string.format("outsel%i",out)].EventHandler = function()
+      for k,v in pairs(Source.pretty) do
+        local c = Controls[string.format("outsel%i",out)].String
+        p = string.match(c,"%d")
+      end
+      Send(string.format("x%iAVx%i",p,out))
+      ctl = string.format("out%iin%i",out,p)
+      SourceMutual(ctl)
+    end
+    for inp=1,8 do
+      Controls[string.format("out%iin%i",out,inp)].EventHandler = function()
+        ctl = string.format("out%iin%i",out,inp)
+        SourceMutual(ctl)
+        Controls[string.format("outsel%i",out)].String = Inputs[inp]
+        Send(string.format("x%iAVx%i",inp,out))
+      end
+    end
+  end
+  for i=1,8 do
+    Controls[string.format("inhdcp%i",i)].EventHandler = function()
+      local h = Controls[string.format("inhdcp%i",i)].Boolean and "on" or "off"
+      Send(string.format("HDCPSet%i %s",i,h))
+    end
+  end
+end
+
+function Send(cmd)
+  if ATLONA.IsConnected then
+    ATLONA:Write(cmd.."\r\n")
+  end
+end
+
+function StatusGet()
+  Send("PWSTA")
+  for i=1,8 do
+    Send(string.format("Status%i",i))
+  end
+  for i=1,8 do
+    Send(string.format("HDCPSet%i sta",i))
+  end
+end
+
+function ParseResponse(ATLONA)
+  local BufRemove
+  if Buffer:find("\r\n") then
+    if Buffer:find("HDR-H2H-88MA") and startflag then
+      StatusGet()
+      StatusTimer:Start(30)
+      startflag=false
+    end
+    for resp in Buffer:gmatch("([^\r\n]+)") do
+      _,BufRemove = Buffer:find(resp.."\r\n")
+      local chTable
+      local rcmd,pName,value = resp:match("(%a)([^:]+):(.*)")
+      if resp:find("^PW") then
+        local p = tostring(resp:match("PW(.+)"))
+        power.Boolean = p=="ON"
+      elseif resp:find("^Lock") then
+        panellock.Boolean=true
+      elseif resp:find("^Unlock") then
+        panellock.Boolean=false
+      elseif resp:find("^x") then
+        local inp,out = resp:match("x(%d)AVx(%d)")
+        Controls[string.format("outsel%i",out)].String = Inputs[tonumber(inp)]
+        local ctl = string.format("out%iin%i",out,inp)
+        SourceMutual(ctl)
+      elseif resp:find("^HDCPSet") then
+        local inp = resp:match("HDCPSet(%d)")
+        local bool = resp:find("on")
+        Controls[string.format("inhdcp%i",tonumber(inp))].Boolean = bool
+      elseif not find(resp,ignoreresp) then
+        print("Unhandled:",resp)
+      end
+    end
+    if BufRemove~=nil then Buffer = Buffer:sub(BufRemove+1) end
+    if Buffer:find("!") and #Buffer==1 then Buffer="" end
+    if #Buffer==0 then BufferTimer:Stop() end
+  end
+end
+
+ATLONA.EventHandler = function( sock, evt, err )
+  if evt == TcpSocket.Events.Connected then
+    startflag = true
+    Status( "Connected", "OK" )
+    Send("Type")
+    StatusGet()
+    Send(panellock.Boolean and "Lock" or "Unlock")
+    Send("Broadcast on")
+    Send("IPTimeout 120")
+  elseif evt == TcpSocket.Events.Reconnect then
+    Status( "Reconnecting...", "INITIALIZING"  )
+  elseif evt == TcpSocket.Events.Data then
+    ResponseBuffer(sock)
+  elseif evt == TcpSocket.Events.Closed then
+    Status( "Connection closed by remote", "FAULT" )
+  elseif evt == TcpSocket.Events.Error then
+    Status( "Connection closed due to error: "..err, "FAULT" )
+  elseif evt == TcpSocket.Events.Timeout then
+    Status( "Connection closed due to timeout", "FAULT" )
+  end
+end
+
+-- TCP Socket Functions
+function Connect()
+  if connect.Boolean then
+    if ATLONA.IsConnected then ATLONA:Disconnect() end
+    Status("Connecting...", "INITIALIZING")
+    ATLONA:Connect(ip.String,port.Value)
+  else
+    ATLONA:Disconnect() 
+    Status( "Disconnected", "OK" )
+  end
+end
+
+function Init()
+  BufferTimer.EventHandler = ParseResponse
+  StatusTimer.EventHandler = StatusGet
+  CtlTableSetup()
+  InitChoices()
+  connect.EventHandler = Connect
+  ip.EventHandler = Connect
+  port.EventHandler = Connect
+  Connect()
+end
+
+Init()
+
+end

@@ -1,0 +1,256 @@
+PluginInfo = 
+{
+	Name = "AD-DA.ca~Pharos LPC",
+	Version = "1.0.0",
+	Id = "d9724dce-53fa-4391-a1c9-40f2f0f566b9",
+	Description = "Control your Pharos LPC",
+	ShowDebug = true,
+	Author = "Paul Ricard"
+};
+
+function GetColor(props);
+  	return { 0, 200, 255 };
+end;
+
+function GetProperties();
+  	props = {
+  		{ Name = "Timeline", Type = "integer", Min = 0, Max = 255, Value = 1 }
+	};
+  	return props;
+end;
+
+function GetControls(props);
+	ctrl = {
+		{ Name = "ip", ControlType = "Text", Count = 1, PinStyle = "Both", UserPin = true },
+
+    	{ Name = "system_hardware_type", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+    	{ Name = "system_channel_capacity", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+    	{ Name = "system_serial_number", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+    	{ Name = "system_memory_total", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+    	{ Name = "system_memory_used", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+    	{ Name = "system_memory_free", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+    	{ Name = "system_storage_size", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+    	{ Name = "system_bootloader_version", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+    	{ Name = "system_firmware_version", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+    	{ Name = "system_reset_reason", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+    	{ Name = "system_last_boot_time", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+    	{ Name = "system_ip_address", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+    	{ Name = "system_subnet_mask", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+    	{ Name = "system_default_gateway", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+
+    	{ Name = "project_name", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+    	{ Name = "project_author", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+    	{ Name = "project_filename", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+    	{ Name = "project_unique_id", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+    	{ Name = "project_upload_date", ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true },
+
+    	{ Name = "timeline_pause_all", ControlType = "Button", ButtonType = "Trigger", Count = 1, PinStyle = "Both", UserPin = true },
+    	{ Name = "timeline_resume_all", ControlType = "Button", ButtonType = "Trigger", Count = 1, PinStyle = "Both", UserPin = true },
+    	{ Name = "timeline_release_all", ControlType = "Button", ButtonType = "Trigger", Count = 1, PinStyle = "Both", UserPin = true },
+
+    }
+
+    for i = 1, props["Timeline"].Value do;
+
+    	table.insert(ctrl, { Name = "timeline_name "..i, ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true } );
+    	table.insert(ctrl, { Name = "timeline_group "..i, ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true } );
+    	table.insert(ctrl, { Name = "timeline_length "..i, ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true } );
+    	table.insert(ctrl, { Name = "timeline_source_bus "..i, ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true } );
+    	table.insert(ctrl, { Name = "timeline_timecode_format "..i, ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true } );
+    	table.insert(ctrl, { Name = "timeline_audio_band "..i, ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true } );
+    	table.insert(ctrl, { Name = "timeline_audio_channel "..i, ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true } );
+    	table.insert(ctrl, { Name = "timeline_audio_peak "..i, ControlType = "Indicator", IndicatorType = "Led", Count = 1, PinStyle = "Output", UserPin = true } );
+    	table.insert(ctrl, { Name = "timeline_time_offset "..i, ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true } );
+    	table.insert(ctrl, { Name = "timeline_state "..i, ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true } );
+    	table.insert(ctrl, { Name = "timeline_onstage "..i, ControlType = "Indicator", IndicatorType = "Led", Count = 1, PinStyle = "Output", UserPin = true } );
+    	table.insert(ctrl, { Name = "timeline_position "..i, ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true } );
+    	table.insert(ctrl, { Name = "timeline_priority "..i, ControlType = "Indicator", IndicatorType = "Text", Count = 1, PinStyle = "Output", UserPin = true } );
+
+    	table.insert(ctrl, { Name = "timeline_start "..i, ControlType = "Button", ButtonType = "Trigger", Count = 1, PinStyle = "Both", UserPin = true } );
+    	table.insert(ctrl, { Name = "timeline_release "..i, ControlType = "Button", ButtonType = "Trigger", Count = 1, PinStyle = "Both", UserPin = true } );
+    	table.insert(ctrl, { Name = "timeline_pause "..i, ControlType = "Button", ButtonType = "Trigger", Count = 1, PinStyle = "Both", UserPin = true } );
+    	table.insert(ctrl, { Name = "timeline_resume "..i, ControlType = "Button", ButtonType = "Trigger", Count = 1, PinStyle = "Both", UserPin = true } );
+
+    end;
+
+	return ctrl;
+end;
+
+if Controls then;
+
+json = require("rapidjson")
+HeartBeat = Timer.New();
+HeartBeatTimeline = Timer.New();
+--[[ Variables ]]--
+API = {};
+API["system"] = {"hardware_type", "channel_capacity", "serial_number", "memory_total", "memory_used", "memory_free", "storage_size", "bootloader_version", "firmware_version", "reset_reason", "last_boot_time", "ip_address", "subnet_mask", "default_gateway"};
+API["project"] = {"name", "author", "filename", "unique_id", "upload_date"};
+API["timeline"] = {"name", "group", "length", "source_bus", "timecode_format", "audio_band", "audio_channel", "audio_peak", "time_offset", "state", "onstage", "position", "priority"};
+
+HeartBeatDone = function(t, c, d, e, h);
+  if c == 200 then;
+    if t["Url"] == Controls["ip"].String.."/api/system" then;
+      local RX = json.decode(d);
+      for k, v in pairs(API["system"]) do;
+        Controls["system_"..v].String = RX[v];
+      end;
+    elseif t["Url"] == Controls["ip"].String.."/api/project" then;
+      local RX = json.decode(d);
+      for k, v in pairs(API["project"]) do;
+        Controls["project_"..v].String = RX[v];
+      end;
+    elseif t["Url"] == Controls["ip"].String.."/api/timeline" then;
+      local RX = json.decode(d);
+      for _, Timelines in pairs(RX) do;
+        for i = 1, Properties["Timeline"].Value do;
+          for k, v in pairs(API["timeline"]) do;
+            Controls["timeline_"..v.." "..i].String = tostring(Timelines[i][v]);
+          end;
+        end;
+      end;
+    end;
+  end;
+end;
+HeartBeatFunction = function(x);
+  if x == "system" then;
+    for k, v in pairs(API) do;
+      if k ~= "timeline" then;
+        HttpClient.Download { 
+          Url = Controls["ip"].String.."/api/"..k, 
+          Headers = { 
+            ["Content-Type"] = "application/json" 
+          }, 
+          Timeout = 2, 
+          EventHandler = HeartBeatDone 
+        };
+      end;
+    end;
+  elseif x == "timeline" then;
+    HttpClient.Download { 
+      Url = Controls["ip"].String.."/api/timeline", 
+      Headers = { 
+        ["Content-Type"] = "application/json" 
+      }, 
+      Timeout = 2, 
+      EventHandler = HeartBeatDone 
+    };
+  end;
+end;
+
+HeartBeat.EventHandler = function(t);
+  HeartBeatFunction("system");
+end;
+HeartBeatTimeline.EventHandler = function(t);
+  HeartBeatFunction("timeline");
+end;
+
+Pharos = {}
+Pharos["Done"] = function(t, c, d, e, h);
+  
+end;
+
+Pharos["Set"] = function(_, u, d);
+  	HttpClient.Upload {
+    	Url = Controls["ip"].String.."/api/"..u,
+    	Method = "POST",
+    	Data = d,
+    	Headers = {
+      		["Content-Type"] = "application/json"
+    	},
+    	EventHandler = Pharos["Done"]
+  	};
+end;
+
+Controls["timeline_pause_all"].EventHandler = function(c);
+	local URL = "timeline";
+    local DATA = {};
+    DATA["action"] = "pause";
+    
+    DATA = json.encode(DATA);
+    
+    Pharos:Set(URL, DATA);
+end;
+Controls["timeline_resume_all"].EventHandler = function(c);
+	local URL = "timeline";
+    local DATA = {};
+    DATA["action"] = "resume";
+    
+    DATA = json.encode(DATA);
+    
+    Pharos:Set(URL, DATA);
+end;
+Controls["timeline_release_all"].EventHandler = function(c);
+	local URL = "timeline";
+    local DATA = {};
+    DATA["action"] = "release";
+    
+    DATA = json.encode(DATA);
+    
+    Pharos:Set(URL, DATA);
+end;
+
+
+for i = 1, Properties["Timeline"].Value do;
+  Controls["timeline_start "..i].EventHandler = function(c);
+    local URL = "timeline";
+    local DATA = {};
+    DATA["action"] = "start";
+    DATA["num"] = i;
+    
+    DATA = json.encode(DATA);
+    
+    Pharos:Set(URL, DATA);
+  end;
+  Controls["timeline_release "..i].EventHandler = function(c);
+    local URL = "timeline";
+    local DATA = {};
+    DATA["action"] = "release";
+    DATA["num"] = i;
+    DATA["fade"] = 2.0;
+    
+    DATA = json.encode(DATA);
+    
+    Pharos:Set(URL, DATA);
+  end;
+  Controls["timeline_pause "..i].EventHandler = function(c);
+    local URL = "timeline";
+    local DATA = {};
+    DATA["action"] = "pause";
+    DATA["num"] = i;
+    
+    DATA = json.encode(DATA);
+    
+    Pharos:Set(URL, DATA);
+  end;
+ Controls["timeline_resume "..i].EventHandler = function(c);
+    local URL = "timeline";
+    local DATA = {};
+    DATA["action"] = "resume";
+    DATA["num"] = i;
+    
+    DATA = json.encode(DATA);
+    
+    Pharos:Set(URL, DATA);
+  end;
+end;
+
+
+Controls["ip"].EventHandler = function(c);
+  if c.String ~= "" then;
+    HeartBeatFunction("system");
+    HeartBeat:Start(10);
+    HeartBeatTimeline:Start(1);
+  else;
+    HeartBeat:Stop();
+  end;
+end;
+
+if Controls["ip"].String ~= "" then;
+  HeartBeatFunction("system");
+  HeartBeat:Start(10);
+  HeartBeatTimeline:Start(1);
+end;
+
+
+--Last Line
+end;

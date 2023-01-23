@@ -1,0 +1,1654 @@
+PluginInfo = {
+	Name = "Sonos-Stand Alone",
+	Version = "2.0",
+	Id = "826a96f2-85cc-4972-a4c8-a602657d0bcf",
+	Description = "A Sonos Controller using SOAP",
+	ShowDebug = true
+}
+
+-- optional
+function GetPrettyName(props)
+	return "Sonos Controller"
+end
+
+function GetColor(props)
+	return {25, 25, 25}
+end
+
+function GetProperties()
+    props = {}
+    table.insert(props, 
+    {
+      Name = "Zone Count",
+      Type = "integer",
+      Min = 1,
+      Max = 20,
+      Value = 4,
+    })
+	return props
+end
+
+Colors = {
+    MediaControls = {On = {11, 167, 195}, Off = {119, 119, 119}},
+    Mute = {On = {189, 0, 0}, Off = {119, 119, 119}},
+    Group = {On = {122,122,122}, Off = {0, 89, 143}},
+    Ungroup = {On = {122,122,122}, Off = {161, 0, 28}},
+    Connect = {On = {11, 93, 0}, Off = {119, 119, 119}},
+    Others = {208, 208, 208},
+    Volume = {70,70,70},
+    Playlists = {255, 255, 255},
+    txt = { l= {255, 255, 255}, d = {0,0,0}},
+    Default = {255,255,255},
+    status = {194,194,194},
+    BackGround = {35,35,35,},
+    ETime = {255,0,70}
+}
+
+ControlsTable = {
+    Play = {l = "", ct = "Button", bt = "Toggle" , q = 1, up = true, ps = "Both", cl = true, nc = Colors.MediaControls.On, oc = Colors.MediaControls.Off, px=126,py=383,sx=80,sy=80,r=10, p = 5, m = 10 , fs = 10, ict = "Icon", ic = "Play Pause" },
+    Volume = {l = "", ct = "Knob", cu = "Integer", ft = "Fader", Min = 1,Max = 100, ps = "Both", q = 1, up = true, cl = false, nc = Colors.Default, oc = Colors.Default, px=634,py=437,sx=80,sy=213,r=5, m = 3, fs = 12},
+    Group_Volume = {l = "", ct = "Knob", cu = "Integer", ft = "Fader", Min = 1,Max = 100, ps = "Both", q = 1, up = true, cl = false, nc = Colors.Default, oc = Colors.Default, px=765,py=437,sx=80,sy=213,r=5, m = 3, fs = 12},
+    Mute = {l = "", ct = "Button", bt = "Toggle" , q = 1, up = false, cl = true, nc = Colors.Mute.On, oc = Colors.Mute.Off, px=634,py=650,sx=80,sy=80,r=10, m = 10, p = 5, fs = 15, ict = "Icon", ic = "Volume" },
+    Group_Mute = {l = "", ct = "Button", bt = "Toggle" , q = 1, up = false, cl = true, nc = Colors.Mute.On, oc = Colors.Mute.Off, px=765,py=650,sx=80,sy=80,r=10, m = 10, p = 5, fs = 15, ict = "Icon", ic = "Volume" },
+    Zones = {l = "", ct = "Button", bt = "Toggle" , up = false, cl = false, nc = Colors.Others, oc = Colors.Others, sx=123,sy=79,r=2, m = 10, fs = 15},
+    Grouping = {l = "", ct = "Button", bt = "Toggle", up = false, cl = false, nc = Colors.Others, oc = Colors.Others, sx=123,sy=79,r=2, m = 10, fs = 15},
+    Album_Art = {l = "", ct = "Button", bt = "Trigger" , q = 1, up = false, cl = true, nc = Colors.BackGround, oc = Colors.BackGround, px=54,py=28,sx=224,sy=216,r=5, m = 2, fs = 15},
+    Track = {l = "", ct = "Indicator", it= "Text", bt = "Text Box" , q = 1, up = false, cl = true, nc = Colors.Default, oc = Colors.Default, px=60,py=276,sx=215,sy=33,r=10, m = 5, fs = 12},
+    Album = {l = "", ct = "Indicator", it= "Text", bt = "Text Box" , q = 1, up = false, cl = true, nc = Colors.Default, oc = Colors.Default, px=60,py=309,sx=215,sy=33,r=10, m = 5, fs = 12},
+    Artist = {l = "", ct = "Indicator", it= "Text", bt = "Text Box" , q = 1, up = false, cl = true, nc = Colors.Default, oc = Colors.Default, px=60,py=343,sx=215,sy=33,r=10, m = 5, fs = 12},
+    Elapsed_Time = {l = "", ct = "Indicator", it= "Text", bt = "Text Box" , q = 1, up = false, cl = true, nc = Colors.BackGround, oc = Colors.BackGround, px=24,py=250,sx=36,sy=23,r=0, m = 0, fs = 12},
+    Duration = {l = "", ct = "Indicator", it= "Text", bt = "Text Box" , q = 1, up = false, cl = true, nc = Colors.BackGround, oc = Colors.BackGround, px=275,py=250,sx=36,sy=23,r=0, m = 0, fs = 12},
+    Time = {l = "", ct = "Knob", cu = "Percent", Min = 1,Max = 100, ft = "Meter", pt = "Level" , q = 1, up = false, cl = true, nc = Colors.ETime, oc = Colors.Default, px=60,py=250,sx=215,sy=23,r=5, m = 5, fs = 12},
+    Shuffle = {l = "", ct = "Button", bt = "Toggle" , q = 1, up = false, cl = true, nc = Colors.MediaControls.On, oc = Colors.Mute.Off, px=206,py=463,sx=80,sy=80,r=100, m = 10, p = 5, fs = 15, ict = "Icon", ic = "Shuffle" },
+    Repeat = {l = "", ct = "Button", bt = "Toggle" , q = 1, up = false, cl = true, nc = Colors.MediaControls.On, oc = Colors.Mute.Off, px=46,py=463,sx=80,sy=80,r=100, m = 10, p = 5, ict = "Icon", ic = "Loop" },
+    Next = {l = "", ct = "Button", bt = "Trigger" , q = 1, up = false, cl = true, nc = Colors.MediaControls.On, oc = Colors.MediaControls.Off, px=206,py=383,sx=80,sy=80,r=100, m = 10, p = 5, fs = 15, ict = "Icon", ic = "Next" },
+    Previous = {l = "", ct = "Button", bt = "Trigger" , q = 1, up = false, cl = true, nc = Colors.MediaControls.On, oc = Colors.MediaControls.Off, px=46,py=383,sx=80,sy=80,r=100, m = 10, p = 5, fs = 15, ict = "Icon", ic = "Previous" },
+    Queue = {l = "", ct = "Text", bt = "ListBox", ft = "ListBox", q = 1, up = false, cl = true, nc = Colors.status, oc = Colors.status, px=352,py=41,sx=232,sy=300,r=5, m = 5, fs = 12},
+    Playlist = {l = "", ct = "Text", bt = "ListBox" , ft = "ListBox", q = 1, up = false, cl = true, nc = Colors.status, oc = Colors.status, px=352,py=420,sx=232,sy=300,r=5, m = 5, fs = 12},
+    Force_Discovery = {l = "Discover", ct = "Button", bt = "Trigger" , q = 1, up = false, cl = true, nc = Colors.Connect.On, oc = Colors.Connect.Off, px=114,py=694,sx=106,sy=42,r=2, m = 2, fs = 12},
+    Max_String_Len = {l = "", ct = "Knob", cu= "Integer", Min = 10,Max = 60, ft = "Text Field" , q = 1, up = false, cl = true, nc = Colors.status, oc = Colors.status, px=220,py=609,sx=55,sy=27,r=0, m = 2, fs = 15},
+    Specified_IP = {l = "", ct = "Text", bt = "Text Box" , q = 1, up = false, cl = true, nc = Colors.Default, oc = Colors.Default, px=114,py=636,sx=161,sy=29,r=0, m = 2, fs = 12},   
+    Repeat_Mode = {l = "", ct = "Indicator", it= "Text", bt = "Text Box" , q = 1, up = false, cl = true, nc = Colors.BackGround, oc = Colors.BackGround, px=46,py=540,sx=80,sy=28,r=0, m = 0, fs = 15},
+    Status = {l = "", ct = "Indicator", it= "Status", bt = "Status" , q = 1, up = false, cl = true, nc = Colors.status, oc = Colors.status, px=114,py=665,sx=161,sy=29,r=0, m = 2, fs = 12},
+    Specific_Device_List = {l = "", ct = "Text", bt = "ListBox", ft = "ListBox", q = 1, up = false, cl = true, nc = Colors.status, oc = Colors.status, px=5,py=4,sx=237,sy=264,r=5, m = 15, fs = 12},
+    Specific_Add = {l = "Add", ct = "Button", bt = "Trigger" , q = 1, up = false, cl = true, nc = Colors.Connect.On, oc = Colors.Connect.Off, px=26,py=300,sx=90,sy=42,r=2, m = 5, fs = 12},
+    Specific_Delete = {l = "Delete", ct = "Button", bt = "Trigger" , q = 1, up = false, cl = true, nc = Colors.Connect.On, oc = Colors.Connect.Off, px=129,py=300,sx=90,sy=42,r=2, m = 5, fs = 12},
+    Specific_IP = {l = "", ct = "Text", bt = "Text Box" , q = 1, up = false, cl = true, nc = Colors.Default, oc = Colors.Default, px=124,py=268,sx=95,sy=27,r=0, m = 2, fs = 12},   
+    Specific_Force_Discovery = {l = "Discover", ct = "Button", bt = "Trigger" , q = 1, up = false, cl = true, nc = Colors.Connect.On, oc = Colors.Connect.Off, px=26,py=342,sx=193,sy=42,r=2, m = 5, fs = 12},
+    }
+
+
+function GetControls(props)       
+    ctl = {}
+    BoxSize = 0
+
+    for k,v in pairs (ControlsTable) do
+        if k == "Zones" then ControlsTable[k].q = props["Zone Count"].Value end 
+				if k == "Grouping" then 
+					ControlsTable[k].q = props["Zone Count"].Value - 1
+					if ControlsTable[k].q == 0 then 
+						ControlsTable[k].q = 1 
+					end
+        end
+        
+        if k == "Playlist" or k == "Queue" or k == "Specific_Device_List" then box = "ListBox" else box = "" end
+        table.insert(ctl,
+        {
+        Name=k,
+        ControlType=ControlsTable[k].ct,
+        ControlUnit=ControlsTable[k].cu,
+        TextBoxStyle = box,
+        Min = ControlsTable[k].Min,
+        Max = ControlsTable[k].Max,
+        ButtonType=ControlsTable[k].bt,
+        Count=ControlsTable[k].q,
+        UserPin=ControlsTable[k].up,
+        IconType=ControlsTable[k].ict,
+        Icon=ControlsTable[k].ic,
+        IndicatorType= ControlsTable[k].it,
+        PinStyle = ControlsTable[k].ps
+        })
+    end
+	return ctl
+end
+
+function GetPages()
+  return {
+    { name = "Main" },
+    { name = "Specific Devices" }
+  }
+end
+
+function GetControlLayout(props)
+    layout = {}
+    graphics = {}
+    if props['page_index'].Value==1 then
+      for k,v in pairs (ControlsTable) do
+        if not string.find(k, "Specific") then
+            if k == "Zones" then
+              if props["Zone Count"].Value == 1 then
+                layout[k] = { 
+                  Style = ControlsTable[k].ct,
+                  ButtonStyle = ControlsTable[k].bt,
+                  Legend = ControlsTable[k].l,
+                  Position = {642 , 41},
+                  Size = {ControlsTable[k].sx, ControlsTable[k].sy},
+                  Color = ControlsTable[k].nc,
+                  TextFontSize = ControlsTable[k].fs,
+                  Radius = ControlsTable[k].r,
+                  Margin = ControlsTable[k].m,
+                  CornerRadius = ControlsTable[k].cr,
+                  OffColor = ControlsTable[k].oc,
+                  UnlinkOffColor = ControlsTable[k].cl, 
+                  StrokeWidth = 0,
+                  ButtonVisualStyle = "Flat"
+                  }
+              else
+                for i = 1,props["Zone Count"].Value do
+                layout[k.." "..i] = { 
+                    Style = ControlsTable[k].ct,
+                    ButtonStyle = ControlsTable[k].bt,
+                    Legend = ControlsTable[k].l,
+                    Position = {642 + 123 *(i - 1) , 41},
+                    Size = {ControlsTable[k].sx, ControlsTable[k].sy},
+                    Color = ControlsTable[k].nc,
+                    TextFontSize = ControlsTable[k].fs,
+                    Radius = ControlsTable[k].r,
+                    Margin = ControlsTable[k].m,
+                    CornerRadius = ControlsTable[k].cr,
+                    OffColor = ControlsTable[k].oc,
+                    UnlinkOffColor = ControlsTable[k].cl, 
+                    StrokeWidth = 0,
+                    ButtonVisualStyle = "Flat"
+                    }
+                end
+              end
+          elseif k == "Grouping" then
+              if props["Zone Count"].Value == 2 then
+                layout[k] = { 
+                  Style = ControlsTable[k].ct,
+                  ButtonStyle = ControlsTable[k].bt,
+                  Legend = ControlsTable[k].l,
+                  Position = {642 , 200},
+                  Size = {ControlsTable[k].sx, ControlsTable[k].sy},
+                  Color = ControlsTable[k].nc,
+                  TextFontSize = ControlsTable[k].fs,
+                  Radius = ControlsTable[k].r,
+                  Margin = ControlsTable[k].m,
+                  CornerRadius = ControlsTable[k].cr,
+                  OffColor = ControlsTable[k].oc,
+                  UnlinkOffColor = ControlsTable[k].cl,
+                  StrokeWidth = 0,
+                  ButtonVisualStyle = "Flat"
+                  }
+              elseif props["Zone Count"].Value > 2 then 
+                for i = 1,props["Zone Count"].Value do
+                    layout[k.." "..i] = { 
+                    Style = ControlsTable[k].ct,
+                    ButtonStyle = ControlsTable[k].bt,
+                    Legend = ControlsTable[k].l,
+                    Position = {642 + 123 *(i - 1) , 200},
+                    Size = {ControlsTable[k].sx, ControlsTable[k].sy},
+                    Color = ControlsTable[k].nc,
+                    TextFontSize = ControlsTable[k].fs,
+                    Radius = ControlsTable[k].r,
+                    Margin = ControlsTable[k].m,
+                    CornerRadius = ControlsTable[k].cr,
+                    OffColor = ControlsTable[k].oc,
+                    UnlinkOffColor = ControlsTable[k].cl,
+                    StrokeWidth = 0,
+                    ButtonVisualStyle = "Flat"
+                    }
+                end
+              end
+          else
+            if k == "Queue" or k == "Playlist" or k == "Volume" or k == "Group_Volume" or k == "Max_String_Len" or k == "Time" then Style_Key = "ft" else Style_Key = "ct" end
+              layout[k] = { 
+                  Style = ControlsTable[k][Style_Key],
+                  ButtonStyle = ControlsTable[k].bt,
+                  Legend = ControlsTable[k].l,
+                  Position = {ControlsTable[k].px, ControlsTable[k].py},
+                  Size = {ControlsTable[k].sx, ControlsTable[k].sy},
+                  Color = ControlsTable[k].nc,
+                  TextFontSize = ControlsTable[k].fs,
+                  Radius = ControlsTable[k].r,
+                  Margin = ControlsTable[k].m,
+                  CornerRadius = ControlsTable[k].cr,
+                  OffColor = ControlsTable[k].oc,
+                  UnlinkOffColor = ControlsTable[k].cl,
+                  StrokeWidth = 0,
+                  ButtonVisualStyle = "Flat",
+                  Padding = ControlsTable[k].p
+                  }
+          end
+        end
+      end
+      
+      local GroupBox = {
+        TrackInfo = {sw = 2,sc = Colors.txt.d, cr = 8, fl = Colors.BackGround, px = 16, py = 6 , sx = 300,sy = 565},
+        Settings = {sw = 2,sc = Colors.txt.d, cr = 8, fl = Colors.BackGround, px = 16, py = 578 , sx = 300,sy = 165},
+        Queue = {sw = 2,sc = Colors.txt.d, cr = 8, fl = Colors.BackGround, px = 334, py = 6 , sx = 268,sy = 358},
+        SonosBox = {sw = 2,sc = Colors.txt.d, cr = 8, fl = Colors.txt.d, px = 888, py = 420 , sx = 329,sy = 323},
+        Playlists = {sw = 2,sc = Colors.txt.d, cr = 8, fl = Colors.BackGround, px = 334, py = 385 , sx = 268,sy = 358},
+        Zones = {sw = 2,sc = Colors.txt.d, cr = 8, fl = Colors.BackGround, px = 619, py = 6 , sx = 44 + (props["Zone Count"].Value * 123),sy = 146},
+        Zones_Volume = {sw = 2,sc = Colors.txt.d, cr = 8, fl = Colors.BackGround, px = 619, py = 385 , sx = 112,sy = 358},
+        Group_Volume = {sw = 2,sc = Colors.txt.d, cr = 8, fl = Colors.BackGround, px = 750, py = 385 , sx = 112,sy = 358},
+      }
+
+      for k in pairs(GroupBox) do
+        table.insert(graphics,{Type = "GroupBox",
+                              StrokeWidth = GroupBox[k].sw,
+                              StrokeColor = GroupBox[k].sc,
+                              CornerRadius = GroupBox[k].cr,
+                              Fill = GroupBox[k].fl,
+                              Position = {GroupBox[k].px, GroupBox[k].py},
+                              Size = {GroupBox[k].sx, GroupBox[k].sy}})
+      end
+
+      local Labels = {
+        Settings = {ts = 15,sc = Colors.txt.l, px = 16, py = 578 , sx = 301,sy = 31},
+        Title = {ts = 12,sc = Colors.txt.l, px = 24, py = 276 , sx = 39,sy = 33},
+        Album = {ts = 12,sc = Colors.txt.l, px = 24, py = 309 , sx = 39,sy = 33},
+        Artist = {ts = 12,sc = Colors.txt.l, px = 24, py = 343 , sx = 39,sy = 33},
+        ["Max Track Info Length"] = {ts = 15,sc = Colors.txt.l, px = 16, py = 609 , sx = 204,sy = 29},
+        ["IP Address:"] = {ts = 15,sc = Colors.txt.l, px = 16, py = 636 , sx = 98,sy = 29},
+        ["Status:"] = {ts = 15,sc = Colors.txt.l, px = 16, py = 665 , sx = 98,sy = 29},
+        Queue = {ts = 15,sc = Colors.txt.l, px = 334, py = 6 , sx = 268,sy = 35},
+        Playlists = {ts = 15,sc = Colors.txt.l, px = 334, py = 385 , sx = 268,sy = 35},
+        Zones = {ts = 15,sc = Colors.txt.l, px = 619, py = 6 , sx = 44 + (props["Zone Count"].Value * 123),sy = 35},
+        ["Zone Volume"] = {ts = 15,sc = Colors.txt.l, px = 619, py = 385 , sx = 112,sy = 35},
+        ["Group Volume"] = {ts = 15,sc = Colors.txt.l, px = 750, py = 385 , sx = 112,sy = 35}
+      }
+      
+      for k in pairs(Labels) do
+        table.insert(graphics,{Type = "Label",
+                              Text = k,
+                              Color = Labels[k].sc,
+                              HTextAlign = "Center",
+                              VTextAlign = "Center",
+                              TextSize = Labels[k].ts,
+                              Position = {Labels[k].px, Labels[k].py},
+                              Size = {Labels[k].sx, Labels[k].sy}})
+      end
+  table.insert(graphics,
+        {
+      Type = "Label",
+      Text = "This Sonos controller uses the IP from the first network connection to discover devices.\nIf a different range is required please enter the IP followed by the subnet mask (e.g. 192.168.1.0/255.255.255.0) in the IP Address box and press Discover.\n\n\n Please give feedback via the Q-Sys Facebook page\n\n Created by Tim Auton v"..PluginInfo.Version.."\n\n",
+      HTextAlign = "Center",
+      VTextAlign = "Bottom",
+      Position = {888,400},
+      Size = {329,330},
+            TextSize = 15,
+            Color = {255,255,255}
+        })
+  table.insert(graphics, {
+        Type = "Image",
+        Image = "iVBORw0KGgoAAAANSUhEUgAAAR0AAABiCAMAAABat/fpAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAMAUExURQAAABERESYmJjU1NTw8PDY2NioqKhQUFBUVFSkpKT09PTk5OS8vLyAgIAoKCgUFBRYWFiIiIigoKCMjIxcXFwYGBgICAhgYGDAwMCsrKx8fHwsLCxMTE1tbW5mZmb+/v9nZ2ezs7PT09O3t7d3d3cPDw6CgoGhoaB4eHjMzM3V1daSkpMTExNzc3Ovr6/b29vHx8eTk5NHR0bW1tY+Pj1ZWVg4ODkhISAgICF1dXbCwsMXFxdTU1Nvb29XV1cbGxrGxsZCQkGBgYH5+fqurq8jIyObm5t/f39DQ0Li4uJOTkyEhIYGBgd7e3vr6+v////39/efn5zg4OAQEBBsbG2dnZ+/v7/n5+eDg4JqamhAQELy8vJeXlw8PD3h4eJiYmIiIiB0dHVlZWbOzs+np6fv7+1paWl9fX/Ly8uPj45SUlNjY2HBwcNPT0zo6Or6+vhoaGs/PzzIyMg0NDcnJyczMzGxsbLq6upKSkiQkJIuLi1VVVUFBQYCAgKamphkZGcvLyzExMf7+/kRERGNjYwkJCXNzcy0tLe7u7vPz83p6egwMDAMDA/f39/j4+HZ2dvz8/NbW1j8/P7u7u5WVlZycnBISElBQUImJiUVFRZ6enuXl5aioqK2trWVlZY6OjuHh4fDw8KOjo/X19aqqqkxMTNra2kNDQ4SEhH19fcDAwHd3dycnJ0JCQkZGRjQ0NDs7O15eXp2dnUpKSoaGhtLS0mtray4uLs3NzUlJSVFRUWJiYurq6mlpaW9vb6+vr7m5uQEBAY2NjU9PT05OTkdHR1JSUpubm1NTU3t7e4KCgrKyshwcHL29vWRkZGZmZqmpqejo6FdXV4ODg8HBwXJycnx8fMfHx4WFhcrKyre3t1xcXEBAQAcHB6WlpbS0tIyMjIqKipGRkZaWlktLS2pqaq6urqGhoWFhYba2tqysrFhYWNfX101NTcLCwjc3NywsLOLi4lRUVM7Oznl5eZ+fn39/f6KionFxcW1tbT4+PiUlJW5ubqenp3R0dAAAAGyZEH8AAAEAdFJOU////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wBT9wclAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAHaklEQVR4Xu2bveGrOAzA4xG8ABUN02QFlqCipKFnBTqGYaUzYMmSLZnwT6650+8V7yU4WNa3De9lGIZhGIZhGIZhGIZhGIZhGIZhGIbxf8b5buo67+LHG8LoMNz7+PFfxPnAh1Kdo38vlRuboZ3f77kdmv1WlG5br9Fzu/RjbfgU//4jfmyWoQ0MS7/fr7nrD7nmtl2aqlTPcH37JsxrFy9IuH0IiiHMjTrcLWv8V8nWnPTqMty4sonmpbpkNw5x4ElFqmfsTDcnjWYot5WD329NnW55N8qKfLzPrC1iZ4u9GHS/7pY4BpnVRTyhj3djtGO8ypkKGS5m2QWCdt6rvCAXF69opxN0c7Aosbpzf75QFvGEJt4qZ4vXKZskw8UiGupYo6we0E4r/m67LkpIcr32eDFHHPwAXY4+jkhoijxpJaueriYqruY7rjqRoO1RtVoTR/yNLt5FYM6Xu8YLCsI6j8gKDIJ6UDvlNXczUaEeJ+XCyFfBxQRpjzINtHscAvD8FIr5MHCpSvVE7bwHQXG672SeEyp05hq5ejLJ4t8nekn8gOQ683o0d90ExX3NbUpDcF7HzgX8xErYUIgSVfBuS8XFH5Z5h651XrbQoXo/7QtdNA96KH+B4RjejU38RrDKE1CSIYXRUUoLx3l1STpeKmmbUXQ3WOKKrKT6zkQnIhe7huiHxcsYv3zPKHVoysLnrxwnANIzC7pG6F9wnVSRJ44YO7+UfpVnMS3vkBySTzQlO7BMBpHIpvBN/vPHgIj3lS+VTKECpWYjiy2inTw/ar6TVL0UlifpmsYWTPJdfSpxsKy7+EQ1CjIHknqyiEzWpn5/AHfM8k7KIVKblNRDXA5lK7LBl3x8YwxtuXlLKXuIX0So73APVXwn3UjMGckZifPAd9+2fgWgHVmWBAgwK+1DkpotlkVWgMiPNYv/AFynaLYimLPb+EUAJpHaqq9AT62nMA8yLfGLApSaBX+uHXJV9h3sMNQcgnkp2Sn5212CeAhGTH3HjzlZ1yEaMH6+AN9EcNVy3oG1Cx10BA2VQmuK3xyL+Kn7YOI5WNXzARCauHMOKJCvK/edlGxl3wFxVB9N7k7MQGYJfepNkngC39y2yr1h+nJjivg4hLlXEVmBqB4x72ANrVQJcHfidCkCDtpm+pmCSCt3Eu4dryTQw2pbOhjDClPUzkz73Ct5ir6DYVMJEBxDflgsoq+kiSeU5g3OGa8BkkAF4PGsroLKPD1jOPtJMe9ABpkrxseOiFix3NWHbWO89h10IwBkO4kOBKppB/p5Fn2g+u41wT0CRzSJvgM6rOS3ZE5mQ2kRFQd8gHCuzHeh4Dt6JQlI2sGVBBVk6kHfYdq5vst7SoYS5sIitObsIb4nfh+hAYLOXPMdcG5NO+yoeJ5E3/kkshTthG1nuYhKFXmC74noF0Q9UqgXwA3EvHOqwJM5Wnjk8JO8cxG25fESwoT5AodHRgCZHVygNhlYjpmU+k4QHz4eQLRS3/nEDNBO80bpwmePwOpV9hluXKmCyG4coqbSpEHKYEKzyKKfE3yfBWurmAH2DcrW0PNTxLsN5CP8Rpwz6R17RsFeETyCip9Pcu1IpZfdEi5XFgW31C3V0UX89ljDpQyddoK4OVTTHB6s8u0jiIkqKB7G8H0W7kfU0MJNVS3KSZmpuPufwO6mTQaEVUrBfoKL5oGe+04g60z4HVHJak3H2NQkucBFVLuQv4AGTNrBQwLFFGhRotFAEVmBrPvkeSctXokIjPE7nxDz4C9AvSe1YzGRYwt/kV8WtBNUTdNmJj1uKOXYSk9GbvMJiFQpf38CHYH4QTK4EO9JdzyLiL4ToAcD+S8woWZOdZKsUOumT+DMQM9gnzLxZIHlh2iHPEgp3jkhe4RMdYp26HPv3PPRNMJGgExUuo7nasD0ICj5CUcZoWdqmGPYszti74GJ7UkVKixa1KzImLwtv5RqfnbS50nCKl+aCuFKh6P+v2x4rmdoMxzrTEk67gi0FC94itjR18ZKL1Z8h7hBYdsUpkF1PS7Y02fSRSHyp9R4rEMqunpA/QmkgsxLsy5UNC5C1ucOTd83dHi4QREKWmQFIIVkswTIo+LA0Oz7uPEdVGGF9DytXYNY9NW9cubPoRvDnLw61caeCPla1w5s2YW8IL7HRcmSTu2Nlq+awcwhKGXAam+rXcyCciq+A9qWShOtaSX8meqBrh3p7g9Q9S7dt2akUuZAVTvXVbGm0JOyHOFMS5erHPsM5S008T03ugnLWGQjgbfJVw/1lHnnoHyDFBAnkk5/A6LFHsLf871QFnuILemnFaLqpOo7gVXtR8Q3f8NESoFOLULiB6+cBrKXucNta6+7j4UbD5to/4Drh+VEHdCo3ZrPpQpyVR7EFIv43XNRNy7wbt48p2ZGwW9kdFt/6d7FPxpO1SyTKszU3snl9/Qe40w6pV/gpr0P7J89aHXTuG39to8/laHkkKpp1qbfP3q+6UNndPzvgl33McMwDMMwDMMwDMMwDMMwDMMwDMMwjP86r9c/Fb/ykKgJdZsAAAAASUVORK5CYII=",
+        Position = { 888, 385 },
+        Size = { 329, 120 },
+        })
+      
+      if props["Zone Count"].Value == 2 then BoxSize = 2 elseif props["Zone Count"].Value > 2 then BoxSize = props["Zone Count"].Value - 1 end
+        if props["Zone Count"].Value > 1 then
+        table.insert(graphics, {
+                                Type = "GroupBox", --Groups
+                                StrokeWidth = 2,
+                                StrokeColor = {0,0,0},
+                                CornerRadius = 8,
+                                Fill = {35, 35, 35},
+                                Position = {619, 165},
+                                Size = {44 + (BoxSize * 123), 199}
+                                })
+        table.insert(graphics,	{
+                                  Type = "Label",
+                                  Text = "Grouping",
+                                  HTextAlign = "Center",
+                                  VTextAlign = "Center",
+                                  Position = {619,165},
+                                  Size = {44 + (BoxSize * 123),35},
+                                  TextSize = 15,
+                                  Color = {255,255,255}
+                                })
+        table.insert(graphics,	{
+                                  Type = "Label",
+                                  Text = "1. Select Zone from the Zones box (this becomes the coordinator)\n2. Select additional Zones under grouping",
+                                  HTextAlign = "Center",
+                                  VTextAlign = "Center",
+                                  Position = {649, 279},
+                                  Size = {246, 79},
+                                  TextSize = 12,
+                                  Color = {255,255,255}
+                                })
+      end
+        elseif props['page_index'].Value==2 then 
+
+          Page2Controls = { "Specific_Device_List",
+          "Specific_Add",
+          "Specific_Delete",
+          "Specific_IP",
+          "Specific_Force_Discovery"}
+
+          for _,k in pairs(Page2Controls) do
+            if k == "Specific_Device_List" then Style_Key = "ft" else Style_Key = "ct" end
+            layout[k] = { 
+                Style = ControlsTable[k][Style_Key],
+                ButtonStyle = ControlsTable[k].bt,
+                Legend = ControlsTable[k].l,
+                Position = {ControlsTable[k].px, ControlsTable[k].py},
+                Size = {ControlsTable[k].sx, ControlsTable[k].sy},
+                Color = ControlsTable[k].nc,
+                TextFontSize = ControlsTable[k].fs,
+                Radius = ControlsTable[k].r,
+                Margin = ControlsTable[k].m,
+                CornerRadius = ControlsTable[k].cr,
+                OffColor = ControlsTable[k].oc,
+                UnlinkOffColor = ControlsTable[k].cl,
+                StrokeWidth = 0,
+                ButtonVisualStyle = "Flat",
+                Padding = ControlsTable[k].p
+                }
+          end
+
+      table.insert(graphics, {
+        Type = "GroupBox", --Groups
+        StrokeWidth = 2,
+        StrokeColor = {0,0,0},
+        CornerRadius = 8,
+        Fill = {35, 35, 35},
+        Position = {5, 4},
+        Size = {237 , 448}
+        })    
+      table.insert(graphics, {
+        Type = "Label",
+        Text = "This will wipe all other discovered devices. Static IP's are recommended.",
+        HTextAlign = "Center",
+        VTextAlign = "Bottom",
+        Position = {26,387},
+        Size = {193,54},
+          TextSize = 15,
+          Color = {255,255,255}
+      })
+      table.insert(graphics, {
+        Type = "Label",
+        Text = "IP Address:",
+        HTextAlign = "Center",
+        VTextAlign = "Center",
+        Position = {26,268},
+        Size = {98,29},
+          TextSize = 15,
+          Color = {255,255,255}
+      })
+      end
+      
+	return layout, graphics
+end
+
+function GetPins(props)
+	local pins = {}
+	return pins
+end
+
+function GetComponents(props)
+	return
+end
+
+function GetWiring(props)
+	local wiring = {}
+	return wiring
+end
+
+if Controls then 
+
+  rapidjson = require("rapidjson")
+  
+  Duplicates = ""
+  Counter = 0
+  Return_Count = 0
+  RepeatCount = 0
+  Mute_Count = 0
+  Volume_Total = 0
+
+  Mute_Icons = {}
+  Mute_Icons[0] = "{\"IconString\":\"\xef\x88\x90\"}"
+  Mute_Icons[1] = "{\"IconString\":\"\xef\x88\x91\"}"
+  Bool2Num = {[true] = 1, [false] = 0}
+  Pause = false
+  MaxStringLength = 40
+  Controls.Max_String_Len.Value = MaxStringLength
+  
+  Poll = Timer.New()
+  WaitToPlay = Timer.New()
+  Track_Wait = Timer.New()
+  StringTimer = Timer.New()
+  Seek_Wait_Timer = Timer.New()
+  StringTimer:Start(0.5)
+  
+  iconStyle = {IconUrl  = {}}
+  DeviceIP = {}
+  SonosPlayers = {}
+  Duplicatetable = {}
+  EURIsAndMetaData = {}
+  Specific_Devices = {}
+  Specific_Devices = Controls.Specific_Device_List.Choices
+
+  Play_Modes = {Repeat = {"NORMAL","REPEAT_ONE","REPEAT_ALL"}, Shuffle_Repeat = {"SHUFFLE_NOREPEAT","SHUFFLE_REPEAT_ONE","SHUFFLE"}}
+  Play_Modes_FB = {NORMAL = {false,false,1},REPEAT_ONE = {false,true,2},REPEAT_ALL = {false,true,3},SHUFFLE_NOREPEAT = {true,false,1}, SHUFFLE_REPEAT_ONE = {true,true,2}, SHUFFLE = {true,true,3}}
+  Repeat_Modes_Indicator = {"Off", "One", "All"}
+  ControlsToAssign = {Controls.Track,Controls.Artist,Controls.Album}
+  TrackInfo = {Track = {},Artist = {},Album = {}}
+  nTrackInfo = {Track = "",Artist = "",Album = ""}
+  Grouped = {}
+  Group_Return_Table = {}
+  TIKey = {"Track","Artist","Album"}
+  
+    if type(Controls.Grouping) == "userdata" then
+      GroupingControls = {}
+      GroupingControls[1] = Controls.Grouping
+    elseif type(Controls.Grouping) == "table" then
+      GroupingControls = Controls.Grouping
+    end
+  
+    if type(Controls.Zones) == "userdata" then
+      ZoneControls = {}
+      ZoneControls[1] = Controls.Zones
+    elseif type(Controls.Zones) == "table" then
+      ZoneControls = Controls.Zones
+    end
+  
+  function AssignZones()
+  local SonosNames = {}
+
+    for k,v in pairs(SonosPlayers) do
+      table.insert(SonosNames, k)
+    end
+
+    table.sort(SonosNames)
+
+    for k,v in pairs(ZoneControls) do
+      v.Legend = SonosNames[k]
+    end
+
+    Selected_Sonos_Name = SonosNames[1]
+    Selected_Player_IP = SonosPlayers[SonosNames[1]].IP
+
+    for k,v in pairs(ZoneControls) do
+      if k == 1 then
+        v.Boolean = true
+        GroupControls(v.Legend)
+        UpdateGrouping(v.Legend)
+      else
+        v.Boolean = false
+      end
+    end
+
+    SonosCheckForGroups()
+    All_Controls(false)  
+
+  end
+  
+  function Update_Status(code, e)
+    if code == 200 then
+      Controls.Status.Value = 0
+      Controls.Status.String = ""
+    elseif code == 500 then
+      Controls.Status.Value = 1
+      Controls.Status.String = "Whoops Somethings gone wrong"
+    else 
+      Controls.Status.Value = 1
+      Controls.Status.String = "Whoops Somethings gone wrong, error "..code
+    end
+    if e ~= nil then
+      Controls.Status.Value = 2
+      Controls.Status.String = "Whoops Somethings gone Very wrong"
+    end
+  end
+  
+  function All_Controls(state)
+    local Controls_To_Disable = {"Play","Volume","Group_Volume","Mute","Group_Mute","Shuffle","Repeat","Next","Previous","Queue","Playlist"}
+    for k,v in pairs(Controls_To_Disable) do
+      Controls[v].IsDisabled = state
+    end
+    for k,v in pairs(ZoneControls) do
+      ZoneControls[k].IsDisabled = state
+    end
+    for k,v in pairs(GroupingControls) do
+      GroupingControls[k].IsDisabled = state
+    end
+  end
+  
+  function Disable_For_Other_State(state)
+    local Controls_To_Disable = {"Shuffle","Repeat","Next","Previous"}
+    for k,v in pairs(Controls_To_Disable) do
+      Controls[v].IsDisabled = state
+    end
+  end
+  
+  All_Controls(true)
+
+  function Discovery(tbl, code, d, e)
+
+  local Returned_IP = string.match(tbl.Url, "%d+%.%d+%.%d+%.(%d+)")
+   --print( string.format("Response Code: %i\t\tErrors: %s\rData: %s",code, e or "None", d))
+    if d ~= nil and string.find(d, "<manufacturer>Sonos, Inc.</manufacturer>") and string.find(d,"<controlURL>/MediaRenderer/AVTransport/Control</controlURL>") then
+      local DeviceName = string.match(d,"<roomName>(.*)</roomName>")
+      local DeviceIP = string.match(d, "<friendlyName>(%d+.%d+.%d+.%d+)")
+      local Deviceuuid = string.match(d, "</MACAddress>%s+<UDN>uuid:(.-)</UDN>")
+      if not string.find(Duplicates, DeviceName) then
+        table.insert(Duplicatetable, DeviceName)
+        SonosPlayers[DeviceName] = {IP = DeviceIP, uuid = Deviceuuid, Members = {}}
+        Duplicates = table.concat(Duplicatetable, "||")
+      end
+    end
+  
+  end
+  
+  function DiscoverDevices(IP)
+  
+    SearchAddress = string.match(IP, "%d+%.%d+%.%d+%.")
+
+    for i = 0,255 do
+    HttpClient.Download { Url = SearchAddress..i..":1400/xml/device_description.xml", Headers = { ["Content-Type"] = "application/xhtml+xml" } , Timeout = 30, EventHandler = Discovery }
+    end
+    
+    Timer.CallAfter(function()
+      if #Duplicatetable == #ZoneControls then
+        AssignZones()
+        SonosGetPlaylists()
+        Poll:Start(1)
+      else
+        Poll:Stop()
+        Controls.Status.String = "Incorrect Number of Zones, "..#Duplicatetable.." Expected"
+        Controls.Status.Value = 2
+        All_Controls(true)
+      end
+    end,6)
+    
+  end
+
+  for k, item in ipairs(Network.Interfaces()) do
+    if k == 1 then
+      CurrentIP = item.Address
+      DiscoverDevices(CurrentIP)
+    end
+  end
+  
+    function DiscoverSpecifics(IP)
+
+    for _,v in pairs(Specific_Devices) do
+    HttpClient.Download { Url = v..":1400/xml/device_description.xml", Headers = { ["Content-Type"] = "application/xhtml+xml" } , Timeout = 30, EventHandler = Discovery }
+    end
+    
+    Timer.CallAfter(function()
+      if #Duplicatetable == #ZoneControls then
+        AssignZones()
+        SonosGetPlaylists()
+        Poll:Start(1)
+      else
+        Poll:Stop()
+        Controls.Status.String = "Incorrect Number of Zones, "..#Duplicatetable.." Expected"
+        Controls.Status.Value = 2
+        All_Controls(true)
+      end
+    end,6)
+
+  end
+  
+  function GetPlaylistsDone(tbl, code, d, e)
+
+  Update_Status(code, e)
+    --string.format("Response Code: %i\t\tErrors: %s\rData: %s",code, e or "None", d)
+  local PlaylistNames = {} 
+  local xRincon = {}
+  local Metadata1 = {} 
+  local Metadata2 = {} 
+  local Metadata3 = {} 
+  local Metadata4 = {}
+  local xmlData = xmlparser(d)
+
+    if string.gmatch(xmlData, "<dc:title>") then
+      for title in string.gmatch(xmlData, "<dc:title>(.-)</dc:title>") do
+        table.insert(PlaylistNames, title)
+      end
+      for Rincon in string.gmatch(d, ":%*:%*:%*%&quot;%&gt;(.-)&lt;") do
+        table.insert(xRincon, Rincon)
+      end
+      for M1 in string.gmatch(d, "resMD&gt;&amp;lt;(DIDL%-Lite.-)&amp;lt;/upnp:class&amp;gt;&amp;lt") do
+        table.insert(Metadata1, M1)
+      end
+      for M2 in string.gmatch(d, "upnp:albumArtURI.-/upnp:albumArtURI&gt;&lt;") do
+        table.insert(Metadata2, M2)
+      end
+      for M3 in string.gmatch(xmlData, "<r:description>(.-)</r:description>") do
+        table.insert(Metadata3, M3)
+      end
+      for M4 in string.gmatch(d, "desc id=.-DIDL%-Lite") do
+        table.insert(Metadata4, M4)
+      end
+    end
+
+    for i = 1,#xRincon do  
+      EURIsAndMetaData[i] = [[&lt;URIs&gt;&lt;URI uri=&quot;]]..xRincon[i]..[[&quot;&gt;&lt;]]..RemoveAmp(Metadata1[i])..[[.sonos-favorite&lt;/upnp:class&gt;&lt;]]..RemoveAmp(Metadata2[i])..[[r:description&gt;]]..RemoveAmp(Metadata3[i])..[[&lt;/r:description&gt;&lt;]]..RemoveAmp(Metadata4[i])..[[&gt;&lt;/URI&gt;&lt;/URIs&gt;]]
+    end
+
+    Controls.Playlist.Choices = PlaylistNames
+
+  end
+  
+  function SonosGetPlaylists()
+    HttpClient.Upload {
+      Url = "http://"..Selected_Player_IP..":1400/MediaServer/ContentDirectory/Control",
+      Method = "POST",
+      Data = [[<?xml version="1.0" encoding="utf-8"?>
+              <s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+                  <s:Body>
+                    <u:Browse xmlns:u="urn:schemas-upnp-org:service:ContentDirectory:1">
+                        <ObjectID>FV:2</ObjectID>
+                        <BrowseFlag>BrowseDirectChildren</BrowseFlag>
+                        <Filter>dc:title</Filter>
+                        <StartingIndex>0</StartingIndex>
+                        <RequestedCount>20</RequestedCount>
+                        <SortCriteria />
+                    </u:Browse>
+                  </s:Body>
+              </s:Envelope>]],
+      Headers = {
+        ["Content-Type"] = "text/xml",
+        SOAPACTION = "urn:schemas-upnp-org:service:ContentDirectory:1#Browse",
+      },
+      EventHandler = GetPlaylistsDone 
+    }
+  end
+  
+  function CalculateTime(D,E)
+
+    DHour = tonumber(string.match(D,"%d+"))
+    DMin = tonumber(string.match(D,"%d+:(%d+)"))
+    DSec = tonumber(string.match(D,"%d+:%d+:(%d+)"))
+    DurationSeconds = (DHour*3600)+(DMin*60)+DSec
+    
+    EHour = tonumber(string.match(E,"%d+"))
+    EMin = tonumber(string.match(E,"%d+:(%d+)"))
+    ESec = tonumber(string.match(E,"%d+:%d+:(%d+)"))
+    ElapsedSeconds = (EHour*3600)+(EMin*60)+ESec
+    
+    Controls.Time.Value = ElapsedSeconds / DurationSeconds * 100
+
+  end
+  
+  function xmlparser(xmlstring)
+
+  local FindValues = {"&lt;", "&gt;", "&quot;", "&amp;", "%%3a", "%%2f", "%%25", "&apos;"}
+  local correctvalues = {"<", ">", '"', "&", ":", "/", "%%", "'"}
+
+    for k,v in pairs(FindValues) do
+      xmlstring = string.gsub(xmlstring, v, correctvalues[k])
+      xmlstring = string.gsub(xmlstring, v, correctvalues[k]) 
+      xmlstring = string.gsub(xmlstring, v, correctvalues[k]) 
+    end
+    xmlstring = string.gsub(xmlstring, '%%3a',':' )
+
+    return xmlstring
+
+  end
+  
+  function RemoveAmp(data)
+    if data ~= nil then
+      data = string.gsub(data, "amp;", "")
+      return data
+    end
+  end
+  
+  function Sort_Volume()
+
+  local Volume_Total = 0
+  local Mute_Count = 0
+  
+    for k in pairs(SonosPlayers) do
+      if Main_Device_Name ~= nil and Main_Device_Name == k then
+        if #SonosPlayers[Main_Device_Name].Members >= 1 then
+          Volume_Total = SonosPlayers[Main_Device_Name].Volume
+
+          for _,v in pairs(SonosPlayers[Main_Device_Name].Members) do
+            if SonosPlayers[v].Volume ~= nil and Volume_Total ~= nil then
+              Volume_Total = Volume_Total + SonosPlayers[v].Volume
+              Controls.Group_Volume.Value = Volume_Total / (#SonosPlayers[Main_Device_Name].Members + 1)
+            end
+          end
+
+          for _,v in pairs(SonosPlayers[Main_Device_Name].Members) do
+            if SonosPlayers[v].Mute and SonosPlayers[Main_Device_Name].Mute then
+              Controls.Group_Mute.Boolean = true
+              Controls.Group_Mute.Style = Mute_Icons[1]
+            else
+              Controls.Group_Mute.Boolean = false
+              Controls.Group_Mute.Style = Mute_Icons[0]
+              break
+            end
+          end
+
+        else
+          Controls.Group_Volume.Value = Controls.Volume.Value
+          Controls.Group_Mute.Boolean = Controls.Mute.Boolean
+          Controls.Group_Mute.Style = Controls.Mute.Style
+        end
+      end
+    end
+    
+  end
+  
+  function VolumeDone(tbl, code, d, e)
+    
+    Update_Status(code, e)
+    local Returned_IP = string.match(tbl.Url, "%d+%.%d+%.%d+%.%d+")
+
+    for k,v in pairs(SonosPlayers) do
+      if string.match(Returned_IP,SonosPlayers[k].IP) then
+        if string.find(d, "<CurrentVolume>%d+</CurrentVolume>") then
+        CurrentVolume = tonumber(string.format("%01d", string.match(d, "<CurrentVolume>(%d+)</CurrentVolume>")))
+        SonosPlayers[k].Volume = CurrentVolume
+        end
+        if k == Selected_Sonos_Name then
+          Controls.Volume.Value = CurrentVolume
+        end
+      end
+    end
+
+  end
+  
+  function MuteDone(tbl, code, d, e)
+
+    Update_Status(code, e)
+    local Returned_IP = string.match(tbl.Url, "%d+%.%d+%.%d+%.%d+")
+    local Last_One
+
+    for k in pairs(SonosPlayers) do
+      if string.match(Returned_IP,SonosPlayers[k].IP) then
+        if string.find(d, "<CurrentMute>0</CurrentMute>") then
+          SonosPlayers[k].Mute = false
+        elseif string.find(d, "<CurrentMute>1</CurrentMute>") then
+          SonosPlayers[k].Mute = true
+        end
+        if k == Selected_Sonos_Name then
+          Controls.Mute.Boolean = SonosPlayers[k].Mute
+          if Controls.Mute.Boolean then
+            Controls.Mute.Style = Mute_Icons[1]
+          else
+            Controls.Mute.Style = Mute_Icons[0]
+          end
+        end
+      end
+      Last_One = k
+    end
+
+    if string.match(Returned_IP,SonosPlayers[Last_One].IP) then
+      Sort_Volume()
+    end
+
+  end
+
+  function SonosGetVolume(Device_IP)
+
+    for c in pairs(SonosPlayers) do
+      HttpClient.Upload {
+        Url = "http://"..SonosPlayers[c].IP..":1400/MediaRenderer/RenderingControl/Control",
+        Method = "POST",
+        Data = [[<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                  <s:Body>
+                    <u:GetVolume xmlns:u="urn:schemas-upnp-org:service:RenderingControl:1">
+                      <InstanceID>0</InstanceID>
+                      <Channel>Master</Channel>
+                    </u:GetVolume>
+                  </s:Body>
+                </s:Envelope>]],
+        Headers = {
+          ["Content-Type"] = "text/xml",
+          SOAPACTION = "urn:schemas-upnp-org:service:RenderingControl:1#GetVolume",
+        },
+        EventHandler = VolumeDone
+      }
+    end
+
+    for c in pairs(SonosPlayers) do
+      HttpClient.Upload {
+        Url = "http://"..SonosPlayers[c].IP..":1400/MediaRenderer/RenderingControl/Control",
+        Method = "POST",
+        Data = [[<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                  <s:Body>
+                      <u:GetMute xmlns:u="urn:schemas-upnp-org:service:RenderingControl:1">
+                          <InstanceID>0</InstanceID>
+                          <Channel>Master</Channel>
+                      </u:GetMute>
+                  </s:Body>
+              </s:Envelope>]],
+        Headers = {
+          ["Content-Type"] = "text/xml",
+          SOAPACTION = "urn:schemas-upnp-org:service:RenderingControl:1#GetMute",
+        },
+        EventHandler = MuteDone
+      }
+    end
+
+  end
+  
+  function StatusDone(tbl, code, d, e)
+    
+    local DataToFind = {"<dc:title>(.*)</dc:title>","<dc:creator>(.*)</dc:creator>","<upnp:album>(.*)</upnp:album>"}
+    Update_Status(code, e)
+    --print( string.format("Response Code: %i\t\tErrors: %s\rData: %s",code, e or "None", d))
+    
+    if string.find(d, "<CurrentTransportState>PAUSED_PLAYBACK</CurrentTransportState>") then --palystates
+      Controls.Play.Boolean = false
+    elseif string.find(d, "<CurrentTransportState>STOPPED</CurrentTransportState>") then
+      Controls.Play.Boolean = false
+    elseif string.find(d, "<CurrentTransportState>PLAYING</CurrentTransportState>") then
+      Controls.Play.Boolean = true
+    end
+    
+    for k,v in pairs (Play_Modes_FB) do -- Sort through play modes
+      if string.find(d,"<PlayMode>"..k.."</PlayMode>") then
+        Controls.Shuffle.Boolean = v[1]
+        Controls.Repeat.Boolean = v[2]
+        RepeatCount = v[3]
+        Controls.Repeat_Mode.String = Repeat_Modes_Indicator[v[3]]
+      end
+    end
+
+    if string.find(d, "GetPositionInfoResponse") then
+
+      local Metadata = xmlparser(string.match(d, "<TrackMetaData>(.*)</TrackMetaData>"))
+
+      if string.find(d,'<RelTime>(.*)</RelTime>') and not string.find(d,'<RelTime>NOT_IMPLEMENTED</RelTime>') then
+        Controls.Elapsed_Time.String = string.match(d, '<RelTime>(.*)</RelTime>')
+      else
+        Controls.Elapsed_Time.String = ""
+      end
+
+      if string.find(Metadata,'duration="(.-)"') then
+        Controls.Duration.String = string.match(Metadata,'duration="(.-)"')
+      else
+        Controls.Duration.String = ""
+      end
+
+      if string.find(d, "<TrackMetaData>NOT_IMPLEMENTED</TrackMetaData>") or string.find(d, "radio://http:") then
+
+        if string.find(d, "spdif") or string.find(d, "hdmi") then
+          Controls.Track.String = "TV"
+        elseif string.find(Metadata, "radio://http") then
+          Controls.Track.String = "Radio"
+        else
+          Controls.Track.String = "Unknown"
+        end
+
+        for k,v in pairs(TIKey) do
+          TrackInfo[v] = {}
+          nTrackInfo[v] = ""
+        end
+
+        Controls.Album.String = ""
+        Controls.Artist.String = ""
+        Other_Source = true
+        Disable_For_Other_State(true)
+
+      else
+
+      Other_Source = false
+      Disable_For_Other_State(false)
+
+        for k,v in pairs(TIKey) do
+          local String_To_Match = DataToFind[k]
+
+          if string.find(Metadata, String_To_Match) then
+            local MetaString = string.match(Metadata,  String_To_Match)
+
+            if MetaString ~= nTrackInfo[v] then
+              TrackInfo[v] = {}
+              nTrackInfo[v] = MetaString
+
+              if #MetaString > MaxStringLength then
+                for i = 1, #MetaString + 10 do
+                  if i > #MetaString then
+                    TrackInfo[v][i] = " "
+                  else
+                    TrackInfo[v][i] = string.sub(MetaString, i, i)
+                  end
+                end
+              else
+                Controls[v].String = MetaString
+                nTrackInfo[v] = MetaString
+                TrackInfo[v] = {}
+              end
+      
+            end
+
+          elseif not string.find(Metadata, String_To_Match) then
+            Controls[v].String = ""
+            nTrackInfo[v] = ""
+            TrackInfo[v] = {}
+          end
+        end
+        
+      end
+      
+      if string.find(Metadata,'<upnp:albumArtURI>(.*)</upnp:albumArtURI>') then 
+        AlbumArtURI = "http://"..Selected_Player_IP..":1400"..string.match(Metadata, "<upnp:albumArtURI>(.*)</upnp:albumArtURI>") 
+      else
+        CurrentAlbumArtURI = nil
+        AlbumArtURI = nil
+        iconStyle = {
+        DrawChrome = false,
+        IconData = AlbumArtURI}
+        Controls.Album_Art.Legend = rapidjson.encode(iconStyle)
+      end
+      
+      if AlbumArtURI ~= nil and AlbumArtURI ~= CurrentAlbumArtURI then
+        CurrentAlbumArtURI = AlbumArtURI
+        HttpClient.Download { Url = CurrentAlbumArtURI, EventHandler = Encode_Album_Art }
+      end
+      
+      if string.find(Controls.Duration.String, "%d+:%d+") and string.find(Controls.Elapsed_Time.String, "%d+:%d+") then
+        CalculateTime(Controls.Duration.String,Controls.Elapsed_Time.String)
+      else
+        Controls.Time.Value = 0
+      end
+  
+      Controls.Queue.String = nTrackInfo.Track
+      
+    end
+  end
+
+  function Encode_Album_Art(tbl, code, d, e)
+    if code == 200 then
+      Album_Art_Data = Crypto.Base64Encode(d)
+      iconStyle = {
+        DrawChrome = false,
+        IconData = Album_Art_Data}
+      Controls.Album_Art.Legend = rapidjson.encode(iconStyle)
+    end
+  end
+  
+  StringTimer.EventHandler = function()
+    for k,v in pairs(TIKey) do
+      if #TrackInfo[v] > 0 then
+          table.insert(TrackInfo[v], #TrackInfo[v], TrackInfo[v][1])
+          table.remove(TrackInfo[v], 1)
+          Controls[TIKey[k]].String = table.concat(TrackInfo[v])
+      end
+    end
+  end
+  
+  function ControlDone(tbl, code, d, e)
+    Update_Status(code, e)
+    --print( string.format("Response Code: %i\t\tErrors: %s\rData: %s",code, e or "None", d))
+  end
+  
+  function SonosControl(command)
+    HttpClient.Upload {
+      Url = "http://"..Main_Device_IP..":1400/MediaRenderer/AVTransport/Control",
+      Method = "POST",
+      Data = [[<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                <s:Body>
+                  <u:]]..command..[[ xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+                    <InstanceID>0</InstanceID>
+                    <Speed>1</Speed>
+                  </u:]]..command..[[>
+                </s:Body>
+              </s:Envelope>]],
+      Headers = {
+        ["Content-Type"] = "text/xml",
+        SOAPACTION = "urn:schemas-upnp-org:service:AVTransport:1#"..command,
+      },
+      EventHandler = ControlDone 
+    }
+  end
+  
+  function SonosPlayMode(Mode)
+    HttpClient.Upload {
+      Url = "http://"..Main_Device_IP..":1400/MediaRenderer/AVTransport/Control",
+      Method = "POST",
+      Data = [[<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                <s:Body>
+                    <u:SetPlayMode xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+                        <InstanceID>0</InstanceID>
+                        <NewPlayMode>]]..Mode..[[</NewPlayMode>
+                    </u:SetPlayMode>
+                </s:Body>
+            </s:Envelope>]],
+      Headers = {
+        ["Content-Type"] = "text/xml",
+        SOAPACTION = "urn:schemas-upnp-org:service:AVTransport:1#SetPlayMode",
+      },
+      EventHandler = ControlDone 
+    }
+  end
+  
+  function SonosSetVolume(command,value,Device_IP)
+    HttpClient.Upload {
+      Url = "http://"..Device_IP..":1400/MediaRenderer/RenderingControl/Control",
+      Method = "POST",
+      Data = [[<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                <s:Body>
+                    <u:Set]]..command..[[ xmlns:u="urn:schemas-upnp-org:service:RenderingControl:1">
+                        <InstanceID>0</InstanceID>
+                        <Channel>Master</Channel>
+                        <Desired]]..command..[[>]]..value..[[</Desired]]..command..[[>
+                    </u:Set]]..command..[[>
+                </s:Body>
+            </s:Envelope>]],
+      Headers = {
+        ["Content-Type"] = "text/xml",
+        SOAPACTION = "urn:schemas-upnp-org:service:RenderingControl:1#Set"..command,
+      },
+      EventHandler = ControlDone 
+    }
+  end
+  
+  function UpdateGrouping(x)
+    if #GroupingControls > 1 then
+      local ConcatNames = table.concat(SonosPlayers[x].Members, "||").."||"..x
+      for k,v in pairs(GroupingControls) do
+        if string.find(ConcatNames, v.Legend) then
+          v.Boolean = true
+        else
+          v.Boolean = false
+        end
+      end
+    end
+  end
+  
+  function CheckGroupsDone(tbl, code, d, e)
+
+    Update_Status(code, e)
+    local Returned_IP = string.match(tbl.Url, "%d+%.%d+%.%d+%.%d+")
+    local Compare_uuid = string.match(d,"<TrackURI>(.-)</TrackURI>")
+    Return_Count = Return_Count + 1
+    
+    for k in pairs(SonosPlayers) do
+      if string.match(Returned_IP,SonosPlayers[k].IP) then
+        Returned_Device_Name = k
+        Group_Return_Table[Return_Count] = {Name = Returned_Device_Name, TrackURI = Compare_uuid }
+      end
+    end
+    
+    if Return_Count == #ZoneControls then
+    
+      if #SonosPlayers[Selected_Sonos_Name].Members == 0 then
+        Main_Device_IP = SonosPlayers[Selected_Sonos_Name].IP
+        Main_Device_Name = Selected_Sonos_Name
+      end
+      
+      for k in pairs(SonosPlayers) do
+        SonosPlayers[k].Members = {}
+      end
+      
+      for k in pairs(SonosPlayers) do
+        for i,m in pairs(Group_Return_Table) do
+          if string.find(m.TrackURI,SonosPlayers[k].uuid) then
+            Name_Check_First = table.concat(SonosPlayers[k].Members, "||")
+            if not string.find(Name_Check_First, m.Name) and k ~= m.Name then
+              table.insert(SonosPlayers[k].Members, m.Name)
+            end
+            for l in pairs(SonosPlayers) do
+              if l ~= k then
+                for x,c in pairs(SonosPlayers[l].Members) do
+                  if c == m.Name then
+                    table.remove(SonosPlayers[l].Members, x)
+                  end
+                end
+              end
+            end
+            if Selected_Sonos_Name == m.Name or Selected_Sonos_Name == k then
+              Main_Device_IP = SonosPlayers[k].IP
+              Main_Device_Name = k
+            end         
+          end
+        end 
+      end
+      
+      UpdateGrouping(Main_Device_Name) 
+      SonosGetSongs()
+      SonosGetStatus()
+      SonosGetTrackInfo()
+      Return_Count = 0
+
+    end
+    
+  end
+  
+  function SonosCheckForGroups()
+    for c in pairs(SonosPlayers) do
+      HttpClient.Upload {
+        Url = "http://"..SonosPlayers[c].IP..":1400/MediaRenderer/AVTransport/Control",
+        Method = "POST",
+        Data = [[<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                  <s:Body>
+                    <u:GetPositionInfo xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+                      <InstanceID>0</InstanceID>
+                    </u:GetPositionInfo>
+                  </s:Body>
+                </s:Envelope>]],
+        Headers = {
+          ["Content-Type"] = "text/xml",
+          SOAPACTION = "urn:schemas-upnp-org:service:AVTransport:1#GetPositionInfo",
+        },
+        EventHandler = CheckGroupsDone
+      }
+    end
+  end
+  
+  function SonosGetTrackInfo()
+      HttpClient.Upload {
+        Url = "http://"..Main_Device_IP..":1400/MediaRenderer/AVTransport/Control",
+        Method = "POST",
+        Data = [[<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                  <s:Body>
+                    <u:GetPositionInfo xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+                      <InstanceID>0</InstanceID>
+                    </u:GetPositionInfo>
+                  </s:Body>
+                </s:Envelope>]],
+        Headers = {
+          ["Content-Type"] = "text/xml",
+          SOAPACTION = "urn:schemas-upnp-org:service:AVTransport:1#GetPositionInfo",
+        },
+        EventHandler = StatusDone
+      }
+  end
+  
+  function SonosGetStatus()
+  SOAPs = {"GetTransportSettings","GetTransportInfo"}
+    for i = 1,2 do
+        HttpClient.Upload {
+          Url = "http://"..Main_Device_IP..":1400/MediaRenderer/AVTransport/Control",
+          Method = "POST",
+          Data = [[<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                    <s:Body>
+                      <u:]]..SOAPs[i]..[[ xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+                        <InstanceID>0</InstanceID>
+                      </u:]]..SOAPs[i]..[[>
+                    </s:Body>
+                  </s:Envelope>]],
+          Headers = {
+            ["Content-Type"] = "text/xml",
+            SOAPACTION = "urn:schemas-upnp-org:service:AVTransport:1#"..SOAPs[i],
+          },
+          EventHandler = StatusDone
+        }
+    end
+  end
+  
+  function GetSongsDone(tbl, code, d, e)
+
+    local Songs = {}
+    local xmlData = xmlparser(d)
+
+    if not Other_Source then
+      if string.gmatch(xmlData, "<dc:title>") then
+        for title in string.gmatch(xmlData, "<dc:title>(.-)</dc:title>") do
+        table.insert(Songs, title)
+        end
+      end
+    end
+    
+    Controls.Queue.Choices = Songs
+
+  end
+  
+  function SonosGetSongs()
+      HttpClient.Upload {
+        Url = "http://"..Main_Device_IP..":1400/MediaServer/ContentDirectory/Control",
+        Method = "POST",
+        Data = [[<?xml version="1.0" encoding="utf-8"?>
+                <s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" 
+                    xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+                    <s:Body>
+                        <u:Browse xmlns:u="urn:schemas-upnp-org:service:ContentDirectory:1">
+                            <ObjectID>Q:0</ObjectID>
+                            <BrowseFlag>BrowseDirectChildren</BrowseFlag>
+                            <Filter></Filter>
+                            <StartingIndex>0</StartingIndex>
+                            <RequestedCount>1000</RequestedCount>
+                            <SortCriteria></SortCriteria>
+                        </u:Browse>
+                    </s:Body>
+                </s:Envelope>]],
+        Headers = {
+          ["Content-Type"] = "text/xml",
+          SOAPACTION = "urn:schemas-upnp-org:service:ContentDirectory:1#Browse",
+        },
+        EventHandler = GetSongsDone
+      }
+  end
+  
+  function SetTrack(Track)
+      HttpClient.Upload {
+        Url = "http://"..Main_Device_IP..":1400/MediaRenderer/AVTransport/Control",
+        Method = "POST",
+        Data = [[<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                  <s:Body>
+                      <u:Seek xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+                          <InstanceID>0</InstanceID>
+                          <Unit>TRACK_NR</Unit>
+                          <Target>]]..Track..[[</Target>
+                      </u:Seek>
+                  </s:Body>
+              </s:Envelope>]],
+        Headers = {
+          ["Content-Type"] = "text/xml",
+          SOAPACTION = "urn:schemas-upnp-org:service:AVTransport:1#Seek",
+        },
+        EventHandler = ControlDone
+      }
+  end
+  
+  function SonosPlayPlaylist(i)
+    HttpClient.Upload {
+      Url = "http://"..Main_Device_IP..":1400/MediaRenderer/Queue/Control",
+      Method = "POST",
+      Data = [[<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+    <s:Body>
+      <u:ReplaceAllTracks xmlns:u="urn:schemas-sonos-com:service:Queue:1">
+        <QueueID>0</QueueID>
+        <UpdateID>0</UpdateID>
+        <ContainerURI></ContainerURI>
+        <ContainerMetaData></ContainerMetaData>
+        <CurrentTrackIndex>0</CurrentTrackIndex>
+        <NewCurrentTrackIndices>1</NewCurrentTrackIndices>
+        <NumberOfURIs>1</NumberOfURIs>
+        <EnqueuedURIsAndMetaData>]]..EURIsAndMetaData[i]..[[</EnqueuedURIsAndMetaData>
+      </u:ReplaceAllTracks>
+    </s:Body>
+  </s:Envelope>]],
+      Headers = {
+        ["Content-Type"] = "text/xml",
+        SOAPACTION = "urn:schemas-sonos-com:service:Queue:1#ReplaceAllTracks", 
+      },
+      EventHandler = ControlDone
+    }
+  end
+  
+  function AddMember(nDeviceIP,Rin)
+    HttpClient.Upload {
+      Url = "http://"..nDeviceIP..":1400/MediaRenderer/AVTransport/Control",
+      Method = "POST",
+      Data = [[<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+    <s:Body>
+      <u:SetAVTransportURI xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+        <InstanceID>0</InstanceID>
+        <CurrentURI>x-rincon:]]..Rin..[[</CurrentURI>
+        <CurrentURIMetaData></CurrentURIMetaData>
+      </u:SetAVTransportURI>
+    </s:Body>
+  </s:Envelope>]],
+      Headers = {
+        ["Content-Type"] = 'text/xml; charset="utf-8"',
+        SOAPACTION = "urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI"
+      },
+      EventHandler = ControlDone 
+    }
+  end
+  
+  function RemoveMember(nDeviceIP)
+    HttpClient.Upload {
+      Url = "http://"..nDeviceIP..":1400/MediaRenderer/AVTransport/Control",
+      Method = "POST",
+      Data = [[<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+    <s:Body>
+      <u:BecomeCoordinatorOfStandaloneGroup xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+        <InstanceID>0</InstanceID>
+      </u:BecomeCoordinatorOfStandaloneGroup>
+    </s:Body>
+  </s:Envelope>]],
+      Headers = {
+        ["Content-Type"] = 'text/xml; charset="utf-8"',
+        SOAPACTION = "urn:schemas-upnp-org:service:AVTransport:1#BecomeCoordinatorOfStandaloneGroup"
+      },
+      EventHandler = ControlDone 
+    }
+  end
+  
+  function ClearQueue()
+    HttpClient.Upload {
+      Url = "http://"..Main_Device_IP..":1400/MediaRenderer/AVTransport/Control",
+      Method = "POST",
+      Data = [[<s:Envelope
+          xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"
+          s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+          <s:Body>
+              <u:RemoveAllTracksFromQueue
+                  xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+                  <InstanceID>
+                      0
+                      </InstanceID>
+                  </u:RemoveAllTracksFromQueue>
+              </s:Body>
+          </s:Envelope>]],
+      Headers = {
+        ["Content-Type"] = 'text/xml; charset="utf-8"',
+        SOAPACTION = "urn:schemas-upnp-org:service:AVTransport:1#RemoveAllTracksFromQueue"
+      },
+      EventHandler = ControlDone 
+    }
+  end
+  
+  function SetAsSelf(Rin)
+    HttpClient.Upload {
+      Url = "http://"..Main_Device_IP..":1400/MediaRenderer/AVTransport/Control",
+      Method = "POST",
+      Data = [[<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                <s:Body>
+                  <u:SetAVTransportURI xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+                    <InstanceID>0</InstanceID>
+                    <CurrentURI>x-rincon-queue:]]..Rin..[[#0</CurrentURI>
+                    <CurrentURIMetaData></CurrentURIMetaData>
+                  </u:SetAVTransportURI>
+                </s:Body>
+              </s:Envelope>]],
+      Headers = {
+        ["Content-Type"] = 'text/xml; charset="utf-8"',
+        SOAPACTION = "urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI"
+      },
+      EventHandler = ControlDone 
+    }
+  end
+  
+  function Seek(Seek_Time)
+    HttpClient.Upload {
+      Url = "http://"..Main_Device_IP..":1400/MediaRenderer/AVTransport/Control",
+      Method = "POST",
+      Data = [[<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                <s:Body>
+                  <u:Seek xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+                    <InstanceID>0</InstanceID>
+                    <Unit>REL_TIME</Unit>
+                    <Target>]]..Seek_Time..[[</Target>
+                  </u:Seek>
+                </s:Body>
+              </s:Envelope>]],
+      Headers = {
+        ["Content-Type"] = 'text/xml; charset="utf-8"',
+        SOAPACTION = "urn:schemas-upnp-org:service:AVTransport:1#Seek"
+      },
+      EventHandler = ControlDone 
+    }
+  end
+  
+  function GroupControls(nSonosName)
+    c = 1
+    if #GroupingControls > 1 then
+      for k,v in pairs(SonosPlayers) do
+        if k ~= nSonosName then
+          GroupingControls[c].Legend = k
+          c = c + 1
+        end
+      end 
+    end  
+  end
+  
+  for k,v in pairs(ZoneControls) do
+    v.EventHandler = function(v)
+      for i = 1,#ZoneControls do
+        if i == k then
+          ZoneControls[i].Boolean = true
+          Selected_Sonos_Name = v.Legend
+          Selected_Player_IP = SonosPlayers[v.Legend].IP
+          GroupControls(v.Legend)
+          SonosGetVolume() 
+          -- add main device ip and main name logic
+        else
+          ZoneControls[i].Boolean = false
+        end
+      end
+      Return_Count = 0
+      SonosCheckForGroups()
+    end
+  end
+  
+  Controls.Play.EventHandler = function(v)
+    if v.Boolean then
+      SonosControl("Play")
+    else
+      SonosControl("Pause")
+    end
+  end
+  
+  for k,v in pairs(GroupingControls) do
+    v.EventHandler = function(v)
+
+      if v.Boolean then
+        AddMember(SonosPlayers[v.Legend].IP,SonosPlayers[Main_Device_Name].uuid)
+        table.insert(SonosPlayers[Main_Device_Name].Members, v.Legend)
+        Return_Count = 0
+      else
+        RemoveMember(SonosPlayers[v.Legend].IP)
+        for i,m in pairs (SonosPlayers[Main_Device_Name].Members) do
+          if v.Legend == m then 
+            table.remove(SonosPlayers[Main_Device_Name].Members, i)
+          end
+        end
+      end
+
+    end
+  end
+  
+  Controls.Next.EventHandler = function()
+    SonosControl("Next")
+  end
+  
+  Controls.Previous.EventHandler = function()
+    if ElapsedSeconds > 10 then
+      Seek("0:00:00") 
+    else
+      SonosControl("Previous")
+    end
+  end
+  
+  Controls.Volume.EventHandler = function(v)
+    local DeviceVolume = tonumber(string.format("%01d", v.Value))
+    SonosSetVolume("Volume",DeviceVolume,SonosPlayers[Selected_Sonos_Name].IP)
+  end
+  
+  Controls.Mute.EventHandler = function(v)
+    v.Style = Mute_Icons[Bool2Num[v.Boolean]] 
+    SonosSetVolume("Mute",Bool2Num[v.Boolean],SonosPlayers[Selected_Sonos_Name].IP)
+    GMute_State = Bool2Num[v.Boolean]
+  end
+  
+  Controls.Playlist.EventHandler = function(v)
+    for i,m in pairs(Controls.Playlist.Choices) do
+      if v.String == m then
+        if Other_Source then
+          SetAsSelf(SonosPlayers[Main_Device_Name].uuid)
+        end
+        SonosPlayPlaylist(i)
+        WaitToPlay:Start(3)
+        SonosGetSongs()
+      end
+    end
+  end
+  
+  Controls.Queue.EventHandler = function(v)
+    for i,m in pairs(Controls.Queue.Choices) do
+      if v.String == m then
+        if Other_Source then
+          SetAsSelf(SonosPlayers[Main_Device_Name].uuid)
+          Selected_Track = i 
+          Track_Wait:Start(1)
+        else
+          SetTrack(i)
+          if not Controls.Play.Boolean then
+            SonosControl("Play")
+          end
+        end
+      end
+    end
+  end
+  
+  Track_Wait.EventHandler = function(v)
+    SetTrack(Selected_Track)
+    SonosControl("Play")
+    v:Stop()
+  end
+  
+  WaitToPlay.EventHandler = function(v)
+    SonosControl("Play")
+    Controls.Playlist.String = ""
+      v:Stop()
+  end
+  
+  Poll.EventHandler = function()
+  
+   Counter = Counter + 1
+    if not Pause then
+      if Main_Device_IP ~= nil then
+        SonosGetStatus()
+        SonosGetTrackInfo()
+        SonosGetVolume()
+        if Counter == 10 then
+          SonosGetSongs()
+        end
+      end
+      
+      if Counter == 10 then
+        SonosCheckForGroups()
+        Counter = 0
+      end
+    else
+      if Counter > 1 then
+        Counter = 0 
+      elseif Counter == 1 then
+        Pause = false
+      end
+    end
+    
+  end
+
+  Controls.Shuffle.EventHandler = function(v)
+    Pause = true
+    if v.Boolean then
+      Play_Mode_Key = "Shuffle_Repeat"
+    else
+      Play_Mode_Key = "Repeat"
+    end
+    SonosPlayMode(Play_Modes[Play_Mode_Key][RepeatCount])
+    SonosGetSongs()
+  end
+
+  Controls.Repeat.EventHandler = function(v)
+
+    RepeatCount = RepeatCount + 1
+    Pause = true
+    if RepeatCount == 4 then 
+      RepeatCount = 1
+    end
+    
+    if Controls.Shuffle.Boolean then
+      SonosPlayMode(Play_Modes.Shuffle_Repeat[RepeatCount])
+      Controls.Repeat_Mode.String = Repeat_Modes_Indicator[Play_Modes_FB[Play_Modes.Shuffle_Repeat[RepeatCount]][3]]
+      v.Boolean = Play_Modes_FB[Play_Modes.Shuffle_Repeat[RepeatCount]][2]
+    else
+      SonosPlayMode(Play_Modes.Repeat[RepeatCount])
+      Controls.Repeat_Mode.String = Repeat_Modes_Indicator[Play_Modes_FB[Play_Modes.Shuffle_Repeat[RepeatCount]][3]]
+      v.Boolean = Play_Modes_FB[Play_Modes.Shuffle_Repeat[RepeatCount]][2]
+    end
+
+  end
+  
+  Controls.Group_Volume.EventHandler = function(v)
+    Pause = true
+    local DeviceVolume = tonumber(string.format("%01d", v.Value))
+    if #SonosPlayers[Main_Device_Name].Members > 0 then
+      SonosSetVolume("Volume",DeviceVolume,SonosPlayers[Main_Device_Name].IP)
+      for k,v in pairs(SonosPlayers[Main_Device_Name].Members) do
+        SonosSetVolume("Volume",DeviceVolume,SonosPlayers[v].IP)
+      end
+    else
+      SonosSetVolume("Volume",DeviceVolume,SonosPlayers[Selected_Sonos_Name].IP)
+    end
+  end
+  
+  Controls.Group_Mute.EventHandler = function(v)
+    Pause = true
+    v.Style = Mute_Icons[Bool2Num[v.Boolean]]
+    GMute_State = Bool2Num[v.Boolean]
+
+    if #SonosPlayers[Main_Device_Name].Members > 0 then
+      SonosSetVolume("Mute",GMute_State,SonosPlayers[Main_Device_Name].IP)
+      for k,v in pairs(SonosPlayers[Main_Device_Name].Members) do
+        SonosSetVolume("Mute",GMute_State,SonosPlayers[v].IP)
+      end
+    else
+      local DeviceVolume = tonumber(string.format("%01d", v.Value))
+      SonosSetVolume("Mute",GMute_State,SonosPlayers[Selected_Sonos_Name].IP)
+    end
+  end
+  
+  Controls.Time.EventHandler = function(v)
+    if not Other_Source then
+      Pause = true
+      Seek_Wait_Timer:Start(1)
+    end
+  end
+  
+  Seek_Wait_Timer.EventHandler = function(v)
+    Time_In_Seconds = (Controls.Time.Value / 100) * DurationSeconds
+    Converted_Time = string.format("%0.2f", Time_In_Seconds / 60)
+    Mins = string.format("0%0.f", Time_In_Seconds / 60)
+    Secs = tonumber(string.format("%0.f",(string.match(Converted_Time, "%.(%d+)") / 100) * 60))
+    Secs = string.format("%02d", Secs)
+    Seek("0:"..Mins..":"..Secs)
+    v:Stop()
+  end
+  
+  Controls.Max_String_Len.EventHandler = function(v)
+    MaxStringLength = v.Value
+  end
+
+  function Intitalise_Variables()
+    Poll:Stop()
+    DeviceIP = {}
+    SonosPlayers = {}
+    Duplicatetable = {}
+    EURIsAndMetaData = {}
+    Duplicates = ""
+    Main_Device_Name = nil
+    Selected_Sonos_Name = nil
+    Main_Device_IP = nil
+  end
+  
+  Controls.Force_Discovery.EventHandler = function(v)
+
+    Intitalise_Variables()
+    if Controls.Specified_IP.String == "" then
+      DiscoverDevices(CurrentIP)
+    elseif string.find(Controls.Specified_IP.String, "%d+%.%d+%.%d+%.%d+") then
+      DiscoverDevices(Controls.Specified_IP.String)
+    else
+      Controls.Status.String = "Please Enter a Correct IP"
+    end
+  end
+  
+  Controls.Specific_Add.EventHandler = function(v)
+    if string.find(Controls.Specific_IP.String, "%d+%.%d+%.%d+%.%d+") then
+      table.insert(Specific_Devices, Controls.Specific_IP.String)
+      Controls.Specific_Device_List.Choices = Specific_Devices
+    end
+  end
+  
+  Controls.Specific_Delete.EventHandler = function()
+    for k,v in pairs(Specific_Devices) do
+      if v == Controls.Specific_Device_List.String then
+        table.remove(Specific_Devices, k)
+        Controls.Specific_Device_List.Choices = Specific_Devices
+        Controls.Specific_Device_List.String = ""
+      end
+    end
+  end
+  
+  Controls.Specific_Force_Discovery.EventHandler = function()
+    if #Specific_Devices > 0 then
+      Intitalise_Variables()
+      DiscoverSpecifics()
+    end
+  end
+  
+end -- end of runtime Lua code

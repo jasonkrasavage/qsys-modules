@@ -1,0 +1,699 @@
+PluginInfo = 
+{
+    Name = "ETC~Paradigm Presets",
+    Version = "0.4",
+    Id = "4aa02097-27f1-43ba-977d-41c1813a5ede",
+    Description = "Preset Controller for ETC Paradigm",
+    ShowDebug = false
+}
+
+function GetColor(props)
+    return { 235, 210, 203 }
+end
+
+function GetPrettyName(props)
+    return "ETC Paradigm Presets"
+end
+
+local pagenames = 
+    {
+    "Controls",
+    "Setup",
+    }
+ 
+function GetPages()
+  pages = {}
+  for ix,name in ipairs(pagenames) do
+    table.insert( pages, { name = pagenames[ix] })
+  end
+  return pages
+end
+
+props = {}
+
+function GetProperties()
+	table.insert( props, 
+	{
+    Name = "Total Presets",
+    Type = "integer",
+    Min = 2,
+    Max = 50,
+    Value = 2,
+    })
+
+    table.insert( props, 
+	{
+    Name = "Operating Mode",
+    Type = "enum",
+    Choices = {'Interlocked','Exclusive'},
+    Value = 'Interlocked',
+    })
+
+	table.insert( props, 
+	{
+    Name = "Space Name",
+    Type = "string",
+    Value = '',
+    })
+
+    for i = 1,50 do
+        table.insert( props, 
+        {
+        Name = string.format("Preset Name %i",i),
+        Type = "string",
+        Value = '',
+        })
+    end
+    
+	return props
+end
+
+function RectifyProperties(props) -- Used to hide properties that aren't needed based on other property setting
+    for i = 1,50 do
+        local name = string.format("Preset Name %i",i)
+        if i > props["Total Presets"].Value then props[name].IsHidden = true end
+    end
+  return props
+end
+
+ctrls = {}
+function GetControls(props)
+    local tPresets = props['Total Presets'].Value
+    
+    table.insert (ctrls,
+        {
+        Name = "Address",
+        ControlType = "Indicator",
+        IndicatorType = "Text",
+        Count = 1,
+        UserPin = false,
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "Port",
+        ControlType = "Indicator",
+        IndicatorType = "Text",
+        Count = 1,
+        UserPin = false,
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "RS232",
+        ControlType = "Indicator",
+        IndicatorType = "Led",
+        Count = 1,
+        UserPin = false,
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "SpaceName",
+        ControlType = "Indicator",
+        IndicatorType = "Text",
+        Count = 1,
+        UserPin = false,
+        })
+    
+    table.insert (ctrls,
+        {
+        Name = "Status",
+        ControlType = "Indicator",
+        IndicatorType = "Status",
+        Count = 1,
+        UserPin = true,
+        PinStyle = 'Output',
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "Preset",
+        ControlType = "Button",
+        ButtonType = "Toggle",
+        Count = tPresets,
+        UserPin = true,
+        PinStyle = 'Both',
+        }) 
+
+    table.insert (ctrls,
+        {
+        Name = "PresetSelect",
+        ControlType = "Text",
+        Count = 1,
+        UserPin = true,
+        PinStyle = 'Both',
+        }) 
+
+
+    table.insert (ctrls,
+        {
+        Name = "Mode",
+        ControlType = "Button",
+        ButtonType = "Toggle",
+        Count = 2,
+        UserPin = true,
+        PinStyle = 'Both',
+        }) 
+        
+    table.insert (ctrls,
+        {
+        Name = "PresetAltName",
+        ControlType = "Text",
+        Count = tPresets,
+        UserPin = false,
+        }) 
+
+    table.insert (ctrls,
+        {
+        Name = "RecordSafe",
+        ControlType = "Button",
+        ButtonType = "Toggle",
+        Count = tPresets,
+        }) 
+
+    return ctrls
+end
+
+layout = {}
+graphics = {}
+
+col = 70
+row = 16
+gutter = 86
+
+function GetControlLayout(props)
+    local tPresets = props['Total Presets'].Value
+    local CurrentPage = pagenames[props["page_index"].Value]
+    local pnames = {}
+
+    for i=1,tPresets do
+        table.insert(pnames,i,props['Preset Name '..i].Value)
+    end
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "Status",
+        Position = { 0, row },
+        Size = { 76,16 }
+        })
+
+    layout['Status'] =
+        {
+        PrettyName = 'Status',
+        Position = {gutter,row},
+        Size = { 220,16 },        
+        }
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "Space Name",
+        Position = { 0, row+20 },
+        Size = { 76,16 }
+        })
+
+    layout['SpaceName'] =
+        {
+        PrettyName = 'Space Name',
+        Position = {gutter,row+20},
+        Size = { 220,16 },        
+        }
+
+    if CurrentPage == 'Setup' then     
+        CreateSetupPage(tPresets,row,pnames)       
+    end
+
+    if CurrentPage == 'Controls' then
+        row = row+56
+        CreateControlsPage(tPresets,row,pnames)
+    end  
+
+  return layout, graphics
+end
+
+--CONTROL AND GRAPHIC LAYOUT FUNCTIONS
+function CalcNextRow(start,btotal,rowh,rowsp)
+    local nr
+    local tr = math.ceil(btotal/8)
+    local tsp = (tr-1)*rowsp
+    
+    nr = start+(tr*rowh)+tsp
+    return nr
+end
+
+function CreateControlsPage(ti,vstart,pnames)
+    col = 70
+    row = 30
+
+    local h = gutter
+    local v = vstart
+    local nextrow
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "Current Preset",
+        Position = { gutter+220, 16 },
+        Size = { 76,16 }
+        })
+
+    layout['PresetSelect'] =
+        {
+        PrettyName = 'Current Preset',
+        Position = {gutter+220+gutter,16},
+        Size = { 150,16 },        
+        }
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Center",
+        Text = "(Use This For Snapshots)",
+        Position = { gutter+220+gutter, 32 },
+        Size = { 150,16 }
+        })
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        Text = "Mode",
+        TextSize = 12,
+        Color = { 0, 0, 0}, 
+        HTextAlign = "Right",
+        Position = { 0, v },
+        Size = { 76,16 }
+        })
+
+    layout['Mode 1'] =
+        {
+        PrettyName = 'Activate Mode',
+        Legend = 'Activate',
+        Position = {gutter,v},
+        Size = { col,row}, 
+        Color = { 0,255,0},     
+        }
+
+    layout['Mode 2'] =
+        {
+        PrettyName = 'Record Mode',
+        Legend = 'Record',
+        Position = {gutter+col,v},
+        Size = { col,row },
+        Color = { 255,0,0 },      
+        }
+
+    v = v+row+20
+    
+    --Create Preset Buttons
+    nextrow = CalcNextRow(v,ti,row,0)
+    table.insert(graphics,
+        {
+        Type = "Text",
+        Text = "Presets",
+        TextSize = 12,
+        Color = { 0, 0, 0}, 
+        HTextAlign = "Right",
+        Position = { 0, v },
+        Size = { 76,16 }
+        })
+    
+    for i = 1,ti do
+        layout['Preset '..i] = 
+            {
+            Legend = pnames[i],
+            WordWrap = true,
+            PrettyName = string.format("Preset~%i",i),
+            Position = { h, v},
+            Size = { col, row },
+            Padding = 4,
+            }
+        h = h + col
+        
+        if i%8 == 0 then
+            v = row+v
+            h = gutter
+        end
+    end
+end --end of create controls page
+
+function CreateSetupPage(ti,vstart,pnames)
+    
+    table.insert(graphics,
+    {
+    Type = "Text",
+    HTextAlign = "Right",
+    Text = "Address",
+    Position = { gutter+220, row },
+    Size = { 50,16 }
+    })
+
+    layout['Address'] =
+        {
+        PrettyName = 'Address',
+        Position = {gutter+220+60,row},
+        Size = { 180,16 },        
+        }
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "Port",
+        Position = { gutter+220, row+20 },
+        Size = { 50,16 }
+        })
+
+    layout['Port'] =
+        {
+        PrettyName = 'UDP Port',
+        Position = {gutter+60+220,row+20},
+        Size = { 36,16 },
+        Margin = 0,        
+        }
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "RS-232",
+        Position = { gutter+220+60+36, row+20 },
+        Size = { 50,16 }
+        })
+
+    layout['RS232'] =
+        {
+        PrettyName = 'RS-232 Mode',
+        Position = {gutter+60+220+46+46,row+20},
+        Size = { 16,16 },        
+        }
+
+    vstart = row+56  
+        
+    col = 70
+    row = 30
+
+    local h = gutter
+    local v = vstart
+    local nextrow
+    
+    --Create Record Safe Buttons
+    nextrow = CalcNextRow(v,ti,row,0)
+    table.insert(graphics,
+        {
+        Type = "Text",
+        Text = "Record Safe",
+        TextSize = 12,
+        Color = { 0, 0, 0}, 
+        HTextAlign = "Right",
+        Position = { 0, v },
+        Size = { 76,16 }
+        })
+    
+    for i = 1,ti do
+        layout['RecordSafe '..i] = 
+            {
+            Legend = pnames[i],
+            PrettyName = string.format("Disable Preset Record~%i",i),
+            Position = { h, v},
+            Size = { col, row },
+            Color = { 255,0,0 },
+            }
+        h = h + col
+        
+        if i%8 == 0 then
+            v = row+v
+            h = gutter
+        end
+    end
+
+    --Create Alternate Names
+    h = gutter
+    v = nextrow+20
+
+    col = 70
+    row = 20
+
+    nextrow = CalcNextRow(v,ti,row,0)
+    table.insert(graphics,
+        {
+        Type = "Text",
+        Text = "Name Alias\n(Optional)",
+        TextSize = 12,
+        Color = { 0, 0, 0}, 
+        HTextAlign = "Right",
+        VTextAlign = "Top",
+        Position = { 0, v },
+        Size = { 76,48 }
+        })
+    
+    for i = 1,ti do
+        table.insert(graphics,
+            {
+            Type = "Text",
+            Text = pnames[i],
+            TextSize = 10,
+            WordWrap = false,
+            Color = { 0, 0, 0}, 
+            HTextAlign = "Center",
+            Position = { h, v },
+            Size = { col-2,16 }
+            })
+        layout['PresetAltName '..i] = 
+            {
+            PrettyName = string.format("Display Name Alias~%i",i),
+            Position = { h, v+16},
+            Size = { col-2, row-2 },
+            }
+        h = h + col
+        
+        if i%8 == 0 then
+            v = row+v+16
+            h = gutter
+        end
+    end 
+end --end of create setup page
+
+if Controls then --Start of runtime Lua code
+    local cmode = 1
+    local SpaceName = Properties['Space Name'].Value
+    local opsMode = 1
+    local noteid
+    local sock = UdpSocket.New()
+    local ipa = ''
+    local port = 0
+    local cpreset = 0
+
+    local StatusMsg = 
+        {
+        {state=0,lstate=0,msg='Searching for Manager Plugin'},
+        {state=0,lstate=0,msg=''},
+        {state=0,lstate=0,msg='Invalid Address or Port'},
+        }
+
+    local pnames = {}
+
+    if Properties['Operating Mode'].Value == 'Interlocked' then opsMode = 1 
+    elseif Properties['Operating Mode'].Value == 'Exclusive' then opsMode = 2 end
+
+    --FUNCTIONS
+    function StatusCheck(etype,state)
+        local ok = true
+        local max = {value=0,key=0}
+        StatusMsg[etype].state = state
+                
+        for k,v in ipairs(StatusMsg) do
+            if v.state ~= v.lstate then
+            v.lstate = v.state
+            end
+            if v.state > 0 then ok = false end
+        end
+                
+        if ok then
+            if Controls.Status.Value ~= 0 then 
+            Controls.Status.Value = 0
+            Controls.Status.String = ""
+            disableControls(false)
+            end
+        else
+            for k,v in ipairs(StatusMsg) do -- find the most severe status
+                if v.state > max.value then 
+                    max.value = v.state 
+                    max.key = k
+                end
+            end
+                    
+            Controls.Status.Value = max.value
+            Controls.Status.String = StatusMsg[max.key].msg
+        end 
+    end
+
+    function disableControls(state)
+        for k,v in ipairs(Controls.Preset) do
+            if state == false then v.Boolean = false end
+            v.IsDisabled = state
+        end
+        
+        for k,v in ipairs(Controls.Mode) do
+            v.IsDisabled = state
+        end
+
+        Controls.PresetSelect.IsDisabled = state
+
+        if state == false then SetMode(1) end
+    end
+
+    function sendCmd(cmd)
+        if cmd ~= nil then
+            Notifications.Publish('44a464e8ea01',cmd)
+        end
+    end
+
+    function SetMode(id)
+        if Controls.Mode[id].Boolean then
+            cmode = id
+        else
+            if id == 2 then cmode = 1 --Allow Record Mode to Toggle On/Off
+            else cmdoe = id end
+        end
+
+        for k,v in ipairs(Controls.Mode) do
+            if k == cmode then v.Boolean = true
+            else v.Boolean = false end
+        end
+        
+        if cmode == 1 then
+            for k,v in ipairs(Controls.Preset) do
+                if k == cpreset then v.Boolean = true end
+                v.IsDisabled = false
+            end
+        elseif cmode == 2 then
+            for k,v in ipairs(Controls.Preset) do
+                v.Boolean = false
+                v.IsDisabled = Controls.RecordSafe[k].Boolean
+            end
+        end
+    end
+
+    function SetPreset(id,ct)
+        local type = 'act'
+        if opsMode == 1 then
+            if ct ~= nil then
+                if ct.Boolean == false then --If the user has pressed the active preset again
+                    if id ~= cpreset then return
+                    else ct.Boolean = true end
+                end
+            else
+                Controls.Preset[id].Boolean = true
+            end
+
+            for k,v in ipairs(Controls.Preset) do
+                if k ~= id then v.Boolean = false end
+            end
+        end
+        
+        if cmode == 1 then --recall mode
+            cpreset = id
+            if opsMode == 2 then 
+                if ct.Boolean then type = 'act'
+                else type = 'dact' end
+            end
+            sendCmd(string.format('pst %s %s, %s',type,pnames[id],SpaceName))
+        end 
+        
+        if cmode == 2 then --record mode
+            cpreset = id
+            SetMode(1) 
+            if Controls.RecordSafe[id].Boolean then return end
+            sendCmd(string.format('pst rec %s, %s',pnames[id],SpaceName))
+        end
+    end
+
+    function SetAltName(id)
+        if #Controls.PresetAltName[id].String == 0 then
+            Controls.Preset[id].Legend = pnames[id]
+        else    
+            Controls.Preset[id].Legend = Controls.PresetAltName[id].String
+        end
+
+        Controls.RecordSafe[id].Legend = pnames[id]
+    end
+
+    function ProcessFeedback(name,data)
+        if data.space ~= Controls.SpaceName.String then return end
+        print(data.space..' '..data.name..' '..data.cstate)
+        for k,v in ipairs(pnames) do
+            if v == data.name then
+                if data.cstate == 'act' then
+                    cpreset = k 
+                    Controls.Preset[k].Boolean = true
+                    Controls.PresetSelect.String = data.name
+                    return
+                else 
+                    Controls.Preset[k].Boolean = false 
+                end
+            end
+        end
+
+        if opsMode == 2 then return end --Exclusive Mode
+        
+        for k,v in ipairs(Controls.Preset) do  --Check if any preset is active
+            if v.Boolean then return end
+        end
+
+        cpreset = 0
+        Controls.PresetSelect.String = 'None'
+     end
+
+    --EVENT HANDLERS
+    Controls.Address.EventHandler = function(ctrl) ipa = ctrl.String end
+    Controls.Port.EventHandler = function(ctrl) port = ctrl.String end 
+
+    for ix,ct in ipairs(Controls.PresetAltName) do
+        ct.EventHandler = function() SetAltName(ix) end
+    end
+
+    for ix,ct in ipairs(Controls.Preset) do
+        ct.EventHandler = function() 
+           SetPreset(ix,ct)
+        end
+        pnames[ix] = Properties['Preset Name '..ix].Value 
+        SetAltName(ix)
+    end
+
+    for ix,ct in ipairs(Controls.Mode) do
+        ct.EventHandler = function() SetMode(ix) end
+    end
+
+    Controls.RS232.EventHandler = function(ctrl)
+        if ctrl.Boolean then
+            Controls.Address.String = ''
+            Controls.Port.String = ''
+        end
+    end
+
+    Controls.PresetSelect.EventHandler = function(ctrl)
+        for k,v in ipairs(pnames) do
+            if ctrl.String == v then SetPreset(k,nil) return end
+        end
+    end
+
+    Controls.Status.EventHandler = function(ctrl)
+        if ctrl.Value == 0 or ctrl.Value == 1 then
+            if noteid == nil then
+                noteid = Notifications.Subscribe('41c1813a5ede',ProcessFeedback)
+                print(noteid)
+            end 
+            disableControls(false)
+        else disableControls(true) end
+    end
+    
+    --INITALIZATION
+    Controls.SpaceName.String = Properties['Space Name'].Value
+    StatusCheck(1,5)
+    SetMode(1)
+end

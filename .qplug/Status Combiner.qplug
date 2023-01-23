@@ -1,0 +1,247 @@
+--[[
+
+Status Combiner -------------  © Callum Brieske - NSL New Zealand -------------
+
+SAMPLE LUA SCRIPT CODE: The following code is strictly provided as an
+example of some of the capabilities of Q-SYS.  It is NOT provided as a finished 
+product, suitable for deployment in specific applications.  Use of any part of 
+this code is at the user’s own risk. Please read the disclaimer at the bottom of 
+this source code, it limits the author’s responsibility and liability related to this code.
+=======================================================================================
+--]]
+PluginVersion = "1.3"
+PluginInfo = 
+{
+	Name = "Callum Brieske~Tools~Status Combiner",
+	Version = PluginVersion,
+	Id = "4152e51b-74b1-4a6e-ab2a-608baa2f892d",
+	Description = "Status combiner plugin with List & CSV output.",
+	ShowDebug = false,
+}
+
+function GetColor(props)
+	return {0,0,0}
+end
+
+function GetPrettyName(props)
+	return "Status\nCombiner\nv"..PluginVersion.."\n \n©\nCallum Brieske"
+end
+
+function GetProperties()
+	return
+	{
+		{
+			Name = "Number of Status Inputs",
+			Type = "integer",
+			Min  = 1,
+			Max = 255,
+			Value = 5,
+		},
+	}
+end
+
+function GetControls(props)
+	return	{
+		{
+			Name = "System Status",
+			ControlType = "Indicator",
+			PinStyle = "Output",
+			IndicatorType = "Status",
+			Count = 1,
+			UserPin = true,
+		},
+		{
+			Name = "Status CSV",
+			ControlType = "Indicator",
+			PinStyle = "Output",
+			IndicatorType = "Text",
+			Count = 1,
+			UserPin = true,
+		},
+		{
+			Name = "Fault Only",
+			ControlType = "Button",
+			PinStyle = "Input",
+			ButtonType = "Toggle",
+			Count = 1,
+			UserPin = true,
+		},
+		{
+			Name = "Input Name",
+			ControlType = "Text",
+			PinStyle = "Input",
+			Count = props["Number of Status Inputs"].Value,
+			UserPin = true,
+		},
+		{
+			Name = "Ignore Status",
+			ControlType = "Button",
+			PinStyle = "Input",
+			ButtonType = "Toggle",
+			Count = props["Number of Status Inputs"].Value,
+			UserPin = true,
+		},
+		{
+			Name = "Input Status",
+			ControlType = "Indicator",
+			PinStyle = "Input",
+			IndicatorType = "Status",
+			Count = props["Number of Status Inputs"].Value,
+			UserPin = false,
+		},
+	}
+end
+
+function GetControlLayout(props)
+	layout = {}
+	local Color = {
+		GlobalBG = { 0x33, 0x33, 0x33 },
+		White = { 255, 255, 255 },
+		Grey = { 0xEE, 0xEE, 0xEE },
+		Stroke = { 0x95, 0x95, 0x95 },
+		MidGrey = { 127, 127, 127 },
+		Black = { 0, 0, 0 },
+	}
+	for x = 1, props["Number of Status Inputs"].Value, 1 do
+		layout["Input Name "..x] = {
+			PrettyName = "Input "..x.."~Input Name",
+			Style = "Text",
+			TextFontSize = 13,
+			Size = { 150, 16 },
+			Position = { 10, 41+(16*(x-1)) },
+		}
+		layout["Input Status "..x] = {
+			PrettyName = "Input "..x.."~Status",
+			Style = "Text",
+			TextFontSize = 13,
+			Size = { 120, 16 },
+			Position = { 160, 41+(16*(x-1)) },
+		}
+		layout["Ignore Status "..x] = {
+			PrettyName = "Input "..x.."~Ignore",
+			Style = "Button",
+			ButtonStyle = "Toggle",
+			Legend = "Ignore",
+			TextFontSize = 10,
+			Size = { 40, 16 },
+			Position = { 280, 41+(16*(x-1)) },
+		}
+	end
+	
+	layout["System Status"] = {
+		PrettyName = "System Status",
+		Style = "Text",
+		TextFontSize = 13,
+		VTextAlign = "Top",
+		Size = { 200, 16+(16*props["Number of Status Inputs"].Value) },
+		Position = { 350, 25 },
+	}
+	layout["Status CSV"] = {
+		PrettyName = "System Status CSV",
+		Style = "Text",
+		TextFontSize = 13,
+		VTextAlign = "Top",
+		Size = { 200, 16+(16*props["Number of Status Inputs"].Value) },
+		Position = { 560, 25 },
+	}
+	layout["Fault Only"] = {
+		PrettyName = "Fault Only",
+		Style = "Button",
+		ButtonStyle = "Toggle",
+		Legend = "Fault Only",
+		TextFontSize = 10,
+		Size = { 62, 20 },
+		Position = { 698, 3 },
+	}
+	
+	graphics = {
+		{
+			Type = "GroupBox",
+			Text = "Status Input",
+			TextSize = 13,
+			HTextAlign = "Left",
+			StrokeWidth = 1,
+			Position = { 0, 0 },
+			Size = { 330, 51+(16*props["Number of Status Inputs"].Value) },
+			CornerRadius = 8,
+		},
+		{
+			Type = "GroupBox",
+			Text = "System Status",
+			TextSize = 13,
+			HTextAlign = "Left",
+			StrokeWidth = 1,
+			Position = { 340, 0 },
+			Size = { 430, 51+(16*props["Number of Status Inputs"].Value) },
+			CornerRadius = 8,
+		},
+		{
+			Type = "Label",
+			Text = "Status Name",
+			TextSize = 13,
+			HTextAlign = "Center",
+			Position = { 10, 25 },
+			Size = { 150, 16 },
+		},
+		{
+			Type = "Label",
+			Text = "0 = OK, 1 = Compromised, 2 = Fault, 3 = Not Present, 4 = Missing, 5 = Initializing\nName,Status,Status Text",
+			TextSize = 8,
+			HTextAlign = "Center",
+			Position = { 432, 3 },
+			Size = { 266, 20 },
+		},
+	}
+	
+	return layout, graphics
+end
+	
+if Controls then
+print(os.date("%I:%M:%S %p").." | Started Status Combiner v"..PluginVersion)
+function update()                                     -- Update Overall Status
+  local Status = {}
+  local Text = {"Compromised","Fault","Not Present","Missing","Initializing"} Text[0] = "OK"
+  Status.Value = 0
+  Status.String = "Global"
+  Status.csv = ""
+  for x = 1, #Controls["Input Status"], 1 do
+    Status.String = Status.String.."\n"
+    Status.String = Status.String..(Controls["Input Name"][x].String == "" and "Status "..x or Controls["Input Name"][x].String).." - "..Controls["Input Status"][x].String
+    if not Controls["Fault Only"].Boolean or Controls["Input Status"][x].Value > 0 and not Controls["Ignore Status"][x].Boolean then
+		Status.csv = Status.csv.."\n"
+		Status.csv = Status.csv..(Controls["Input Name"][x].String == "" and "Status "..x or Controls["Input Name"][x].String)..","..Controls["Input Status"][x].String
+    end
+	if not Controls["Ignore Status"][x].Boolean then
+      Status.Value = Status.Value >= Controls["Input Status"][x].Value and Status.Value or Controls["Input Status"][x].Value
+    end
+  end
+  Status.csv = "System Status,"..Text[Status.Value]..Status.csv
+  Controls["Status CSV"].String = Status.csv
+  Controls["System Status"].Value = Status.Value
+  Controls["System Status"].String = Status.String
+end
+
+for i,v in ipairs(Controls["Input Name"]) do      -- Create Input Event Handlers
+  Controls["Input Name"][i].EventHandler = update
+  Controls["Input Status"][i].EventHandler = update
+  Controls["Ignore Status"][i].EventHandler = update
+end
+Controls["Fault Only"].EventHandler = update
+
+update()                                              -- Update On Startup
+end
+
+--[[
+DISCLAIMER:
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+POSSIBILITY OF SUCH DAMAGE.
+--]]

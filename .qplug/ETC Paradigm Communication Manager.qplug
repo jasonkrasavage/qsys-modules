@@ -1,0 +1,559 @@
+PluginInfo = 
+{
+    Name = "ETC~Paradigm Communication Manager",
+    Version = "0.3",
+    Id = "e833b711-0286-487c-9ef2-44a464e8ea01",
+    Description = "Master Communication Module for ETC Paradigm",
+    ShowDebug = false
+}
+
+function GetColor(props)
+    return { 235, 210, 203 }
+end
+
+function GetPrettyName(props)
+    return "ETC Paradigm Communication Manager"
+end
+
+props = {}
+
+function GetProperties()
+    table.insert( props, 
+	{
+    Name = "Connection Type",
+    Type = "enum",
+    Choices = {'RS-232','UDP'},
+    Value = 'RS-232',
+    })
+
+    table.insert( props, 
+	{
+    Name = "End of Message",
+    Type = "enum",
+    Choices = {'CR','CR+LF','LF'},
+    Value = 'CR',
+    })
+
+    table.insert( props, 
+	{
+    Name = "Feedback Method",
+    Type = "enum",
+    Choices = {'Poll','Triggers'},
+    Value = 'Poll',
+    })
+
+    table.insert( props, 
+	{
+    Name = "Trigger Listen Port",
+    Type = "integer",
+    Min = 1,
+    Max = 65535,
+    Value = 34703,
+    })
+
+	table.insert( props, 
+	{
+    Name = "Poll Interval",
+    Type = "integer",
+    Min = 1,
+    Max = 10,
+    Value = 2,
+    })
+    
+	return props
+end
+
+function RectifyProperties(props) -- Used to hide properties that aren't needed based on other property setting
+    
+    if props['Connection Type'].Value == 'UDP' and props['Feedback Method'].Value == 'Poll' then
+        props['Trigger Listen Port'].IsHidden = true
+    end
+    
+    if props['Connection Type'].Value == 'RS-232' then
+        props['Trigger Listen Port'].IsHidden = true 
+    end
+
+    return props
+end
+
+ctrls = {}
+function GetControls(props)
+    
+    table.insert (ctrls,
+        {
+        Name = "Address",
+        ControlType = "Text",
+        Count = 1,
+        UserPin = false,
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "Port",
+        ControlType = "Text",
+        Count = 1,
+        UserPin = false,
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "RS232",
+        ControlType = "Indicator",
+        IndicatorType = "Led",
+        Count = 1,
+        UserPin = false,
+        })
+
+    table.insert (ctrls,
+        {
+        Name = "Status",
+        ControlType = "Indicator",
+        IndicatorType = "Status",
+        Count = 1,
+        UserPin = true,
+        PinStyle = 'Output',
+        })
+
+    return ctrls
+end
+
+layout = {}
+graphics = {}
+
+col = 70
+row = 16
+gutter = 86
+
+function GetControlLayout(props)
+
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "Status",
+        Position = { 0, row },
+        Size = { 76,16 }
+        })
+
+    layout['Status'] =
+        {
+        PrettyName = 'Status',
+        Position = {gutter,row},
+        Size = { 220,40},        
+        }
+    
+    row = row+50
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "UDP Address",
+        Position = { 0, row },
+        Size = { 76,16 }
+        })
+    
+    layout['Address'] =
+        {
+        PrettyName = 'Address',
+        Position = {gutter,row},
+        Size = { 220,16},        
+        }
+
+    row = row+26
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "UDP Port",
+        Position = { 0, row },
+        Size = { 76,16 }
+        })
+        
+    layout['Port'] =
+        {
+        PrettyName = 'Port',
+        Position = {gutter,row},
+        Size = { 96,16},        
+        }
+
+    row = row+26
+    table.insert(graphics,
+        {
+        Type = "Text",
+        HTextAlign = "Right",
+        Text = "RS-232 Mode",
+        Position = { 0, row },
+        Size = { 76,16 }
+        })
+            
+    layout['RS232'] =
+        {
+        PrettyName = 'RS-232 Mode',
+        Position = {gutter,row},
+        Size = { 16,16},        
+        }
+
+  return layout, graphics
+end
+
+function GetPins(props)
+    local pins = {}
+    table.insert(pins,
+    {
+        Name = "RS-232 In",
+        Direction = "input",
+        Domain = "serial"
+    })
+
+    return pins
+end
+
+if Controls then --Start of runtime Lua code
+    local comMode = Properties['Connection Type'].Value
+    local fbType = Properties['Feedback Method'].Value
+    local propEom = Properties['End of Message'].Value
+    local pollI = Properties['Poll Interval'].Value
+    local lPort = Properties['Trigger Listen Port'].Value
+    local noteid = nil
+    local poll = Timer.New()
+    local timeout = Timer.New()
+    local start = Timer.New()
+    local next = Timer.New()
+    local nextCmd = Timer.New()
+    local ipa = ''
+    local port = 0
+    local retry = 0
+    local pollFIFO = {}
+    local pollReturn ={}
+    local cmdFIFO = {}
+    local creturn = 0
+    local cmdHold = false
+    local hasError = false
+    local ready = false
+    
+    local sock = UdpSocket.New()
+    local cmdSock = UdpSocket.New()
+
+    local presetPlugins = {}
+    local macroPlugins = {}
+    local presets = {}
+    local macros = {}
+
+    local eom = '\r'
+    if propEOM == 'CR+LF' then eom = '\r\n'
+    elseif propEOM == 'LF' then eom = '\n' end
+
+    local StatusMsg = 
+        {
+        {state=0,lstate=0,msg='Connection'},
+        {state=0,lstate=0,msg='Command Error'},
+        {state=0,lstate=0,msg='Invalid Address or Port'},
+        }
+
+--LOAD NAMED COMPONENTS
+    for k,v in ipairs(Component.GetComponents()) do
+        if v.Type:find('%%PLUGIN%%_4aa02097%-27f1%-43ba%-977d%-41c1813a5ede') ~= nil then --presets
+            table.insert(presetPlugins,1,Component.New(v.Name))
+        elseif v.Type:find('etc_macros') ~= nil then --Macros
+            table.insert(macroPlugins,1,Component.New(v.Name)) 
+        end
+    end
+
+--FUNCTIONS
+    function StatusCheck(etype,state)
+        local ok = true
+        local max = {value=0,key=0}
+        StatusMsg[etype].state = state
+                
+        for k,v in ipairs(StatusMsg) do
+            if v.state ~= v.lstate then
+            v.lstate = v.state
+            end
+            if v.state > 0 then ok = false end
+        end
+                
+        if ok then
+            if Controls.Status.Value ~= 0 then 
+            Controls.Status.Value = 0
+            Controls.Status.String = ""
+            end
+        else
+            for k,v in ipairs(StatusMsg) do -- find the most severe status
+                if v.state > max.value then 
+                    max.value = v.state 
+                    max.key = k
+                end
+            end
+                    
+            Controls.Status.Value = max.value
+            Controls.Status.String = StatusMsg[max.key].msg
+        end
+        
+        for ix,pg in ipairs(presetPlugins) do
+          if pg.Status.Value ~= Controls.Status.Value then
+            pg.Status.Value = Controls.Status.Value
+            pg.Status.String = Controls.Status.String
+          end
+        end 
+
+        for ix,pg in ipairs(macroPlugins) do
+            if pg.Status.Value ~= Controls.Status.Value then
+              pg.Status.Value = Controls.Status.Value
+              pg.Status.String = Controls.Status.String
+            end
+          end 
+    end
+
+    function ValidateAddress()
+        ipa = Controls.Address.String
+        port = Controls.Port.String
+
+        StatusMsg[1].msg = 'Connecting'
+        StatusCheck(1,5)
+
+        if ipa == nil or #ipa < 2 then InvalidAddressFail() return end
+        if port:match('%d') == nil then InvalidAddressFail() return end
+        port = tonumber(port)
+        if port == 0 or port > 65535 then InvalidAddressFail() return end
+
+        for k,v in ipairs(presetPlugins) do
+            v.Address.String = Controls.Address.String
+            v.Port.String = Controls.Port.String
+        end
+
+        for k,v in ipairs(macroPlugins) do
+            v.Address.String = Controls.Address.String
+            v.Port.String = Controls.Port.String
+        end
+
+        start:Start(3)
+    end
+    
+    function InvalidAddressFail()
+        fail()
+        StatusCheck(1,0)
+        StatusCheck(3,2)
+    end
+    
+    function resetPoll()
+        timeout:Stop()
+        poll:Stop()
+        pollFIFO = {}
+        pollReturn = {}
+        creturn = 0
+    end
+
+    function fail()
+        sock:Close()
+        cmdSock:Close()
+        ready = false
+        cmdHold = false
+        presets = {}
+        cmdFIFO = {}
+        resetPoll()
+        StatusCheck(2,0)
+    end
+
+    function createPollStack()
+        sock:Open(nil,lPort)
+        pollFIFO = {}
+        hasError = false
+        local str = ''
+        if fbType =='Poll' or ready == false then --ready is used to poll for current object state on first run
+            for k,v in ipairs(presets) do
+                str = str..string.format('pst get %s, %s%s',v.name,v.space,eom)
+                if #str > 512 then
+                    table.insert(pollFIFO,str)
+                    str = ''
+                end
+            end
+            
+            for k,v in ipairs(macros) do
+                str = str..string.format('macro get %s%s',v.name,eom)
+                print(str)
+                if #str > 512 then
+                    table.insert(pollFIFO,str)
+                    str = ''
+                end
+            end 
+
+            if #str > 0 then table.insert(pollFIFO,str) end 
+        else
+            table.insert(pollFIFO,'Heartbeat\r') --Send a Custom String to recieve a Heartbeat
+        end
+    end
+
+    function sendPoll()
+        if #pollFIFO == 0 then 
+            poll:Start(pollI)
+            if hasError then StatusCheck (2,1)
+            else StatusCheck(2,0) end
+        else    
+            local cmd = table.remove(pollFIFO,1)
+            sock:Send(ipa,port,cmd)
+            timeout:Start(0.25)
+        end
+    end
+
+    function sendCmd()
+        if #cmdFIFO == 0 then
+            print('cmd complete')
+            cmdHold = false
+            cmdSock:Close()
+        else
+            cmdHold = true
+            local cmd = table.remove(cmdFIFO)
+            cmdSock:Open()
+            cmdSock:Send(ipa,port,cmd)
+            nextCmd:Start(0.05)
+        end
+    end
+
+    function ProcessCmd(name,cmd)
+        --resetPoll()
+        print(cmd)
+        cmd = cmd..eom
+        table.insert(cmdFIFO,1,cmd)
+        if cmdHold == false then sendCmd() end
+    end
+
+    function PublishFeedback(localdata,cstate,cname,publishid)
+        for k,v in ipairs(localdata) do
+            if v.name == cname then
+                v.cstate = cstate
+                if v.cstate ~= v.lstate then
+                    v.lstate = cstate
+                    --print(cname..' '..cstate)
+                    Notifications.Publish(publishid,v)
+                end
+                break
+            end
+        end
+    end
+
+    function ProcessFeedback(data)
+        if data:find('pst ') ~= nil then --It is a Preset
+            local cstate,cname,cspace = data:match('pst%s(.-)%s(.-),%s(.-)')
+            if cname == nil then return end
+            PublishFeedback(presets,cstate,cname,'41c1813a5ede')
+        elseif data:find('macro ')~= nil then --It is a Macro
+            local cstate,cname = data:match('macro%s(.-)%s(.+)')
+            if cname == nil then return end
+            PublishFeedback(macros,cstate,cname,'etc_macros')
+        elseif data:find('chan ')~=nil then --It is a Channel
+            local cstate,cname = data:match('chan int:(.-)%s(.-),.+')
+            print('chan '..cstate..' '..cname)
+            Notifications.Publish('etc_channels',{state=cstate,name=cname})
+        elseif data:find('error') ~= nil then --It is an Error
+            StatusMsg[2].msg = data:match('error (.+)\r')
+            Log.Error('ETC Paradigm Error '..StatusMsg[2].msg)
+            print(StatusMsg[2].msg)
+            hasError = true 
+        end
+
+        next:Start(0.15)
+    end
+
+--UDP SOCKET EVENTS
+    sock.Data = function(udp, packet)
+        if cmdHold then print('cmd ret: '..packet.Data) return end
+        if packet.Address ~= ipa then return end
+        --print(packet.Port..' '..packet.Data:match('(.-)\r'))
+        retry = 0
+        StatusCheck(1,0)
+        
+        if packet.Data:find(eom) ~= nil then
+            timeout:Stop()
+            if ready == false then ready = true end
+            for msg in packet.Data:gmatch('(.-)'..eom) do if msg ~= nil then ProcessFeedback(msg) end end
+        end
+    end
+
+--TIMER EVENTS
+    poll.EventHandler = function()
+        poll:Stop()
+        cmdHold = false
+        createPollStack()
+        sendPoll()
+    end
+
+    timeout.EventHandler = function()
+        timeout:Stop()
+        poll:Stop()
+        
+        if retry < 4 then
+            print('Incomplete Response Retry...'..retry)
+            retry = retry+1
+            pollFIFO = {}
+            poll:Start(0.28)
+        else
+            print('Timeout')
+            retry = 0
+            ready = false
+            resetPoll()
+            StatusMsg[1].msg = 'No Response'
+            StatusCheck(1,2)
+            poll:Start(pollI)
+        end
+    end
+
+    start.EventHandler = function()
+        start:Stop()
+        for k,v in ipairs(presetPlugins) do
+            for i=1,100 do
+                ct = v['RecordSafe '..i]
+                if ct ~= nil then
+                    table.insert(presets,{plugin=k,name=ct.Legend,space=v['SpaceName'].String,cstate=nil,lstate=nil})
+                else break end
+            end
+        end
+
+        for k,v in ipairs(macroPlugins) do
+            for i=1,100 do
+                ct = v['MacroRealName '..i]
+                if ct ~= nil then
+                    table.insert(macros,{plugin=k,name=ct.String,cstate=nil,lstate=nil})
+                else break end
+            end
+        end
+        StatusCheck(3,0)
+        poll:Start(0.03)
+    end
+
+    next.EventHandler = function()
+        next:Stop()
+        sendPoll()
+    end
+
+    nextCmd.EventHandler = function()
+        nextCmd:Stop()
+        if cmdHold then sendCmd() end
+    end
+
+--CONTROL EVENTS
+    Controls.Address.EventHandler = ValidateAddress
+    Controls.Port.EventHandler = ValidateAddress
+    
+--INITALIZE
+    noteid = Notifications.Subscribe('44a464e8ea01',ProcessCmd)
+    print(noteid)
+
+    if comMode == 'RS-232' then
+        Controls.Address.String = ''
+        Controls.Port.String = ''
+        Controls.Address.IsDisabled = true
+        Controls.Port.IsDisabled = true
+        Controls.RS232.Boolean = true
+        for k,v in ipairs(presetPlugins) do
+            v.RS232.Boolean = true
+        end
+    else
+        Controls.Address.IsDisabled = false
+        Controls.Port.IsDisabled = false
+        Controls.RS232.Boolean = false
+        ValidateAddress()
+        for k,v in ipairs(presetPlugins) do
+            v.RS232.Boolean = false
+        end
+    end 
+end

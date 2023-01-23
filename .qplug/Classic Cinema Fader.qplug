@@ -1,0 +1,411 @@
+PluginInfo =
+{
+  Name = "Classic Cinema Fader",
+  Version = "1.0",
+  Id = "73492a12-4ade-11eb-ae93-0242ac130002",
+  Description = "Classic Dolby Fader Emulation",
+  Author = "Jay Wyatt, QSC, jay.wyatt@qsc.com"
+}
+
+--Plugin Component Color
+function GetColor()
+  return { 191, 226, 249 }
+end
+
+--Allows the user to set the plugin's properties. You can specify multiple properties tables, depending on the types you require. A property can be an integer, boolean, or enumeration.
+function GetProperties()
+  props = {
+    { -- number of channels
+      Name = "Channel Count",
+      Type = "integer",
+      Min = 2,
+      Max = 128,
+      Value = 8,
+    },
+    { --enable ramp
+      Name = "Enable Ramp Controls",
+      Type = "enum",
+      Choices = {"Yes","No"},
+      Value = "No",
+    }
+  }
+  return props
+end
+
+function RectifyProperties(props)
+   	props.plugin_show_debug.IsHidden = true
+  return props
+end
+
+--Define the controls for your plugin, utilizing the properties table from the GetProperties() function.
+function GetControls(props)
+  ctls = {
+    {
+      Name = "dBFader",
+      ControlType = "Knob",
+      ControlUnit = "dB",
+      Min = -90,
+      Max = 10,
+      Count = 1,
+      PinStyle = "Both",
+      UserPin = true
+    },
+    {
+      Name = "dolbyFader",
+      ControlType = "Knob",
+      ControlUnit = "Float",
+      Min = 0,
+      Max = 10,
+      Count = 1,
+      PinStyle = "Both",
+      UserPin = true
+    },
+    {
+      Name = "mute",
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      Count = 1,
+      PinStyle = "Both",
+      UserPin = true
+    },
+    {
+      Name = "reference",
+      ControlType = "Button",
+      ButtonType = "Trigger",
+      Count = 1,
+      PinStyle = "Both",
+      UserPin = true
+    },
+    {
+    	Name = "increase",
+      ControlType = "Button",
+      ButtonType = "Momentary",
+    	IconType="Icon",
+    	Icon="Plus",
+    	IconColor={0,0,0},
+    },
+    {
+      Name = "decrease",
+      ControlType = "Button",
+      ButtonType = "Momentary",
+      IconType="Icon",
+      Icon="Minus",
+      IconColor={0,0,0},
+    },
+  }
+
+  return ctls
+end
+
+--Layout and Graphics for the PluginInfo
+function GetControlLayout(props)
+  layout = {}
+  graphics = {}
+
+  layout["reference"] =
+  {
+    Style = "Button",
+    PrettyName = "Jump to Reference",
+    Position = {67, 0},
+    Size = {36,16},
+    Color = {32,202,196,255},
+    OffColor = {0,0,0,0},
+    StrokeColor = {105,105,105,255},
+    StrokeWidth = 1,
+    CornerRadius = 2,
+    Padding = 0,
+    Margin = 2,
+  }
+  layout["mute"] =
+  {
+    Style = "Button",
+    PrettyName = "Master Mute",
+    Position = {67, 19},
+    Size = {36,16},
+    Color = {223,0,36,255},
+    OffColor = {0,0,0,0},
+    StrokeColor = {105,105,105,255},
+    StrokeWidth = 1,
+    CornerRadius = 2,
+    Padding = 0,
+    Margin = 2,
+  }
+  layout["dBFader"] =
+  {
+    Style = "Knob",
+    PrettyName = "Gain",
+    Position = {67, 38},
+    Size = {36,36}
+  }
+  layout["dolbyFader"] =
+  {
+    Style = "Knob",
+    PrettyName = "Dolby Level",
+    Position = {67, 76},
+    Color = {68,110,118,255},
+    Size = {36,36}
+  }
+
+  --draw Ramp Buttons if needed
+  if props["Enable Ramp Controls"].Value == "Yes" then
+    layout["increase"] =
+    {
+      Style = "Button",
+      PrettyName = "Increase",
+      Position = {67, 114},
+      Color = {255,255,255,255},
+      Size = {36,16}
+    }
+    layout["decrease"] =
+    {
+      Style = "Button",
+      PrettyName = "Decrease",
+      Position = {67, 133},
+      Color = {255,255,255,255},
+      Size = {36,16}
+    }
+  end
+
+  table.insert( graphics, {
+      Type = "Array",
+      Text = [===[Reference]===],
+      FontSize = 11,
+      Font = "Roboto",
+      FontStyle="Regular",
+      HTextAlign = "Center",
+      StrokeWidth = 0,
+      StrokeColor = {0,0,0,255},
+      StrokeWidth = 0,
+      CornerRadius = 0,
+      Color = {51,51,51,255},
+      Fill = {0,0,0,0},
+      Position = {0 , 0},
+      Size = {64,16},
+      Padding = 0,
+      Margin = 0,
+	  });
+
+    table.insert( graphics, {
+        Type = "Array",
+        Text = [===[Mute]===],
+        FontSize = 11,
+        Font = "Roboto",
+        FontStyle="Regular",
+        HTextAlign = "Center",
+        StrokeWidth = 0,
+        StrokeColor = {0,0,0,255},
+        StrokeWidth = 0,
+        CornerRadius = 0,
+        Color = {51,51,51,255},
+        Fill = {0,0,0,0},
+        Position = {0 , 19},
+        Size = {64,16},
+        Padding = 0,
+        Margin = 0,
+  	  });
+
+      table.insert( graphics, {
+          Type = "Array",
+          Text = [===[Gain (dB)]===],
+          FontSize = 11,
+          Font = "Roboto",
+          FontStyle="Regular",
+          HTextAlign = "Center",
+          StrokeWidth = 0,
+          StrokeColor = {0,0,0,255},
+          StrokeWidth = 0,
+          CornerRadius = 0,
+          Color = {51,51,51,255},
+          Fill = {0,0,0,0},
+          Position = {0 , 38},
+          Size = {64,36},
+          Padding = 0,
+          Margin = 0,
+    	  });
+
+        table.insert( graphics, {
+            Type = "Array",
+            Text = [===[Dolby Level]===],
+            FontSize = 11,
+            Font = "Roboto",
+            FontStyle="Regular",
+            HTextAlign = "Center",
+            StrokeWidth = 0,
+            StrokeColor = {0,0,0,255},
+            StrokeWidth = 0,
+            CornerRadius = 0,
+            Color = {0,0,0,255},
+            Fill = {0,0,0,0},
+            Position = {0 , 76},
+            Size = {64,36},
+            Padding = 0,
+            Margin = 0,
+          });
+
+      if props["Enable Ramp Controls"].Value == "Yes" then
+        table.insert( graphics, {
+            Type = "Array",
+            Text = [===[Increase]===],
+            FontSize = 11,
+            Font = "Roboto",
+            FontStyle="Regular",
+            HTextAlign = "Center",
+            StrokeWidth = 0,
+            StrokeColor = {0,0,0,255},
+            StrokeWidth = 0,
+            CornerRadius = 0,
+            Color = {0,0,0,255},
+            Fill = {0,0,0,0},
+            Position = {0 , 114},
+            Size = {64,16},
+            Padding = 0,
+            Margin = 0,
+          });
+          table.insert( graphics, {
+              Type = "Array",
+              Text = [===[Decrease]===],
+              FontSize = 11,
+              Font = "Roboto",
+              FontStyle="Regular",
+              HTextAlign = "Center",
+              StrokeWidth = 0,
+              StrokeColor = {0,0,0,255},
+              StrokeWidth = 0,
+              CornerRadius = 0,
+              Color = {0,0,0,255},
+              Fill = {0,0,0,0},
+              Position = {0 , 133},
+              Size = {64,16},
+              Padding = 0,
+              Margin = 0,
+            });
+      end
+
+  return layout, graphics
+end
+
+--Construct Input and Outpins and their labels
+function GetPins(props)
+  local ch_count = props["Channel Count"].Value
+  local pins = {}
+
+  for i = 1, ch_count do
+    table.insert(pins,
+    {
+      Name = string.format("Input %i", i),
+      Direction = "input",
+    })
+    table.insert(pins,
+    {
+      Name = string.format("Output %i", i),
+      Direction = "output",
+    })
+  end
+  return pins
+end
+
+--Construct Internal components
+function GetComponents(props)
+  local ch_count = props["Channel Count"].Value
+  comps = {
+      {
+        Name = "internal_gain",
+        Type =  "gain",
+        Properties =
+        {
+          multi_channel_type = 3, --set multichannel type
+          multi_channel_count = ch_count, --match channel count
+        }
+      },
+      {
+        Name = "internal_stepper",
+        Type = "stepper",
+        Properties =
+        {
+          control_type = 2,   --// Integer
+          num_steps = 100,
+        }
+      },
+    }
+
+  return comps
+end
+
+--Map I/O pins to Internal component wiring
+function GetWiring(props)
+  local ch_count = props["Channel Count"].Value
+  local wiring = {}
+
+  for i = 1, ch_count do
+    table.insert(wiring, { string.format("Input %i", i) , string.format("internal_gain Input Channel %i", i) })
+    table.insert(wiring, { string.format("internal_gain Output Channel %i", i) , string.format("Output %i", i) })
+  end
+
+  return wiring
+end
+
+--Runtime Code
+if Controls then
+
+  --Convert a dolby 0-10 input value to a dB equivalent
+  function convertToDb(dolby)
+    if dolby <= 4 then return dolby*20-90
+    else return (dolby-7)*10/3
+    end
+  end
+
+  --Convert a -90 to 10 dB input  to a Dolby 0-10 equivalent
+  function convertToDolby(dB)
+    if dB <= -10 then return chopDecimal( (dB+90)/20 )
+    else return chopDecimal( (dB*3/10)+7 )
+    end
+  end
+
+  function chopDecimal(num)
+    return tonumber(string.format("%.1f",num))
+  end
+
+  internal_stepper.value.EventHandler = function()
+    Controls.dolbyFader.Value = internal_stepper.value.Value / 10
+    Controls.dolbyFader.EventHandler()
+  end
+
+  Controls.dolbyFader.EventHandler = function()
+    Controls.dolbyFader.Value = chopDecimal(Controls.dolbyFader.Value)
+    Controls.dBFader.Value = convertToDb(Controls.dolbyFader.Value)
+    internal_gain.gain.Value = Controls.dBFader.Value
+    internal_stepper.value.Value = Controls.dolbyFader.Value * 10
+  end
+
+  Controls.dBFader.EventHandler = function()
+    Controls.dolbyFader.Value = convertToDolby(Controls.dBFader.Value)
+    internal_gain.gain.Value = Controls.dBFader.Value
+    internal_stepper.value.Value = convertToDolby(Controls.dBFader.Value) * 10
+  end
+
+  Controls.reference.EventHandler = function()
+    Controls.dolbyFader.Value = 7.0
+    Controls.dBFader.Value = 0
+    internal_gain.gain.Value = Controls.dBFader.Value
+    internal_stepper.value.Value = 70
+  end
+
+  Controls.mute.EventHandler = function()
+    internal_gain.mute.Boolean = Controls.mute.Boolean
+  end
+
+  Controls.increase.EventHandler = function()
+    internal_stepper.increase.Value = Controls.increase.Value
+  end
+  Controls.decrease.EventHandler = function()
+    internal_stepper.decrease.Value = Controls.decrease.Value
+  end
+  --initialize dolbyFader to default gain value of 0
+  Controls.dolbyFader.Value = chopDecimal( convertToDolby(Controls.dBFader.Value) )
+
+  --Startup sync internal components with current status of User Controls
+  internal_gain.gain.Value = Controls.dBFader.Value
+  internal_gain.mute.Boolean = Controls.mute.Boolean
+  internal_stepper.value.Value = chopDecimal( convertToDolby( Controls.dBFader.Value )) * 10
+
+end

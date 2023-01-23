@@ -1,0 +1,638 @@
+PluginInfo = 
+{
+	Name = "Alarm Panel",
+	Version = "1.0.0",
+	Id = "76aabb02-5c40-4495-b5c3-04f507711eef",
+	Description = "Alarm Panel",
+	ShowDebug = false,
+	Author = "AD-DA"
+}
+
+function GetProperties() 
+  	props = {
+	  	{
+			Name = "Zones",
+			Type = "integer",
+			Min = 1,
+			Max = 99,
+			Value = 1,
+		},
+		{
+			Name = "Write to log",
+			Type = "boolean",
+			Value = true,
+		},
+		{
+			Name = "UCI name",
+			Type = "string",
+		},
+	}
+	return props
+end
+
+function GetControls(props)
+	ctrl = {}
+
+	table.insert(ctrl,
+		{
+			Name = "status",
+			ControlType = "Indicator",
+			IndicatorType = "Status",
+			UserPin = true,
+			PinStyle = "Output",
+			Count = 1,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "key",
+			ControlType = "Button",
+			ButtonType = "Trigger",
+			UserPin = true,
+			PinStyle = "None",
+			Count = 12,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "string",
+			ControlType = "Indicator",
+			IndicatorType = "Text",
+			UserPin = true,
+			PinStyle = "Output",
+			Count = 1,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "zone.trigger",
+			ControlType = "Indicator",
+			IndicatorType = "Led",
+			UserPin = true,
+			PinStyle = "Both",
+			Count = props["Zones"].Value,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "zone.name",
+			ControlType = "Text",
+			TextType = "TextBox",
+			UserPin = true,
+			PinStyle = "Both",
+			Count = props["Zones"].Value,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "time.pending",
+			ControlType = "Knob",
+			ControlUnit = "Seconds",
+			UserPin = true,
+			PinStyle = "Input",
+			Min = 0,
+			Max = 300,
+			Value = 30,
+			Count = 1,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "time.trigger",
+			ControlType = "Knob",
+			ControlUnit = "Seconds",
+			UserPin = true,
+			PinStyle = "Input",
+			Min = 0,
+			Max = 300,
+			Value = 30,
+			Count = 1,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "led.prealarm",
+			ControlType = "Indicator",
+			IndicatorType = "Led",
+			UserPin = true,
+			PinStyle = "Output",
+			Count = 1,
+		}
+	)
+
+	table.insert(ctrl,
+		{
+			Name = "led.alarm",
+			ControlType = "Indicator",
+			IndicatorType = "Led",
+			UserPin = true,
+			PinStyle = "Output",
+			Count = 1,
+		}
+	)
+
+	return ctrl
+end
+
+function GetPages(props)
+	pages = {
+		{ name = "Alarm Panel"},
+		{ name = "Zones"},
+		{ name = "About"},
+	}
+
+	return pages
+end
+
+function GetControlLayout(props)
+	local layout = {}
+	local graphics = {}
+	local currentPage = GetPages(props)[props["page_index"].Value].name
+	local logoADDA = "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+PCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj48c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4IiB3aWR0aD0iODhweCIgaGVpZ2h0PSIzN3B4IiB2aWV3Qm94PSIwIDAgODggMzciIGVuYWJsZS1iYWNrZ3JvdW5kPSJuZXcgMCAwIDg4IDM3IiB4bWw6c3BhY2U9InByZXNlcnZlIj4gIDxpbWFnZSBpZD0iaW1hZ2UwIiB3aWR0aD0iODgiIGhlaWdodD0iMzciIHg9IjAiIHk9IjAiICAgIHhsaW5rOmhyZWY9ImRhdGE6aW1hZ2UvcG5nO2Jhc2U2NCxpVkJPUncwS0dnb0FBQUFOU1VoRVVnQUFBRmdBQUFBbENBUUFBQUJzSU9hZ0FBQUFCR2RCVFVFQUFMR1BDL3hoQlFBQUFDQmpTRkpOQUFCNkpnQUFnSVFBQVBvQUFBQ0E2QUFBZFRBQUFPcGdBQUE2bUFBQUYzQ2N1bEU4QUFBQUFtSkxSMFFBLzRlUHpMOEFBQUFIZEVsTlJRZmlCUmtUT3lrU3llMHhBQUFJVzBsRVFWUll3KzNZYVd4YzEzVUg4Tis4R1E1M1NxUklpcUtrU3BZdEx6RmpTN0VqcTRyYnBqSnFHMjZReEhiUnVraVFGbzNUSUVpQklpZ1N0RURyRm5FUW8wVlh3RUhoSkxCand3c1FORldjeEVXV0prWlR4N0hqcFk0WHlaUnFXcUlrTHVKUUZNVWhxWmw1U3ovd2FVUU5ueFFpTGRBdk9jQUFiKzc5bjN2Kzk5NnozSHY1Mzh0RysweTZRN0JLZk9EM25QQ1kxcC9IMkdxTlhFd21UT254ZnMycnhNY09pUHkyanY4dndqbUY5TGQ2alp6Q3oyZTcwUEN2U1VHaXBpcTVpRTZUZ2xoNFVkUnlla1ZOY2tJMTRjOUVSYW9YUVMwajNHVzNJWmZxVTNYVW01N3h0bmdGdnNtNzdYS1pQZ3VPT2VnWmgzOEcyVTEreFR0c2xYZkNZUzk1d1dJR2Jwczlyckpac3hsdmVkSHpGaTYrQ29NZWNkeWNpbEJvMFNrdis3Q21CbFMvTHp2c3RJcFExWUlaejd0SndZTkNqMnJMb1B0QnI1aTJxQ1pVVVhiRTMyaDNnd21KOVNtcTZCTmVkZEtDbWtoVjJhaXY2cjB3MmJ3YnZDNFJtVE5xdjROT3FJak4rdlI1SkM3M2Iyb2laVWZ0TjJ4U1JhemtMbzluRW03MmFiTmlGVk1PMmUrSTAwSlZEL3ZBTXNKcmZkWmlIWFhBcUZtaDJMRDNaSHQ1MFkxZUZwdjNUUiszMjVCcjNlcnpoa1VXZk5hYUZIZUpiNnVvK2I1UDJPT2RkdGpyWG04S2pSa1JyU0RjNms5TWlienRiOTFtcHlHNy9ZRW56UXY5eE9tVWNPQXZuSlE0N3UvY2FvY2hOL2hRaXZwUDc4d2l2TU5EcWhaOXdhWmxIdDNpUnM4TFRicFRIaTJlVUZOMWZ3TnFyOWRFSXZFS3dqY3BpUnp3WHUzMS9KRzN3VDg0SXhTbGhHOVRFcHZ3M21WSkxqRGdINFZxdnBaRitJdkdKSjcyU3czdGdkdE5pRHloRzdjWUY5cFg5N3R6Y3B2VEVra0Q0VGFQcHU3U0tBTytMWkpJck5mdG15S1RQcERCNnpFMWlUdFdkaHdScWJvcFE2WERWeVdPR0ZKMG56T20zWm5oVlMwZUVOWUp0NlQxYTdkUmlVY3lpOE92bTVGSUROaGpUTTJqdWpKUVYzdEQ3THVOSXdRMkNMenM2UXlWc2k5aW84czFHZExrTFM5bkpMb3o5am1aZnUvMmxDZmRncXNONGh2S0dlUCswR3VwN2UzV3F2Z1BjeG1vbzE2UzJHSkxJK0U4ZnB4QlpHbm9STjRWT3ZVSVRKaktSQjB5amFWNDMrczMzS3RWdndEN00vR1JGMVBidmZMbWpXYVduNnBSTlczV05SSmU2c3lXcFlIYUJBSkVGNmhyVlZHS1cvTGlMaTFwWU1ZWEdQZHM2UWdRcDlyWjF2TU50VmlnZ2lzdm9MSWpqZTk1Y3hMZG1iNUduM1l3NVFuSEhQV29HYk5nMHdYR3ZTUWxWSmFzWE1OVW1teG9KTHRFK0pERVhvTVpLamwzcDE4VkkwS1gyNWFKdXNFQXFQbUNuYTczT1J3MEo4a01aZGE1RVVSR1ZMVzRYakVEMWVOYStTekMzekd2dzEvcVhFSGtsOTJjZmxjOVoxNnZPMWFndU5USHRkVC9sWndBcjNnUnQ5dTFBdC9xVTJseVRCeDBVTUZ0cnNvZy9LSHNzc0V1M3hPWjhzbUdBL1VXWDFPVlNOeUx6WDRvZHNMZHk4Z3RvUjRYWitSaDdyWW84cTJHdld2eEVST3B4bm9GbjFJUittN3FKT2NtOWZ0bUpSSmo5dUk5UHUvZHRydkhYUlI5MkpSRXlUL3BxNnY4anFjbEVyTXBZZlk0S1ZGeC83TEI5L2lCVUpKSmVJMS9FVXM4NTRQMXRyWCtXaW5GTDFXNmdxY2tFc1BlVi9mWWJ2ZVpGVmtRcG9RZjhpNi9aWS9yN1Z1YXoyZE1pOFVPZXRhWDdQTlRwMFJPK0hPUDF3bHp1N2VFYWthODZDdSs3aFhqSXFIWHZKQnhsbURBazJwaTAzN3FXeDcwckRkVnhFNzVWNlg2NGVkeVQ2cUpsTHpxT3g3eFkyOWFFSG5KZldaU3dvOVpvMmpJWnh4WXZxS0w5YmtuWWkvNHFGWVBTUHhWaXNuN1RmK2VidFZaMUppdjJPbkxRZzluM05FMitYdEg2bnVRU0N4NjFrZmNhRUtrUDQyVmJSNHdrcGJyUkNJeTZVdXVkYk1weDcxUHE0ZGRacTgvY3Fmdm5SdDh2WSs2M3pHeFJVLzVVMzF5K0pqank3YVVWci9yZnVNU2tlZmM0OWNVNVh6U3BJOWxYcEVDMS9relB4Q0tUZnBuZDF1UExaN3gvVFFaTHFHRzNPTkhZb2xqUHVkbVJReDUzUnYrMlB2OW9ZZmM1UllQR2puZlNGR1BvdGlzY2xva212VW9xVFdnMWlsS2xNMmtxQlk5U2hjc1B6bGR1dVRVVEtlWW5IVkNweHFtMXFVTFZWTnBLUW4wWXc0MXZVb1NmVm1aK1JmeUMxbWxMRDJUTkdYMkxUOGxMNVhUOWhVdEY1ZmlLakFyVEYxY2Rzckx1UzZqSjJmenNneHhHYzUvNzdneVJXMjh5RlBMTHF1VWdyWEtjbW9DZ1VTU1RpR1VreWN0b3VUMHlHTzlRSkwybkoxdVlxMnhOSk1NcEcxenFUNlJYb0ZZcHhaNW9ieWNYRHArS0pBVFkxQWdVWkNJeFhLcHpUeU5qeW9GMXhyVlowUzNNenJsZERwdWpTTzZ0RW0wT21XTTlLalhyczhnMml4cWtUUGdzSDRqQmt3N0JqYW5EeXZiVlEwNm9zY3gvZFpMOUpwenRZTzJLT3MzcDllQ2tpNWxiVXA2OWV2UVlrR3pvenFOYTlmclVvY2RQVCtwQmc0NWFsaTNna2t6dGpwdDNMeCtHNTEwV0ZtM3ZFQzNBUE5LeGxWTkdWYzBhTWFZc2g0VEprR2I1alM3cnRmdWxIRUwxcGh5d25iamp1dXpTWk54azFvTkduWEdsRWw1bEV5NXluOGJ0Vld6TGpSYnA3T1JMb0VGb1ZtemFxck95RHNwdEtqRHVPM2FUYVIrbDBzM1B4SXBDWFhMeTVzVEtta1YxdThjdGJxQnlKeElXYnRRSk5DaFU2Z2dGSm0zNExSRkoxV3NWVlFRaXhSMTZoVFdyZVdjYXFSTElRMlB6aFIyN2hJMDZZeU4ybFJYOUd6U0l6cnZObnMybUxZWXZrQ3NGRzNRWWtSKzJmRTBaNE0rZEtUNkxUWmE4SHE5TnpORUE1dlI1VXBGZWMyUytqMXNweG5EdHNramIwQlpwMWhlWUsxUmJ5eWptVXRUWG5QZElSb1hoZEFCdzNyRmluSTY5Q0N3eGxGdmlPc1hzZGNjc2xWT2dDNDlXWVR6QnJ6TERrL1pZcFB0UmsycktDb28yKzBhcndwYzZtcnpmdUpXNHlwMk9lMEtXN1NZY1ZKWlFWN1JPN3h0czdrNjRiWG1uREd2U1NCMmpmL3lxemFwT1dTclN3eVpVakVtN3pxRDFubmJuR3ZzZDdPTkpreTcwalpYR1ZaTFk2TmhqZHNFQ0hRMnBQaldkT1U2NmtXamdFQk9xL2FHTFZ0NnpqcjNCbi8rZHViUnBCM3RCblhaNElxNkc1eDFpQUJONlptNjZjS3Y4NnQvTmYrL2thSTkra1IrbExWMnE1SC9BU3lSRTRIV2IwczhBQUFBSlhSRldIUmtZWFJsT21OeVpXRjBaUUF5TURFNExUQTFMVEkxVkRFNU9qVTVPalF4TFRBM09qQXdyYjRMV0FBQUFDVjBSVmgwWkdGMFpUcHRiMlJwWm5rQU1qQXhPQzB3TlMweU5WUXhPVG8xT1RvME1TMHdOem93TU56anMrUUFBQUFBU1VWT1JLNUNZSUk9IiAvPjwvc3ZnPg=="
+
+
+	if currentPage == "Alarm Panel" then
+		table.insert(graphics,
+			{
+		    	Type = "GroupBox",
+		    	HTextAlign = "Left",
+		    	StrokeWidth = 1,
+		    	CornerRadius = 4,
+		    	Position = { 0, 0 },
+		    	Size = { 100, 85 }
+  			}
+  		)
+
+  		table.insert(graphics,
+			{
+		    	Type = "GroupBox",
+		    	HTextAlign = "Left",
+		    	StrokeWidth = 1,
+		    	CornerRadius = 4,
+		    	Position = { 105, 0 },
+		    	Size = { 200, 85 }
+  			}
+  		)
+
+  		layout["string"] = {
+  			PrettyName = "String",
+		    Style = "Text",
+		    HTextAlign = "Center",
+		    Margin = 2,
+			Position = { 5, 5 },
+			Size = { 90, 15 },
+			IsReadOnly = true,
+  		}
+
+  		table.insert(graphics,
+			{
+		    	Type = "Text",
+		    	Text = "Status :",
+		    	HTextAlign = "Left",
+		    	Position = { 110, 5 },
+		    	Size = { 80, 15 }
+  			}
+  		)
+
+  		layout["status"] = {
+  			PrettyName = "status",
+		    Style = "Text",
+		    HTextAlign = "Center",
+		    Margin = 2,
+			Position = { 190, 5 },
+			Size = { 110, 15 },
+			IsReadOnly = true,
+  		}
+
+  		table.insert(graphics,
+			{
+		    	Type = "Text",
+		    	Text = "Pending Time :",
+		    	HTextAlign = "Left",
+		    	Position = { 110, 20 },
+		    	Size = { 80, 15 }
+  			}
+  		)
+
+  		layout["time.pending"] = {
+  			PrettyName = "Pending Time",
+		    Style = "Text",
+		    HTextAlign = "Center",
+		    Margin = 2,
+			Position = { 190, 20 },
+			Size = { 110, 15 },
+		}
+
+		table.insert(graphics,
+			{
+		    	Type = "Text",
+		    	Text = "Trigger Time :",
+		    	HTextAlign = "Left",
+		    	Position = { 110, 35 },
+		    	Size = { 80, 15 }
+  			}
+  		)
+
+		layout["time.trigger"] = {
+  			PrettyName = "Trigger Time",
+		    Style = "Text",
+		    HTextAlign = "Center",
+		    Margin = 2,
+			Position = { 190, 35 },
+			Size = { 110, 15 },
+		}
+
+		table.insert(graphics,
+			{
+		    	Type = "Text",
+		    	Text = "Pre Alarm :",
+		    	HTextAlign = "Left",
+		    	Position = { 110, 50 },
+		    	Size = { 80, 15 }
+  			}
+  		)
+
+		layout["led.prealarm"] = {
+  			PrettyName = "Pre Alarm",
+		    Style = "Led",
+			Position = { 285, 50 },
+			Size = { 15, 15 },
+		}
+
+		table.insert(graphics,
+			{
+		    	Type = "Text",
+		    	Text = "Alarm :",
+		    	HTextAlign = "Left",
+		    	Position = { 110, 65 },
+		    	Size = { 80, 15 }
+  			}
+  		)
+
+		layout["led.alarm"] = {
+  			PrettyName = "Alarm",
+		    Style = "Led",
+			Position = { 285, 65 },
+			Size = { 15, 15 },
+		}
+
+  		local keyStr = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "clear", "enter"}
+  		local keyX = {5, 35, 65, 5, 35, 65, 5, 35, 65, 35, 5, 65}
+  		local keyY = {5, 5, 5, 20, 20, 20, 35, 35, 35, 50, 50, 50}
+
+  		for i = 1, 12 do
+  			layout["key "..i] = {
+  				PrettyName = keyStr,
+			    Style = "Button",
+			    ButtonStyle = "Trigger",
+			    Legend = keyStr[i],
+			    Position = { keyX[i], keyY[i] + 15 },
+			    Size = { 30, 15 }
+  			}
+  		end
+  	end
+
+
+	if currentPage == "Zones" then
+		local numZone = props["Zones"].Value
+
+		table.insert(graphics,
+			{
+		    	Type = "GroupBox",
+		    	HTextAlign = "Left",
+		    	StrokeWidth = 1,
+		    	CornerRadius = 4,
+		    	Position = { 0, 0 },
+		    	Size = { 305, 20 * numZone + 5 }
+  			}
+  		)
+
+
+		if numZone == 1 then
+			table.insert(graphics,
+	  			{
+	  				Type = "Label",
+	  				Text = "1 :",
+	  				HTextAlign = "Left",
+	 				Position = { 5 , 10 + (1 * 20) - 25 },
+	  				Size = { 30, 15 },
+	  			}
+	  		)
+
+	  		layout["zone.trigger"] = {
+	  			PrettyName = "Zone Trigger",
+			    Style = "Led",
+			    Position = { 30, 10 + (1 * 20) - 25 },
+			    Size = { 15, 15 }
+	  		}
+
+	  		layout["zone.name"] = {
+	  			PrettyName = "Zone Name",
+			    Style = "Text",
+			    Margin = 2, 
+				Position = { 50, 10 + (1 * 20) - 25 },
+			    Size = { 250, 15 }
+	  		}
+		else
+	  		for i = 1, numZone do
+	  			table.insert(graphics,
+	  				{
+	  					Type = "Label",
+	  					Text = i.." :",
+	  					HTextAlign = "Left",
+	  					Position = { 5 , 10 + (i * 20) - 25 },
+	  					Size = { 30, 15 },
+	  				}
+	  			)
+
+	  			layout["zone.trigger "..i] = {
+	  				PrettyName = "Zone Trigger "..i,
+				    Style = "Led",
+				    Position = { 30, 10 + (i * 20) - 25 },
+				    Size = { 15, 15 }
+	  			}
+
+	  			layout["zone.name "..i] = {
+	  				PrettyName = "Zone Name "..i,
+				    Style = "Text",
+				    Margin = 2, 
+				    Position = { 50, 10 + (i * 20) - 25 },
+				    Size = { 250, 15 }
+	  			}
+	  		end
+	  	end
+	end
+
+	if currentPage == "About" then
+		table.insert(graphics,
+			{
+		    	Type = "GroupBox",
+		    	Text = "AD-DA Consultant/Intégrateur",
+		    	HTextAlign = "Left",
+		    	StrokeWidth = 1,
+		    	CornerRadius = 4,
+		    	Position = { 0, 0 },
+		    	Size = { 305, 62 }
+  			}
+  		)
+
+		table.insert(graphics,
+			{
+				Type = "Svg",
+				Image = logoADDA,
+		    	Position = { 10, 20 },
+		    	Size = { 88, 37 }
+		 		}
+	  	)
+
+	  	table.insert(graphics,
+			{
+				Type = "Label",
+		    	Text = "Paul Ricard",
+		    	HTextAlign = "Left",
+		    	Position = { 110, 20},
+		    	Size = { 100, 15 }
+  			}
+	  	)
+
+	  	table.insert(graphics,
+			{
+				Type = "Label",
+		    	Text = "p.ricard@ad-da.ca",
+		    	HTextAlign = "Left",
+		    	Position = { 110, 33},
+		    	Size = { 100, 15 }
+  			}
+	  	)
+
+	  	table.insert(graphics,
+			{
+				Type = "Label",
+		    	Text = "www.ad-da.ca",
+		    	HTextAlign = "Left",
+		    	Position = { 110, 46},
+		    	Size = { 100, 15 }
+  			}
+	  	)
+	end
+
+	return layout, graphics
+end
+
+if Controls then
+
+--[[ Require ]]--
+json = require("rapidjson")
+
+local WTL = Properties["Write to log"].Value
+
+
+if Properties["Zones"].Value == 1 then
+	local C = Controls["zone.name"]
+	Controls["zone.name"] = {}
+	Controls["zone.name"][1] = C
+	local C = Controls["zone.trigger"]
+	Controls["zone.trigger"] = {}
+	Controls["zone.trigger"][1] = C
+end
+
+
+--Customs Functions
+function GetUser()
+	local User = {}
+  	local UCI = GetUCI()
+  	local file = io.open("design/settings/pins.json", "r")
+  	local line = file:read("*all")
+  	file:close()
+  	line = json.decode(line)
+  	for i,v in pairs(line) do
+    	table.insert(User, 
+    		{
+    			Name = v.name, 
+    			Pin = v.pin,
+    			UCI = v.uciIds
+    		}
+    	)
+    end
+    
+    for k, v in pairs(User) do
+    	for kk, vv in pairs(v.UCI) do
+        for _, vvv in pairs(UCI) do
+          if vv == vvv.FileName then User[k]["UCI"][kk] = vvv.Name end
+        end
+      end	
+    end
+  	return User
+end
+
+function GetUCI()
+	local UCI = {}
+	local file = io.open("design/ucis.json", "r")
+  	local line = file:read("*all")
+  	file:close()
+  	line = json.decode(line)
+    for _,v in pairs(line) do
+     	if type(v) == type(table) then 
+        	for _, vv in pairs(v) do
+          		table.insert(UCI, 
+            		{
+              			FileName = vv.FileName,
+              			Name = vv.Name
+            		}
+          		)
+        	end
+      	end
+    end
+    return UCI
+end
+
+uciName = Properties["UCI name"].Value
+
+--[[ Timer ]]--
+PendingTimer = Timer.New()
+PendingTimer.EventHandler = function()
+  ChangeStatus(0, "Armed")
+
+  PendingTimer:Stop()
+end
+
+LastTriggeredZone = 0
+TriggerTimer = Timer.New()
+TriggerTimer.EventHandler = function()
+  ChangeStatus(1, Controls["zone.name"][LastTriggeredZone].String)
+  Controls["led.prealarm"].Boolean = false
+  Controls["led.alarm"].Boolean = true
+  
+  --Write to log
+  if WTL then Log.Error("Alarm Panel : "..Controls["zone.name"][LastTriggeredZone].String.." triggered.") end
+  
+  TriggerTimer:Stop()
+end
+
+--[[ Functions ]]--
+function ChangeStatus(v, s, u)
+  --[[
+    0 = OK - GREEN
+    1 = Compromised - ORANGE
+    2 = Fault - RED
+    3 = Not Present - GRAY
+    4 = Missing  - RED
+    5 = Initializing - BLUE
+  ]]--
+  
+  if v == nil or s == nil then
+    local status = Controls["status"].String
+    if status == "OK - Armed" then
+      --Then disarm
+      v = 0
+      s = "Disarmed"
+      
+      TriggerTimer:Stop()
+      Controls["led.prealarm"].Boolean = false
+      
+      --Write to log
+      if WTL then; if u ~= nil then Log.Message("Alarm Panel : "..u.. " disarmed.") end; end
+      
+    elseif status == "OK - Disarmed" then
+      --Then initialize the arming
+      v = 5
+      s = "Arming"
+      
+      PendingTimer:Start(Controls["time.pending"].Value)
+      
+      --Write to log
+      if WTL then; if u ~= nil then Log.Message("Alarm Panel : "..u.. " armed.") end; end
+    
+    elseif status == "Initializing - Arming" then
+      --Then disarm
+      v = 0
+      s = "Disarmed"
+      
+      PendingTimer:Stop()
+      
+      --Write to log
+      if WTL then; if u ~= nil then Log.Message("Alarm Panel : "..u.. " disarmed.") end; end
+      
+    elseif string.match(status, "Compromised") then
+      --Then disarm
+      v = 0
+      s = "Disarmed"
+    
+      TriggerTimer:Stop()
+      Controls["led.alarm"].Boolean = false
+      
+      --Write to log
+      if WTL then; if u ~= nil then Log.Message("Alarm Panel : "..u.. " disarmed.") end; end
+      
+    end
+  end
+  
+  Controls["status"].Value = v
+  Controls["status"].String = s
+end
+
+--[[ Code ]]--
+
+local str = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0"}
+
+for i = 1, 10 do; Controls["key"][i].EventHandler = function(c); Controls["string"].String = Controls["string"].String.. str[i]; end; end
+Controls["key"][11].EventHandler = function(); Controls["string"].String = ""; end
+Controls["key"][12].EventHandler = function(); 
+  local access, user = ValidatePin(Controls["string"].String)
+  Controls["string"].String = ""
+  
+  if access then
+    --Good pin action
+    ChangeStatus(nil, nil, user)
+  else
+    --Wrong pin action
+  end
+end
+
+function ValidatePin(pin)
+  local flag = false
+  local user = GetUser()
+  local currentUser = ""
+  
+  for k, v in pairs(user) do
+    if v.Pin == pin then
+      currentUser = v.Name
+      for kk, vv in pairs(v) do
+        if type(vv) == type(table) then
+          for kkk, vvv in pairs(vv) do
+            if vvv == uciName then; flag = true; end
+          end
+        end
+      end
+    end
+  end
+  
+  return flag, currentUser
+end
+
+for i = 1, #Controls["zone.trigger"] do
+  Controls["zone.trigger"][i].EventHandler = function(c) 
+    if Controls["status"].String == "OK - Armed" then
+      LastTriggeredZone = i
+      TriggerTimer:Start(Controls["time.trigger"].Value)
+      Controls["led.prealarm"].Boolean = true
+    end
+  end
+end
+
+--[[ Initializ the Alarm Panel ]]--
+ChangeStatus(0, "Disarmed")
+Controls["string"].String = ""
+Controls["led.prealarm"].Boolean = false
+Controls["led.alarm"].Boolean = false
+
+
+-- End Controls
+end

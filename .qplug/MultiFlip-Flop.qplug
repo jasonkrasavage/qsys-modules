@@ -1,0 +1,285 @@
+-- Multi Flip-Flop for Q-SYS
+-- by James Puig / james.puig@dolby.com
+-- Jul '20
+
+PluginInfo = {
+	Name = "Dolby~Multi Flip-Flop",
+    Version = "1.0",
+    BuildVersion = "1.0.1.31",
+   Id = "8d8af033-fa93-4962-805a-96d57b435859",
+    Author = "Jaume Puig",
+    Description = "Advanced Multi Flip-Flop Component Plugin",
+}
+
+function GetColor(props)
+  return { 204, 204, 204 }
+end
+
+function GetPrettyName(props)
+  return "Multi Flip-Flop "   -- .. PluginInfo.Version
+end
+
+function GetProperties()
+  local props = {}
+      	
+  table.insert(props,
+      { 
+        	Name = "Input Count",
+        	Type = "integer",
+        	Value = 1,
+        	Min = 1,
+        	Max=256,
+      }
+    )
+  return props
+end
+
+function RectifyProperties(props)
+   	props.plugin_show_debug.IsHidden = true
+  return props
+end
+ 
+function GetControls(props)
+  local ctrls = {}
+  			
+  			table.insert(ctrls, {	
+      		Name = "start",
+       		ControlType = "Button",
+        		ButtonType = "Toggle",
+  			})  
+  			   
+      	table.insert(ctrls, {	
+      		Name = "exclusive",
+       		ControlType = "Button",
+       		ButtonType = "Toggle",
+      	})     
+  	
+  			for t = 1,props["Input Count"].Value do
+  				
+  				table.insert(ctrls, {	
+      			Name = "set_"..t,
+       			ControlType = "Button",
+       			ButtonType = "Trigger",
+       			UserPin = true,
+       			PinStyle = "Both",
+      		})     
+  				
+  				table.insert(ctrls, {	
+      			Name = "reset_"..t,
+       			ControlType = "Button",
+       			ButtonType = "Trigger",
+       			UserPin = true,
+       			PinStyle = "Both",
+      		})     
+  			
+  				table.insert(ctrls, {	
+      			Name = "toggle_"..t,
+       			ControlType = "Button",
+       			ButtonType = "Trigger",
+       			UserPin = true,
+       			PinStyle = "Both",
+      		})
+  			
+  				table.insert(ctrls, {	
+      			Name = "state_"..t,
+       			ControlType = "Button",
+       			ButtonType = "Toggle",
+       			UserPin = true,
+       			PinStyle = "Both",
+      		})
+  				
+  				table.insert (ctrls, { 
+          	Name = "led_"..t, 
+          	ControlType="Indicator", 
+          	IndicatorType="Led", 
+          	Count=2, 
+          	UserPin = true,
+          	PinStyle = "Both",
+          })
+  				
+  				table.insert (ctrls, { 
+          	Name = "out_"..t, 
+          	ControlType="Indicator", 
+          	IndicatorType="Led", 
+          	UserPin = true,
+          	PinStyle = "Output",
+          })
+  				
+  				table.insert (ctrls, { 
+          	Name = "not_"..t, 
+          	ControlType="Indicator", 
+          	IndicatorType="Led", 
+          	UserPin = true,
+          	PinStyle = "Output",
+  				})
+  			end
+  return ctrls
+end
+
+function GetControlLayout(props)
+  local layout   = {}
+  local graphics = {}
+  		 
+  			 local top = 20
+  			
+  			 table.insert(graphics, { 
+      	 		Type="Label",
+   				Text="Exclusive",
+   				StrokeWidth=0,
+   				VAlign = Center,
+   				Position={ 144,0} ,
+   				Size={64,16},
+      	}) 	
+  			
+  			table.insert(graphics, { 
+      	 		Type="Label",
+   				Text="Set",
+   				StrokeWidth=0,
+   				VAlign = Center,
+   				Position={ 36*1,top} ,
+   				Size={36,32},
+      	}) 	
+  			
+  			table.insert(graphics, { 
+      	 		Type="Label",
+   				Text="Reset",
+   				StrokeWidth=0,
+   				VAlign = Center,
+   				Position={ 36*2,top} ,
+   				Size={36,32},
+      	}) 	
+  			
+  			table.insert(graphics, { 
+      	 		Type="Label",
+   				Text="Toggle",
+   				StrokeWidth=0,
+   				VAlign = Center,
+   				Position={36*3,top} ,
+   				Size={36,32},
+      	}) 	
+  			
+  			table.insert(graphics, { 
+      	 		Type="Label",
+   				Text="State",
+   				StrokeWidth=0,
+   				VAlign = Center,
+   				Position={36*4,top} ,
+   				Size={36,32},
+      	}) 	
+  			
+  			table.insert(graphics, { 
+      	 		Type="Label",
+   				Text="Out",
+   				VAlign = Center,
+   				StrokeWidth=0,
+   				Position={ 36*5+4,top} ,
+   				Size={36,32},
+      	}) 	
+  			
+  			table.insert(graphics, { 
+      	 		Type="Label",
+   				Text="Not Out",
+   				StrokeWidth=0,
+   				VAlign = Center,
+   				Position={ 36*6+8,top} ,
+   				Size={36,32},
+      	}) 	
+  		
+  			for t = 1,props["Input Count"].Value do
+  				
+  				table.insert(graphics, { 
+      	 		Type="Label",
+   					Text=tostring(t),
+   					StrokeWidth=0,
+   					Position={0,top + (t+1)*16} ,
+   					Size={32,16},	
+      		})
+  		
+  				layout['exclusive'] = { PrettyName = "Exclusive", Position={ 210,0 }, }
+   	 			layout['set_'..t] = { PrettyName = tostring(t).."~Set", Position={ 36*1,top+(t+1)*16} }
+  	 			layout['reset_'..t] = { PrettyName = tostring(t).."~Reset",Position={ 36*2,top+(t+1)*16} }
+   				layout['toggle_'..t] = { PrettyName = tostring(t).."~Toggle",Position={ 36*3,top+(t+1)*16} }
+   				layout['state_'..t] = { PrettyName = tostring(t).."~State",Position={ 36*4,top+(t+1)*16} }
+   				layout['out_'..t] = { PrettyName = tostring(t).."~Out",Position={ 36*5+16,top+(t+1)*16} }
+   				layout['not_'..t] = { PrettyName = tostring(t).."~Not out",Position={ 36*6+16,top+(t+1)*16} }
+   			end
+  return layout, graphics
+end
+
+--Start event based logic
+if Controls then
+  	
+  	local function reset(t)		
+  		if Controls.exclusive.Value == 0 then return end
+     		for v = 1,Properties["Input Count"].Value do
+   			if v ~= t then
+  				Controls["reset_"..v]:Trigger() 
+  				Controls["state_"..v].Value = 0
+  				Controls['out_'..v].Value = 0
+  				Controls['not_'..v].Value = 1
+   			end
+   		end
+  	end
+  
+  	Controls.exclusive.EventHandler = function(ctrl)
+   		  local first = false
+   		  for t = 1,Properties["Input Count"].Value do
+   		  	  if first then
+   		  	  	Controls["state_"..t].Value = 0
+  				Controls["reset_"..t]:Trigger()
+  				Controls['out_'..t].Value = 0
+  				Controls['not_'..t].Value = 1 		  	  	
+   		  	  elseif Controls["state_"..t].Value == 1 then 
+   		  	  	first = true
+   		  	 end
+   		  end	
+      end
+  
+      for t = 1,Properties["Input Count"].Value do
+  	
+  		Controls["state_"..t].EventHandler = function(ctrl)
+  			reset(t)
+  			if Controls["state_"..t].Value == 1 then 
+  				Controls["set_"..t]:Trigger()
+  				Controls['out_'..t].Value = 1
+  				Controls['not_'..t].Value = 0
+  			else
+  				Controls["reset_"..t]:Trigger()
+  				Controls['out_'..t].Value = 0
+  				Controls['not_'..t].Value = 1
+  			end
+  		end
+  	
+  		Controls["set_"..t].EventHandler = function(ctrl)		
+  			reset(t)
+  			Controls["state_"..t].Value = 1 
+  			Controls['out_'..t].Value = 1
+  			Controls['not_'..t].Value = 0
+  		end
+  	
+  		Controls["reset_"..t].EventHandler = function(ctrl)		
+  			Controls["state_"..t].Value = 0 
+  			Controls['out_'..t].Value = 0
+  			Controls['not_'..t].Value = 1
+  		end
+  	
+  		Controls["toggle_"..t].EventHandler = function(ctrl)		
+  			Controls["state_"..t].Value = Controls["state_"..t].Value == 0
+  			Controls["state_"..t].EventHandler()
+  		end
+  	
+  	end
+  	
+   	for t = 1,Properties["Input Count"].Value do
+  		if Controls["state_"..t].Value == 1 then 
+  			Controls["set_"..t]:Trigger()
+  			Controls['out_'..t].Value = 1
+  			Controls['not_'..t].Value = 0
+  		else
+  			Controls["reset_"..t]:Trigger()
+  			Controls['out_'..t].Value = 0
+  			Controls['not_'..t].Value = 1
+  		end
+  	
+  	end
+end

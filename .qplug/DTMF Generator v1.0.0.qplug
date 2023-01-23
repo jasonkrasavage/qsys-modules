@@ -1,0 +1,368 @@
+----------------------------------------------------------------------
+--                         DTMF GENERATOR
+--                       by Programation.io
+--
+-- This plugin is the intellectual property of Programation.io.
+-- Any reworks, distribution, or otherwise use of this code, concept,
+-- or packaged plugin shall retain this header as attribution to the
+-- original author.  This plugin is provided as-is without warranty.
+--
+----------------------------------------------------------------------
+
+PluginInfo = {
+  Name = "Programation.io~DTMF Generator",
+  Version = "1.0.0",
+  Id = "54ddf84d-e261-4abe-92d4-0b71377e687c",
+  Description = "A simple DTMF tone generator",
+  ShowDebug = false,
+}
+
+function GetProperties()
+  return {}
+end
+
+function GetPrettyName( props )
+  return "DTMF Generator"
+end
+
+function GetColor( props )
+  return { 164, 212, 176 }
+end
+
+function GetControls( props )
+  return {
+  {
+		Name = "Level",
+		ControlType = "Knob",
+		ControlUnit = "dB",
+		Min = -100,
+		Max = 0,
+		UserPin = true,
+		PinStyle = "Both",
+		Count = 1,
+	},
+  {
+		Name = "Length",
+		ControlType = "Knob",
+		ControlUnit = "Integer",
+		Min = 33,
+		Max = 1000,
+		UserPin = true,
+		PinStyle = "Both",
+		Count = 1,
+	},
+  {
+		Name = "Number",
+		ControlType = "Button",
+		ButtonType = "Trigger",
+		UserPin = true,
+		PinStyle = "Both",
+		Count = 10,
+	},
+  {
+		Name = "Star",
+		ControlType = "Button",
+		ButtonType = "Trigger",
+		UserPin = true,
+		PinStyle = "Both",
+		Count = 1,
+	},
+  {
+		Name = "Pound",
+		ControlType = "Button",
+		ButtonType = "Trigger",
+		UserPin = true,
+		PinStyle = "Both",
+		Count = 1,
+	},
+  {
+		Name = "Reserve",
+		ControlType = "Button",
+		ButtonType = "Trigger",
+		UserPin = true,
+		PinStyle = "Both",
+		Count = 4,
+	},
+  }
+end
+
+function GetControlLayout( props )
+  layout = {}
+  layout["Level"] = 
+	{
+		PrettyName = "Level",
+		Style = "Knob",
+		Position = { 46, 0 },
+		Size = { 36, 36 },
+		ShowTextBox = true,
+		TextFontSize = 10,
+		IsReadOnly = false,
+	}
+  layout["Length"] = 
+	{
+		PrettyName = "Length",
+		Style = "Knob",
+		Position = { 138, 0 },
+		Size = { 36, 36 },
+		ShowTextBox = true,
+		TextFontSize = 10,
+		IsReadOnly = false,
+	}
+  for i = 1, 10 do
+  layout[string.format( "Number %d", i)] = 
+	{
+		PrettyName = string.format( "Number %d", i),
+		Style = "Button",
+		Position = { (i-1) % 3 * 44, math.floor( (i-1) / 3 ) * 44 + 46 },
+		Size = { 44, 44 },
+		Color = { 255, 255, 255 },
+		UnlinkOffColor = false,
+		ButtonStyle = "Trigger",
+		HTextAlign = "Center",
+		VTextAlign = "Center",
+		Legend = string.format( "%d", i ),
+		WordWrap = false,
+		IsBold = false,
+		TextFontSize = 18,
+		Margin = 2,
+		Radius = 2,
+		IsReadOnly = false,
+	}
+  end
+  layout["Number 10"].PrettyName = "Number 0"
+  layout["Number 10"].Legend = "0"
+  layout["Number 10"].Position = { 44, 178 }
+  
+  layout["Star"] = 
+	{
+		PrettyName = "Star",
+		Style = "Button",
+		Position = { 0, 178 },
+		Size = { 44, 44 },
+		Color = { 255, 255, 255 },
+		UnlinkOffColor = false,
+		ButtonStyle = "Trigger",
+		HTextAlign = "Center",
+		VTextAlign = "Center",
+		Legend = "*",
+		WordWrap = false,
+		IsBold = false,
+		TextFontSize = 18,
+		Margin = 2,
+		Radius = 2,
+		IsReadOnly = false,
+	}
+  
+  layout["Pound"] = 
+	{
+		PrettyName = "Pound",
+		Style = "Button",
+		Position = { 88, 178 },
+		Size = { 44, 44 },
+		Color = { 255, 255, 255 },
+		UnlinkOffColor = false,
+		ButtonStyle = "Trigger",
+		HTextAlign = "Center",
+		VTextAlign = "Center",
+		Legend = "#",
+		WordWrap = false,
+		IsBold = false,
+		TextFontSize = 18,
+		Margin = 2,
+		Radius = 2,
+		IsReadOnly = false,
+	}
+  
+  for i = 1, 4 do
+  layout[string.format( "Reserve %d", i )] = 
+	{
+		PrettyName = "Reserve " .. string.char( 64 + i ),
+		Style = "Button",
+		Position = { 132, (i-1)*44+46 },
+		Size = { 44, 44 },
+		Color = { 255, 255, 255 },
+		UnlinkOffColor = false,
+		ButtonStyle = "Trigger",
+		HTextAlign = "Center",
+		VTextAlign = "Center",
+		Legend = string.char( 64 + i ),
+		WordWrap = false,
+		IsBold = false,
+		TextFontSize = 18,
+		Margin = 2,
+		Radius = 2,
+		IsReadOnly = false,
+	}
+  end
+  
+  graphics = {
+  {
+		Type = "Label",
+		Position = { 0,0 },
+		Size = { 46, 36 },
+		Text = "Level (RMS)",
+		TextSize = 12,
+		HTextAlign = "Left",
+		VTextAlign = "Center",
+		IsBold = false,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+	{
+		Type = "Label",
+		Position = { 92, 0 },
+		Size = { 46, 36 },
+		Text = "Length (ms)",
+		TextSize = 12,
+		HTextAlign = "Left",
+		VTextAlign = "Center",
+		IsBold = false,
+		Color = { 0, 0, 0 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+	{
+		Type = "Label",
+		Position = { 0, 222 },
+		Size = { 176, 18 },
+		Text = "by Programation.io  v"..PluginInfo.Version,
+		TextSize = 12,
+		HTextAlign = "Left",
+		VTextAlign = "Center",
+		IsBold = true,
+		Color = { 241, 88, 34 },
+		StrokeWidth = 0,
+		CornerRadius = 0,
+	},
+  }
+  
+  return layout, graphics
+end
+
+function GetPins( props )
+  pins = {}
+  table.insert(pins,
+	{
+		Name = "Output",
+		Direction = "output",
+	})
+  
+  return pins
+end
+
+function GetComponents( props )
+  comps = {}
+  table.insert(comps, 
+	{
+    Name = "_gen_low",
+    Type = "sine",
+    Properties = {
+      ["multi_channel_type"] = 1,
+      ["multi_channel_count"] = 8,
+   }
+  })
+  table.insert(comps,
+  {
+    Name = "_gen_high",
+    Type = "sine",
+    Properties = {
+      ["multi_channel_type"] = 1,
+      ["multi_channel_count"] = 8,
+   }
+  })
+  table.insert(comps,
+  {
+    Name = "_mixer",
+    Type = "mixer",
+    Properties = {
+      ["n_inputs"] = 2,
+      ["n_stereo_inputs"] = 0,
+      ["n_outputs"] = 1,
+      ["n_stereo_outputs"] = 0,
+      ["input_bank_strategy"] = 1,
+      ["input_bank_custom"] = 32,
+      ["output_bank_strategy"] = 1,
+      ["output_bank_custom"] = 16,
+      ["n_cues"] = 0,
+      ["n_vca_groups"] = 0,
+      ["matrix_panner"] = false,
+      ["spatializer_normalization"] = 0,
+      ["pan_strategy"] = 1,
+      ["label_controls"] = false,
+      ["crosspoint_mute"] = false,
+      ["crosspoint_solo"] = false,
+      ["crosspoint_gain_type"] = 0,
+   }
+  })
+  return comps
+end
+
+function GetWiring( props )
+  wiring = {}
+  table.insert( wiring, { "_gen_low Output", "_mixer Input 1" } )
+  table.insert( wiring, { "_gen_high Output", "_mixer Input 2" } )
+  table.insert( wiring, { "_mixer Output 1", "Output" } )
+  return wiring
+end
+
+if Controls then
+
+--all information taken from ITU Recommendation Q.23
+--https://www.itu.int/rec/T-REC-Q.23-198811-I/en
+
+FREQS = {
+  LOW = {697, 770, 852, 941},
+  HIGH = {1209, 1336, 1477, 1633},
+}
+
+OutputMute = _mixer["output.1.mute"]
+
+
+function Generate( low, high )
+  OutputMute.Boolean = true
+  _gen_low.frequency.Value = FREQS.LOW[low]
+  _gen_high.frequency.Value = FREQS.HIGH[high]
+  OutputMute.Boolean = false
+  Timer.CallAfter( function() OutputMute.Boolean = true end, Controls.Length.Value / 1000 )
+end
+
+function Initialize()
+  OutputMute.Boolean = true
+  Controls.Level.Value = _gen_low.level.Value
+  _mixer["input.1.output.1.gain"].Value = 0
+  _mixer["input.2.output.1.gain"].Value = 0
+  
+  for i = 1, 9 do
+    Controls.Number[i].EventHandler = function()
+      Generate( math.floor( ( i-1 )/3 + 1 ), ( (i-1)%3 ) + 1 )
+    end
+  end
+  
+  Controls.Star.EventHandler = function()
+    Generate( 4, 1 )
+  end
+  
+  Controls.Number[10].EventHandler = function()
+    Generate( 4, 2 )
+  end
+  
+  Controls.Pound.EventHandler = function()
+    Generate( 4, 3 )
+  end
+  
+  for i = 1, 4 do
+    Controls.Reserve[i].EventHandler = function()
+      Generate( i, 4 )
+    end
+  end
+  
+  Controls.Level.EventHandler = function( ctl )
+    _gen_low.level.Value = ctl.Value
+    _gen_high.level.Value = ctl.Value
+  end
+end
+
+Initialize()
+  
+end

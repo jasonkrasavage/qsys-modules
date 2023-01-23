@@ -1,0 +1,1000 @@
+-- Telephone Paging for 7.0+
+-- by Joe Peavey
+-- April 2018 with Max Page Duration in Sept. '16
+-- Butchered by Matt Gray for POTS, January 6, 2016
+
+PluginInfo =
+{
+  Name = "Q-SYS Telephone Paging",
+  Version = "0.41",
+  Id = "2f09e2a6-ef0e-444a-a1b3-88598048ebe4",
+  Description = "Plugin to interface Softphone or POTS calls with the PA Router",
+  ShowDebug = false
+}
+
+function GetPrettyName(props)
+  return "Telephone Paging through PA Router"
+end
+
+function GetColor(props)
+  return {167, 214, 213}
+end
+
+function GetProperties()
+  props = {
+    {
+      Name = "Max Paging Duration",
+      Type = "integer",
+      Min = 1,
+      Max = 300,
+      Value = 120,
+    },
+  }
+--[[  table.insert( props, 
+  {
+    Name = "Delay Record",
+    Type = "boolean",
+    Value = false,
+  })
+  table.insert( props, 
+  {
+    Name = "Use PIN",
+    Type = "enum",
+    Choices = { "Yes", "No" },
+    Value = "No",
+  })
+  table.insert( props, 
+  {
+    Name = "Number of PINs",
+    Type = "integer",
+    Min = 1,
+    Max = 50,
+    Value = 1,
+  })]]  
+  return props
+end
+
+--function RectifyProperties(props)
+--  props["Number of PINs"].IsHidden = props["Use PIN"].Value == "No"
+--  return props
+--end
+
+-- ControlType can be Button, Knob, Indicator or Text
+-- ButtonType ( ControlType == Button ) can be Momentary, Toggle or Trigger
+-- IndicatorType ( ControlType == Indicator ) can be Led, Meter, Text or Status
+-- ControlUnit ( ControlType == Knob ) can be dB, Hz, Float, Integer, Pan, Percent, Position or Seconds
+function GetControls(props)
+  local cont =
+  {
+    {
+      Name = "inprogress",
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      Count = 1,
+    },
+    {
+      Name = "prompt",
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      Count = 1,
+    },
+    {
+      Name = "pgStatus",
+      ControlType = "Indicator",
+      IndicatorType = "Status",
+      Count = 1
+    },
+    {
+      Name = "spStatus",
+      ControlType = "Indicator",
+      IndicatorType = "Status",
+      Count = 1
+    },
+    {
+      Name = "lpStatus",
+      ControlType = "Indicator",
+      IndicatorType = "Status",
+      Count = 1
+    },
+    {
+      Name = "cid_name",
+      ControlType = "Text",
+      Count = 1
+    },
+    {
+      Name = "cid_num",
+      ControlType = "Text",
+      Count = 1
+    },
+    {
+      Name = "spName",
+      ControlType = "Text",
+      Count = 1
+    },
+    {
+      Name = "lpName",
+      ControlType = "Text",
+      Count = 1
+    },
+    {
+      Name = "PA_STATION",
+      ControlType = "Text",
+      Count = 1
+    },
+    {
+      Name = "root",
+      ControlType = "Text",
+      Count = 1
+    },
+    {
+      Name = "enterpin",
+      ControlType = "Text",
+      Count = 1
+    },
+    {
+      Name = "entercode",
+      ControlType = "Text",
+      Count = 1
+    },
+    {
+      Name = "tryagain",
+      ControlType = "Text",
+      Count = 1
+    },
+    {
+      Name = "click",
+      ControlType = "Text",
+      Count = 1
+    },
+    {
+      Name = "waitfortone",
+      ControlType = "Text",
+      Count = 1
+    },
+    {
+      Name = "msgplay",
+      ControlType = "Text",
+      Count = 1
+    },
+    {
+      Name = "beep",
+      ControlType = "Text",
+      Count = 1
+    },
+  }
+--[[  if props["Use PIN"].Value == "Yes" then
+    table.insert (cont,
+      {
+        Name = "Enter PIN",
+        ControlType = "Text",
+        Count = 1
+      }
+    )
+    table.insert (cont,
+      {
+        Name = "PIN",
+        ControlType = "Text",
+        Count = props["Number of PINs"].Value
+      }
+    )
+    table.insert (cont,
+      {
+        Name = "PIN Description",
+        ControlType = "Text",
+        Count = props["Number of PINs"].Value
+      }
+    )
+  end]]
+  return cont
+end
+
+function GetControlLayout(props)
+  --local PIN = props["Use PIN"].Value == "Yes"
+  layout = {}
+
+  layout["inprogress"] =
+  {
+    PrettyName = "In Progress",
+    Style = "Button",
+    Legend = "IN PROGRESS",
+    Color = { 255, 0, 0 },
+    Position = { 114, 8 },
+    Size = { 80, 16 },
+    Margin = 0,
+    IsReadOnly = true
+  }
+  layout["prompt"] =
+  {
+    PrettyName = "Prompt",
+    Style = "Button",
+    Legend = "PROMPT",
+    Color = { 0, 255, 0 },
+    Position = { 211, 8 },
+    Size = { 80, 16 },
+    Margin = 0,
+    IsReadOnly = true
+  }
+  layout["pgStatus"] =
+  {
+    PrettyName = "Paging Status",
+    Style = "Text",
+    Position = { 114, 31 },
+    Size = { 217, 19 },
+    IsReadOnly = true
+  }
+  layout["spStatus"] =
+  {
+    PrettyName = "Telephone Status",
+    Style = "Text",
+    Position = { 114, 54 },
+    Size = { 217, 19 },
+    IsReadOnly = true
+  }
+  layout["lpStatus"] =
+  {
+    PrettyName = "Loop Player Status",
+    Style = "Text",
+    Position = { 114, 77 },
+    Size = { 217, 19 },
+    IsReadOnly = true
+  }
+  layout["cid_name"] =
+  {
+    PrettyName = "Caller ID Name",
+    Style = "Text",
+    Color = { 42, 167, 223 },
+    Position = { 114, 100 },
+    Size = { 217, 19 },
+    IsReadOnly = true
+  }
+  layout["cid_num"] =
+  {
+    PrettyName = "Caller ID Number",
+    Style = "Text",
+    Color = { 42, 167, 223 },
+    Position = { 114, 124 },
+    Size = { 217, 19 },
+    IsReadOnly = true
+  }
+  layout["spName"] = 
+  {
+    PrettyName = "Softphone Name",
+    Style = "ComboBox",
+    Color = { 255, 249, 157 },
+    Position = { 220, 182 },
+    Size = { 111, 16 },
+  }
+  layout["lpName"] =
+  {
+    PrettyName = "IVR Loop Player Name",
+    Style = "ComboBox",
+    Color = { 167, 214, 213},
+    Position = { 220, 198 },
+    Size = { 111, 16 }
+  }
+  layout["PA_STATION"] = 
+  {
+    PrettyName = "PA Router Input",
+    Style = "ComboBox",
+    Color = { 167, 214, 213},
+    Position = { 220, 217 },
+    Size = { 45, 16 }
+  }
+  layout["root"] = 
+  {
+    PrettyName = "IVR Root Folder",
+    Style = "ComboBox",
+    Position = { 114, 264 },
+    Size = { 217, 16 }
+  }
+  layout["enterpin"] = 
+  {
+    PrettyName = "Enter PIN",
+    Style = "ComboBox",
+    Position = { 114, 280 },
+    Size = { 217, 16 }
+  }
+  layout["entercode"] = 
+  {
+    PrettyName = "Enter Page Code",
+    Style = "ComboBox",
+    Position = { 114, 296 },
+    Size = { 217, 16 }
+  }
+  layout["tryagain"] = 
+  {
+    PrettyName = "Try Again",
+    Style = "ComboBox",
+    Position = { 114, 312 },
+    Size = { 217, 16 }
+  }
+  layout["click"] = 
+  {
+    PrettyName = "Looping Wait Sound",
+    Style = "ComboBox",
+    Position = { 114, 328 },
+    Size = { 217, 16 }
+  }
+  layout["waitfortone"] = 
+  {
+    PrettyName = "Wait for Tone",
+    Style = "ComboBox",
+    Position = { 114, 344 },
+    Size = { 217, 16 }
+  }
+  layout["msgplay"] = 
+  {
+    PrettyName = "Message Play",
+    Style = "ComboBox",
+    Position = { 114, 360 },
+    Size = { 217, 16 }
+  }
+  layout["beep"] = 
+  {
+    PrettyName = "Beep",
+    Style = "ComboBox",
+    Position = { 114, 376 },
+    Size = { 217, 16 }
+  }
+
+  graphics = {
+    {
+      Type = "GroupBox",
+      Text = "Status",
+      HTextAlign = "Left",
+      StrokeWidth = 1,
+      CornerRadius = 8,
+      Fill = { 215, 215, 235 },
+      Color = { 0, 0, 0 },
+      Position = { 0, 0 },
+      Size = { 345, 150 }
+    },
+    {
+      Type = "Text",
+      Text = "Paging Status",
+      HTextAlign = "Right",
+      Position = { 14, 31 },
+      Size = { 100, 19 }
+    },
+    {
+      Type = "Text",
+      Text = "Telephone Status",
+      HTextAlign = "Right",
+      Position = { 14, 54 },
+      Size = { 100, 19 }
+    },
+    {
+      Type = "Text",
+      Text = "Loop Player Status",
+      HTextAlign = "Right",
+      Position = { 14, 77 },
+      Size = { 100, 19 }
+    },
+    {
+      Type = "Text",
+      Text = "Caller ID Name",
+      HTextAlign = "Right",
+      Position = { 14, 100 },
+      Size = { 100, 19 }
+    },
+    {
+      Type = "Text",
+      Text = "Caller ID Number",
+      HTextAlign = "Right",
+      Position = { 14, 124 },
+      Size = { 100, 19 }
+    },
+    {
+      Type = "GroupBox",
+      Text = "Setup",
+      HTextAlign = "Left",
+      StrokeWidth = 1,
+      CornerRadius = 8,
+      Fill = { 215, 215, 235 },
+      Color = { 0, 0, 0 },
+      Position = { 0, 154 },
+      Size = { 345, 248 }
+    },
+    {
+      Type = "Header",
+      Text = "Telephone Input Setup",
+      Fill = { 51, 51, 51 },
+      Position = { 53, 161 },
+      Size = { 283, 17 }
+    },
+    {
+      Type = "Text",
+      Text = "Telephone Paging Interface Name",
+      HTextAlign = "Right",
+      Position = { 40, 182 },
+      Size = { 180, 16 }
+    },
+    {
+      Type = "Text",
+      Text = "IVR Prompt Loop Player Name",
+      HTextAlign = "Right",
+      Position = { 40, 198 },
+      Size = { 180, 16 }
+    },
+    {
+      Type = "Text",
+      Text = "PA Router Telephone Audio Input",
+      HTextAlign = "Right",
+      Position = { 40, 217 },
+      Size = { 180, 16 }
+    },
+    {
+      Type = "Header",
+      Text = "Telephone Prompt Audio Files",
+      Fill = { 51, 51, 51 },
+      Position = { 14, 243 },
+      Size = { 317, 17 }
+    },
+    {
+      Type = "Text",
+      Text = "IVR Root Folder",
+      HTextAlign = "Right",
+      Position = { 10, 264 },
+      Size = { 103, 16 }
+    },
+    {
+      Type = "Text",
+      Text = "Enter PIN",
+      HTextAlign = "Right",
+      Position = { 10, 280 },
+      Size = { 103, 16 }
+    },
+    {
+      Type = "Text",
+      Text = "Enter Page Code",
+      HTextAlign = "Right",
+      Position = { 10, 296 },
+      Size = { 103, 16 }
+    },
+    {
+      Type = "Text",
+      Text = "Try Again",
+      HTextAlign = "Right",
+      Position = { 10, 312 },
+      Size = { 103, 16 }
+    },
+    {
+      Type = "Text",
+      Text = "Looping Wait Sound",
+      HTextAlign = "Right",
+      Position = { 10, 328 },
+      Size = { 103, 16 }
+    },
+    {
+      Type = "Text",
+      Text = "Wait for Tone",
+      HTextAlign = "Right",
+      Position = { 10, 344},
+      Size = { 103, 16 }
+    },
+    {
+      Type = "Text",
+      Text = "Message will Play",
+      HTextAlign = "Right",
+      Position = { 10, 360 },
+      Size = { 103, 16 }
+    },
+    {
+      Type = "Text",
+      Text = "Beep",
+      HTextAlign = "Right",
+      Position = { 10, 376 },
+      Size = { 103, 16 }
+    },
+  }
+--[[  if PIN then
+    table.insert( graphics,
+      {
+        Type = "Text",
+        Text = "Enter PIN",
+        HTextAlign = "Right",
+        Position = { 32, 333 },
+        Size = { 82, 16 }
+      }
+    )
+    table.insert( graphics,
+      {
+        Type = "GroupBox",
+        Text = "Valid PIN Numbers",
+        HTextAlign = "Left",
+        StrokeWidth = 1,
+        CornerRadius = 8,
+        Fill = { 215, 215, 235 },
+        Color = { 0, 0, 0 },
+        Position = { 0, 361 },
+        Size = { 345, 36+(props["Number of PINs"].Value * 16) }
+      }
+    )
+    table.insert( graphics,
+      {
+        Type = "Header",
+        Text = "PIN",
+        Fill = { 51, 51, 51 },
+        Position = { 114, 368 },
+        Size = { 59, 21 }
+      }
+    )
+    table.insert( graphics,
+      {
+        Type = "Header",
+        Text = "PIN Description",
+        Fill = { 51, 51, 51 },
+        Position = { 173, 368 },
+        Size = { 160, 21 }
+      }
+    )
+    for i=1,props["Number of PINs"].Value do
+      table.insert( graphics,
+        {
+          Type = "Text",
+          Text = string.format("PIN %i",i),
+          HTextAlign = "Right",
+          Position = { 71, 373+(i*16) },
+          Size = { 43, 16 }
+        }
+      )
+    end
+  end]]--
+  return layout, graphics
+end
+
+function GetPins(props)
+  return
+  {
+    {
+      Name = "Loop Player Output 1",
+      Direction = "input",
+    },
+    {
+      Name = "Input from Softphone In",
+      Direction = "input",
+    },
+    {
+      Name = "Output to PA Router Input",
+      Direction = "output",
+    },
+    {
+      Name = "Prompts to Softphone Out",
+      Direction = "output",
+    }
+  }
+end
+
+--[[function GetComponents(props)
+  return 
+  {
+    {   
+      Name = "hudelay",
+      Type = "delay",
+    },
+    {   
+      Name = "prompts",
+      Type = "audio_file_player", 
+      Properties =
+      {
+        ["n_channels"] = 1 -- Track Count
+      }
+    },
+  }
+end]]
+
+function GetWiring(props)
+  return
+  {
+    { "Loop Player Output 1", "Prompts to Softphone Out" },
+    { "Input from Softphone In", "Output to PA Router Input" },
+  }
+end
+
+if Controls then
+
+-- Invoke modules
+require("LuaXML")
+-- Subtract 28 for errors
+-- Constants
+local status_state = { OK = 0, COMPROMISED = 1, FAULT = 2, NOTPRESENT = 3, MISSING = 4, INITIALIZING = 5 }
+local path = "media/catalog.xml"
+local pagest = {
+  ST_OFF = 0,
+  ST_PINPROMPT = 1,
+  ST_ENTERPIN = 2,
+  ST_CODEPROMPT = 3,
+  ST_ENTERCODE = 4,
+  ST_SUBMIT = 5,
+  ST_MSGALERT = 6,
+  ST_PAGETONE = 7,
+  ST_BEEP = 8,
+  ST_PLAYING = 9,
+  ST_END = 10,
+  ST_LIVE = 11,
+  ST_LIVEWAIT = 12,
+}
+
+-- Variables
+local state = pagest.ST_OFF
+local PAReady = false
+local usepins = false
+local AudioFiles = {} -- List of audio files in current directory
+local DirChoices = {} -- List of audio file directories
+local SPDevChoices = {}
+local LPDevChoices = {}
+local PlayerChoices = {}
+local PARStCount = nil
+local PARStChoices = {}
+local Comps = {}
+local code = ""
+
+-- some variables
+local CurrentPage = nil -- current PageRequest object (PA Router API)
+local dtmf = nil -- accumulate incoming DMTF digits
+
+-- Timers
+local CheckFileTimer = Timer.New()
+local WaitTimer = Timer.New()
+
+-- Plugin Aliases
+local inprogress = Controls.inprogress
+local prompt     = Controls.prompt
+local pgStatus   = Controls.pgStatus
+local spStatus   = Controls.spStatus
+local lpStatus   = Controls.lpStatus
+local cid_name   = Controls.cid_name
+local cid_num    = Controls.cid_num
+local lpName     = Controls.lpName
+local spName     = Controls.spName
+local PA_STATION = Controls.PA_STATION -- which PA Router input is being used
+local ivr = {
+  root        = Controls.root,
+  file = {
+    enterpin    = Controls.enterpin,
+    entercode   = Controls.entercode,
+    tryagain    = Controls.tryagain,
+    click       = Controls.click,
+    waitfortone = Controls.waitfortone,
+    msgplay     = Controls.msgplay,
+    beep        = Controls.beep,
+  }
+}
+ivr.file.enterpin.String = ""
+ivr.file.enterpin.IsDisabled = true
+
+-- Lookup Function
+function find(a, tbl) for _,a_ in pairs(tbl) do if a_==a then return true end end return false end
+
+function pgStatusUpdate(state,msg) pgStatus.Value = state pgStatus.String = msg end
+function spStatusUpdate(state,msg) spStatus.Value = state spStatus.String = msg end
+function lpStatusUpdate(state,msg) lpStatus.Value = state lpStatus.String = msg end
+
+function file_exists(name)
+ local f=io.open(name,"r")
+ if f~=nil then io.close(f) return true else return false end
+end
+
+function PARouterInputLogic()
+  if PARStCount == nil then
+    pgStatusUpdate(status_state.FAULT,"No Named PA Router in the design")
+  else
+    local function Choose() PA_STATION.String = "Choose..." pgStatusUpdate(status_state.COMPROMISED,"Choose the input for the Softphone") end
+    if PARStCount>0 then PA_STATION.Choices = PARStChoices end
+    if tonumber(PA_STATION.String)==nil then Choose()
+    elseif tonumber(PA_STATION.String) > PARStCount then Choose()
+    else pgStatusUpdate(status_state.OK,"") end
+    PA_STATION.Color = pgStatus.Value==0 and "" or pgStatus.Color
+    
+    PARouter.EventHandler = function(pr,parstate)
+      --print("103 Description: "..pr:GetInfo().Description)
+      --print( "PA ROUTER: "..parstate.State.." \""..parstate.Message.."\"","OVERALL STATE:",state )
+      local playbeep = parstate.Message == "Paging" or parstate.Message == "Recording"
+      if playbeep and state~=pagest.ST_BEEP and state ~= pagest.ST_LIVE then
+        state = pagest.ST_BEEP
+        LP.Play(ivr.root.String..ivr.file.beep.String)
+        --  --LP.Stop()
+        print("Paging State: ",parstate.Message,state)
+      --  Stop()
+      --  if state == pagest.BEEP then  end
+      --  state = pagest.ST_LIVE
+      elseif parstate.State == "ready" then
+        if parstate.Mode == "Busy" then
+          state = pagest.ST_LIVEWAIT
+          LP.Play(ivr.root.String..ivr.file.click.String,true)
+        elseif parstate.Mode == "Ready to page" then
+          --print("Ready!")
+          --PAReady = true
+          WaitTimer:Start(.1)
+          --  rq:Start()
+        end
+      elseif parstate.State == "done" then -- Hangup
+            print("Page ended: "..parstate.Message)
+            Stop()
+            Component.New(spName.String)["call.disconnect"]:Trigger()
+            state = pagest.ST_OFF
+      elseif parstate.Message == "Please wait" then -- Play clicktrack
+        --  nothing yet (placeholder)
+      end
+    end
+  end
+end
+
+function SPNameLogic()
+  if #SPDevChoices==0 then
+    spStatusUpdate(status_state.FAULT,"No Named Softphone Status Components!")
+    spName.String = ""
+  else
+    local function SPComp()
+      local present = false
+      for _,comp in pairs(Component.GetComponents()) do
+        if comp.Name == spName.String then present=true break end
+      end
+      if present then
+        print("Found Softphone:   "..spName.String)
+        local sp = Component.New(spName.String)
+    --print(sp["call.offhook"].Boolean)
+        -- Softphone setup
+        if sp["call.offhook"].Boolean then
+          sp["call.disconnect"]:Trigger()
+          inprogress.Boolean = false
+        end
+        sp["call.autoanswer"].Boolean = true
+        sp["call.autoanswer.rings"].Value = 1
+
+        -- Softphone EventHandlers
+        sp["call.offhook"].EventHandler = function(ctl)
+    print("interface offhook")
+    print(sp["call.status"].String)
+          if (ctl.Boolean and string.find(sp["call.status"].String,"Incoming")) or (ctl.Boolean and string.find(sp["call.status"].String,"Connected")) then Start() else Stop() end end
+        sp["call.cid.name"].EventHandler = function(ctl) cid_name.String = ctl.String end
+        sp["call.cid.number"].EventHandler = function(ctl) cid_num.String = ctl.String end
+        sp["call.dtmf.rx"].EventHandler = function(ctl)
+    str = string.sub(sp["call.dtmf.rx"].String,-1)
+    print("user entered"..str)
+          if state==pagest.ST_LIVE and str=="#" then
+            print("Received #. Stopping and Hanging up.")
+            Stop()
+            sp["call.disconnect"]:Trigger()
+            state = pagest.ST_OFF
+          inprogress.Boolean = false
+          elseif state>0 then
+            if state == pagest.ST_PINPROMPT then state = pagest.ST_ENTERPIN
+            elseif state == pagest.ST_CODEPROMPT then state = pagest.ST_ENTERCODE end
+            LP.Stop()
+            if str=="#" then
+              CommandCode = tonumber(code)
+              print("CommandCode: ",CommandCode)
+              PageSubmit( CommandCode )
+            else
+              code = code..str
+              print(code)
+            end            
+          end
+        end
+      else
+        print(spName.String)
+      end
+    end
+    SPComp()
+    spStatusUpdate(status_state.OK,"")
+    if #SPDevChoices==1 then
+      spName.String = SPDevChoices[1]
+    elseif not find(spName.String,SPDevChoices) then
+      spName.Choices = SPDevChoices
+      spName.String = "Choose a Softphone..."
+      spStatusUpdate(status_state.COMPROMISED,"Choose a Softphone Status")
+    end
+  end
+end
+
+function LPNameLogic()
+  if #LPDevChoices==0 then
+    lpStatusUpdate(status_state.FAULT,"No Named Loop Player Components!")
+    lpName.String = ""
+  else
+    local function LPComp()
+      local present = false
+      for _,comp in pairs(Component.GetComponents()) do
+        if comp.Name == spName.String then present=true break end
+      end
+      if present then
+        print("Found Loop Player: "..lpName.String)
+        Component.New(lpName.String)["output.1.status"].EventHandler = function(ctl)
+          if #ctl.String==0 then
+            prompt.Boolean = false
+            print("Loop Status: ".."'"..ctl.String.."'","State: "..state)--,"Waitloop=",Waitloop)
+            if state == pagest.ST_PINPROMPT then state = pagest.ST_ENTERPIN
+            elseif state == pagest.ST_CODEPROMPT then state = pagest.ST_ENTERCODE
+            elseif state == pagest.ST_PAGETONE then rq:Start() WaitTimer:Start(.1) --WaitTimer:Start(.8)
+            elseif state == pagest.ST_MSGALERT then
+              rq:Start()
+              state = pagest.ST_OFF -- This will hang up the line when the WaitTimer expires.
+              WaitTimer:Start(.1)
+            elseif state == pagest.ST_BEEP then state = pagest.ST_LIVE end
+          end
+        end
+      end
+    end
+    lpStatusUpdate(status_state.OK,"")
+    if #LPDevChoices==1 then
+      lpName.String = LPDevChoices[1] LPComp()
+    elseif not find(lpName.String,LPDevChoices) then
+      lpName.Choices = LPDevChoices
+      lpName.String = "Choose a Loop Player..."
+      lpStatusUpdate(status_state.COMPROMISED,"Choose a Loop Player for IVR")
+    else LPComp()
+    end
+  end
+end
+
+function GetDevices() -- Get list of Softphones, Loop Players and Number of stations in design
+  for k,v in pairs(Component.GetComponents()) do
+    for a,b in pairs(v) do
+      if b == "softphone" or b=="pots_control_status" then -- or (b=="scriptable_controls" and v.Name=="Softphone Simulator") then
+        table.insert(SPDevChoices,v.Name)
+      elseif b == "loop_player" then
+        table.insert(LPDevChoices,v.Name)
+      elseif b == "page_system" then
+        for c,d in pairs(v.Properties) do
+          if d.Name == "n_station" then
+            PARStCount = tonumber(d.Value)
+            break
+          end
+        end
+        for i=1,PARStCount do
+          table.insert(PARStChoices,i)
+        end
+      end
+    end
+  end
+  PARouterInputLogic()
+  SPNameLogic()
+  LPNameLogic()  
+end
+
+function SelectCompEH()
+  PA_STATION.EventHandler = PARouterInputLogic
+  spName.EventHandler = SPNameLogic
+  lpName.EventHandler = LPNameLogic
+end
+
+function SetFolder()
+  for k,ctl in pairs(ivr.file) do
+    local function filecolor() ctl.Color = ctl.String == "Choose a file..." and "#FFE9E9" or "" end
+    ctl.Choices = AudioFiles[ivr.root.String]
+    if not find(ctl.String,AudioFiles[ivr.root.String]) and not ctl.IsDisabled then
+      ctl.String="Choose a file..."
+    end
+    ctl.EventHandler = filecolor
+    filecolor()
+  end
+end
+
+function CheckFiles()
+  AudioFiles = {} -- Clear old AudioFiles table
+  DirChoices = {}
+  local catfileexists = file_exists(path)
+  if not catfileexists then
+    CheckFileTimer:Start(1)
+  else
+    CheckFileTimer:Stop()
+    local catalog = xml.load("/usr/qsc/www/media/catalog.xml")
+    for _,fileentry in pairs(catalog) do
+      if type(fileentry)=="table" then
+        local folder,file = string.match(fileentry.path,"(.+/)(.+)")
+        if AudioFiles[folder]==nil then AudioFiles[folder] = {} end
+        table.insert(AudioFiles[folder],file)
+      end
+    end
+    for directory,_ in pairs(AudioFiles) do
+      if directory ~= "Playlists/" then table.insert(DirChoices,directory)end
+    end
+    if ivr.root.String == "" then ivr.root.String = DirChoices[1] end
+    ivr.root.Choices = DirChoices
+    SetFolder()
+    CheckFileTimer:Start(10)
+  end
+end
+
+LP = {
+  Play = function(path,Loop)  
+    print("Loop Player starting: ",path,loop)
+    LoopPlayer.Start( {
+      Name = lpName.String,
+      Loop = Loop,
+      Files = { { Name = path, Mode="mono", Output = 1 } }
+    } )
+    prompt.Boolean = true
+  end,
+  Stop = function()
+    LoopPlayer.Stop { Name = lpName.String, Outputs = { 1 } }
+  end
+}
+
+-- Paging Functionality
+
+function SubmitRQ(PCode)
+  --print("--SubmitRQ",PCode)
+  rq = PARouter.Submit {
+    Code = tostring(PCode), -- Code needs to be a string for some reason
+    Station = tonumber(PA_STATION.String),
+    MaxPageTime = Properties["Max Paging Duration"].Value,
+  }
+  return rq:GetInfo()
+end
+
+function PageSubmit( sz_code )
+  --print("--PageSubmit Code: "..sz_code)
+  local valid, result = pcall(SubmitRQ, sz_code)
+  if valid then
+    if result.Type=="Page" then
+      local msg = result.Mode == "Message"
+      print("Code "..sz_code..": Message = ",msg,"("..result.Mode..")")
+      state = msg and pagest.ST_MSGALERT or pagest.ST_PAGETONE
+      print("State = "..tostring(msg and "pagest.ST_MSGALERT" or "pagest.ST_PAGETONE"))
+      LP.Play(ivr.root.String..ivr.file[msg and "msgplay" or "waitfortone"].String)
+    end
+  else
+    print("Error "..result)
+    beephangup = true
+    LP.Play(ivr.root.String..ivr.file.tryagain.String)
+    print("Invalid Page Code",state)
+    code=""
+  end
+end
+
+function Start()
+  if state == pagest.ST_OFF then
+    inprogress.Boolean = true
+    code = ""
+    state = usepins and pagest.ST_PINPROMPT or pagest.ST_CODEPROMPT
+    local prompt = { [1] = ivr.file.enterpin.String, [3] = ivr.file.entercode.String }
+    print("Path = ",ivr.root.String..prompt[state])
+    print(usepins and "pagest.ST_PINPROMPT" or "pagest.ST_CODEPROMPT")
+    LP.Play(ivr.root.String..prompt[state])
+  end
+  print("Start")
+end
+
+function Stop()
+  if state ~= pagest.ST_OFF then
+    LP.Stop()
+    inprogress.Boolean = false
+    state = pagest.ST_OFF
+    --print("Stop")
+    if rq and state~=ST_PLAYING then rq:Stop() end
+  end
+end
+
+WaitTimer.EventHandler = function()
+  WaitTimer:Stop()
+  if state == pagest.ST_OFF then
+    Component.New(spName.String)["call.disconnect"]:Trigger()
+    inprogress.Boolean = false
+  elseif state == pagest.ST_LIVE then --rq:Start()
+  elseif state == pagest.ST_PAGETONE then
+    if PAReady then
+      state = pagest.ST_BEEP
+      LP.Play(ivr.root.String..ivr.file.beep.String)
+    else
+      state = pagest.ST_LIVEWAIT
+      LP.Play(ivr.root.String..ivr.file.click.String,true)
+    end
+    --print("Start rp:Start()") --rq:Start()
+  elseif state == pagest.ST_LIVEWAIT then LP.Play(ivr.root.String..ivr.file.click.String,true) print("Starting Clicktrack")
+  end
+end
+
+-- Initialization
+inprogress.Boolean = false
+GetDevices()
+SelectCompEH() -- Select Component Control EventHandlers
+CheckFileTimer.EventHandler = CheckFiles
+CheckFileTimer:Start(10)
+CheckFiles()
+ivr.root.EventHandler = SetFolder
+spName.EventHandler = SPNameLogic
+lpName.EventHandler = LPNameLogic 
+
+end

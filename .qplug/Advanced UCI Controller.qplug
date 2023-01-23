@@ -1,0 +1,834 @@
+--[[
+Released under the GNU General Public License v3.0 license. The license terms can be read at https://www.gnu.org/licenses/gpl-3.0.html.
+
+Lua Scripting -------------  © Callum Brieske ------------- NSL NZ
+
+To do:
+1. Do change for non radios, and parents. Done.
+2. Fix transitions for parent changes. Done.
+3. Test nested parents. Done.
+4. Implement no off option for radios. Maybe not, Can be done with string button.
+5. Reset no-child radio groups. Done.
+6. Limit scope for parent selection. Done.
+7. Status, and error handling. Done.
+8. Error on child as parent. Implemented error detection. Update to iterate children.
+9. Children toggle incorrectly if parent is radio group. Done.
+10. Allow single member radio group. Done.
+11. Logical master doesnt disable all children. Investigate further.
+--]]
+
+PluginVersion = "0.4"
+Tagline = "V"..PluginVersion.." - Bugs & Suggestions to Callum@nsl.co.nz - Visit www.nsl.co.nz"
+PluginInfo = 
+{
+	Name = "NSL~Advanced UCI Controller",
+	Version = PluginVersion,
+	Id = "ff4a7452-6edd-4280-9431-1b4c0219aac4",
+	Description = "Advanced UCI Controller",
+	ShowDebug = false,
+}
+
+function GetColor(props) 
+  return { 0, 0, 0 }
+end
+
+function GetPrettyName(props)
+	return "Advanced\nUCI\nController\nv"..PluginVersion
+end
+
+function GetProperties() 
+  props =
+  {
+	{
+		Name = "Number of Layers",
+		Type = "integer",
+		Min = 1,
+		Max = 32,
+		Value = 6,
+	},
+  }
+  return props
+end
+
+function GetControls(props)
+	ctrl = {}
+	for c=1, props["Number of Layers"].Value, 1 do
+	
+	end
+	table.insert(ctrl,
+		{
+			Name = "reset",
+			ControlType = "Button",
+			ButtonType = "Trigger",
+			Count = 1,
+			UserPin = true,
+			PinStyle = "Both",
+		}
+	)
+	table.insert(ctrl,
+		{
+			Name = "uci",
+			ControlType = "Text",
+			Count = 1,
+		}
+	)
+	table.insert(ctrl,
+		{
+			Name = "page",
+			ControlType = "Text",
+			Count = 1,
+		}
+	)
+	table.insert(ctrl,
+		{
+			Name = "status",
+			ControlType = "Indicator",
+			IndicatorType = "Status",
+			Count = 1,
+		}
+	)
+	table.insert(ctrl,
+		{
+			Name = "enable",
+			ControlType = "Button",
+			ButtonType = "Toggle",
+			Count = props["Number of Layers"].Value,
+			UserPin = true,
+			PinStyle = "Both",
+		}
+	)
+	table.insert(ctrl,
+		{
+			Name = "layer",
+			ControlType = "Text",
+			Count = props["Number of Layers"].Value,
+		}
+	)
+	table.insert(ctrl,
+		{
+			Name = "logical parent",
+			ControlType = "Button",
+			ButtonType = "Toggle",
+			Count = props["Number of Layers"].Value,
+		}
+	)
+	table.insert(ctrl,
+		{
+			Name = "radio group",
+			ControlType = "Text",
+			Count = props["Number of Layers"].Value,
+		}
+	)
+	table.insert(ctrl,
+		{
+			Name = "parent",
+			ControlType = "Text",
+			Count = props["Number of Layers"].Value,
+		}
+	)
+	table.insert(ctrl,
+		{
+			Name = "transition in",
+			ControlType = "Text",
+			Count = props["Number of Layers"].Value,
+		}
+	)
+	table.insert(ctrl,
+		{
+			Name = "transition out",
+			ControlType = "Text",
+			Count = props["Number of Layers"].Value,
+		}
+	)
+	table.insert(ctrl,
+		{
+			Name = "reset on parent",
+			ControlType = "Button",
+			ButtonType = "Toggle",
+			Count = props["Number of Layers"].Value,
+		}
+	)
+	table.insert(ctrl,
+		{
+			Name = "visible",
+			ControlType = "Indicator",
+			IndicatorType = "Led",
+			Count = props["Number of Layers"].Value,
+			UserPin = true,
+			PinStyle = "Output",
+		}
+	)
+	return ctrl
+end
+
+function GetControlLayout(props)
+	layout = {}
+	layout["reset"] = 
+		{
+			Style = "Button",
+			Size = {122, 16},
+			Position = {76, 23},
+			HTextAlign = "Center",
+			PrettyName = "Reset Layers",
+			Margin = 0,
+			Radius = 0,
+		}
+	layout["uci"] = 
+		{
+			Style = "Text",
+			Size = {122, 16},
+			Position = {76, 39},
+			HTextAlign = "Center",
+			PrettyName = "UCI Name",
+		}
+	layout["page"] = 
+		{
+			Style = "Text",
+			Size = {122, 16},
+			Position = {76, 55},
+			HTextAlign = "Center",
+			PrettyName = "UCI Page",
+		}
+	layout["status"] = 
+		{
+			Style = "Text",
+			Size = {122, 43},
+			Position = {76, 71},
+			HTextAlign = "Center",
+			PrettyName = "Status",
+		}
+	
+	for c=1, props["Number of Layers"].Value, 1 do
+		layout["enable "..c] = 
+			{
+				Style = "Button",
+				ButtonStyle = "Toggle",
+				Legend = ""..c,
+				Color = "grey",
+				Size = {40, 16},
+				Position = {4, 127+(16*c)},
+				PrettyName = "Layer "..c.."~Enable",
+			}
+		layout["layer "..c] = 
+			{
+				Style = "Text",
+				Size = {80, 16},
+				Position = {58, 127+(16*c)},
+				PrettyName = "Layer "..c.." Name",
+			}
+		layout["logical parent "..c] = 
+			{
+				Style = "Button",
+				ButtonStyle = "Toggle",
+				Color = "grey",
+				Size = {40, 16},
+				Position = {152, 127+(16*c)},
+				PrettyName = "Logical Parent",
+			}
+		layout["radio group "..c] = 
+			{
+				Style = "Text",
+				Size = {80, 16},
+				Position = {206, 127+(16*c)},
+				PrettyName = "Radio Group Name - Layer "..c,
+			}
+		layout["parent "..c] = 
+			{
+				Style = "ComboBox",
+				Size = {80, 16},
+				Position = {302, 127+(16*c)},
+				PrettyName = "Layer "..c.." Parent Layer",
+			}
+		layout["transition in "..c] = 
+			{
+				Style = "ComboBox",
+				Size = {50, 16},
+				Position = {398, 127+(16*c)},
+				PrettyName = "Layer "..c.." Transition In",
+			}
+		layout["transition out "..c] = 
+			{
+				Style = "ComboBox",
+				Size = {50, 16},
+				Position = {452, 127+(16*c)},
+				PrettyName = "Layer "..c.." Transition Out",
+			}			
+		layout["reset on parent "..c] = 
+			{
+				Style = "Button",
+				ButtonStyle = "Toggle",
+				Color = "grey",
+				Size = {40, 16},
+				Position = {516, 127+(16*c)},
+				PrettyName = "Reset Group on Parent Change",
+			}
+		layout["visible "..c] = 
+			{
+				Style = "Led",
+				Size = {16, 16},
+				Position = {580, 127+(16*c)},
+				PrettyName = "Layer "..c.."~Visible",
+			}	
+	end
+	graphics = {}
+	table.insert(graphics,
+		{
+			Type = "Label",
+			Text = "Reset Layers",
+			HTextAlign = "Right",
+			VTextAlign = "Center",
+			Position = {6, 23},
+			TextSize = 10,
+			Size = {68, 16},
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "Label",
+			Text = "UCI Name",
+			HTextAlign = "Right",
+			VTextAlign = "Center",
+			Position = {6, 39},
+			TextSize = 10,
+			Size = {68, 16},
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "Label",
+			Text = "UCI Page",
+			HTextAlign = "Right",
+			VTextAlign = "Center",
+			Position = {6, 55},
+			TextSize = 10,
+			Size = {68, 16},
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "Label",
+			Text = "Status",
+			HTextAlign = "Right",
+			VTextAlign = "Center",
+			Position = {6, 71},
+			TextSize = 10,
+			Size = {68, 43},
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "Label",
+			Text = [[
+1. Fill the setup section with the details of the UCI & page you wish to control.
+2. FIll in the layer names of the layers that you wish to control.
+3. Optionally, give a group of controls a 'Radio Group' name if they are to operate as a radio group. Any name can be used, and you can
+    create as many groups as required.
+4. If any layers are to be 'sub layers', choose a parent layer. These layers will only be shown if the parent layer is visible. Nested parents are
+    also possible.
+5. Select the desired transitions for in and out. When a parent layer is changed, the transitions will be inherited.
+6. If layers are part of a radio group, it will be possible to select the 'Reset Group' option. This will reset the group to its first member
+    when a parent is enabled.
+7. A 'Logical Parent' can be created that doesnt have an associated layer by selecting the 'Logical Parent' button. These are useful as a
+    master control to hide a radio group.
+			]],
+			HTextAlign = "Left",
+			VTextAlign = "Center",
+			Position = {214, 3},
+			TextSize = 7,
+			Size = {393, 101},
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "Label",
+			Text = "V"..PluginVersion.." - Bugs & Suggestions to Callum@nsl.co.nz - Visit www.nsl.co.nz",
+			HTextAlign = "Center",
+			VTextAlign = "Center",
+			Position = {214, 104},
+			TextSize = 10,
+			Size = {393, 16},
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "GroupBox",
+			Text = "Setup",
+			HTextAlign = "Left",
+			StrokeWidth = 1,
+			CornerRadius = 8,
+			Position = {0, 0},
+			TextSize = 12,
+			Size = {204, 120},
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "GroupBox",
+			Text = "Setup Guide",
+			HTextAlign = "Right",
+			StrokeWidth = 1,
+			CornerRadius = 8,
+			Position = {208, 0},
+			TextSize = 12,
+			Size = {404, 120},
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "GroupBox",
+			Text = "Enable",
+			HTextAlign = "Center",
+			StrokeWidth = 1,
+			CornerRadius = 8,
+			Position = {0, 122},
+			TextSize = 12,
+			Size = {48, 28+(props["Number of Layers"].Value*16)},
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "GroupBox",
+			Text = "Layer Name",
+			HTextAlign = "Center",
+			StrokeWidth = 1,
+			CornerRadius = 8,
+			Position = {52, 122},
+			TextSize = 12,
+			Size = {92, 28+(props["Number of Layers"].Value*16)},
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "GroupBox",
+			Text = "Logical Parent",
+			HTextAlign = "Center",
+			StrokeWidth = 1,
+			CornerRadius = 8,
+			Position = {148, 122},
+			TextSize = 12,
+			Size = {48, 28+(props["Number of Layers"].Value*16)},
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "GroupBox",
+			Text = "Radio Group",
+			HTextAlign = "Center",
+			StrokeWidth = 1,
+			CornerRadius = 8,
+			Position = {200, 122},
+			TextSize = 12,
+			Size = {92, 28+(props["Number of Layers"].Value*16)},
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "GroupBox",
+			Text = "Parent Layer",
+			HTextAlign = "Center",
+			StrokeWidth = 1,
+			CornerRadius = 8,
+			Position = {296, 122},
+			TextSize = 12,
+			Size = {92, 28+(props["Number of Layers"].Value*16)},
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "GroupBox",
+			Text = "In - Transition - Out",
+			HTextAlign = "Center",
+			StrokeWidth = 1,
+			CornerRadius = 8,
+			Position = {392, 122},
+			TextSize = 12,
+			Size = {116, 28+(props["Number of Layers"].Value*16)},
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "GroupBox",
+			Text = "Reset Group",
+			HTextAlign = "Center",
+			StrokeWidth = 1,
+			CornerRadius = 8,
+			Position = {512, 122},
+			TextSize = 12,
+			Size = {48, 28+(props["Number of Layers"].Value*16)},
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "GroupBox",
+			Text = "Visible",
+			HTextAlign = "Center",
+			StrokeWidth = 1,
+			CornerRadius = 8,
+			Position = {564, 122},
+			TextSize = 12,
+			Size = {48, 28+(props["Number of Layers"].Value*16)},
+		}
+	)
+	--[[
+	for c=1,props["Input Count"].Value,1 do
+		layout["Input "..c.." Name"] = 
+			{
+				Style = "Text",
+				Size = { 120, 16 },
+				Position = { 41, 18+(16*c) },
+				HTextAlign = "Right",
+				PrettyName = "Input "..c.."~Name",
+			}
+		layout["Input "..c.." Mute"] = 
+			{
+				Style = "Button",
+				ButtonStyle = "Toggle",
+				Legend = "",
+				Color = {255,0,0},
+				Size = { 36, 16 },
+				Position = { 5, 18+(16*c) },
+				PrettyName = "Input "..c.."~Mute",
+			}
+	end
+	for c=1,props["Output Count"].Value,1 do
+		layout["Output "..c.." Source"] = 
+			{
+				Style = "ComboBox",
+				Size = { 120, 16 },
+				Position = { 176, 18+(16*c) },
+				PrettyName = "Output "..c.."~Source",
+			}
+		layout["Output "..c.." Mute"] = 
+			{
+				Style = "Button",
+				ButtonStyle = "Toggle",
+				Legend = "",
+				Color = {255,0,0},
+				Size = { 36, 16 },
+				Position = { 296, 18+(16*c) },
+				PrettyName = "Output "..c.."~Mute",
+			}
+	end
+	table.insert(graphics,
+		{
+			Type = "GroupBox",
+			Text = "Input",
+			HTextAlign = "Left",
+			StrokeWidth = 1,
+			CornerRadius = 8,
+			Position = {0,0},
+			Size = { 166, 40+(props["Input Count"].Value*16) },
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "Label",
+			Text = "Mute",
+			HTextAlign = "Center",
+			Position = {5,18},
+			Size = { 36, 16 },
+			TextSize = 12,
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "Label",
+			Text = "Source Name",
+			HTextAlign = "Center",
+			Position = {41,18},
+			Size = { 120, 16 },
+			TextSize = 12,
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "GroupBox",
+			Text = "Output",
+			HTextAlign = "Right",
+			StrokeWidth = 1,
+			CornerRadius = 8,
+			Position = {171,0},
+			Size = { 166, 40+(props["Output Count"].Value*16) },
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "Label",
+			Text = "Output Source",
+			HTextAlign = "Center",
+			Position = {176,18},
+			Size = { 120, 16 },
+			TextSize = 12,
+		}
+	)
+	table.insert(graphics,
+		{
+			Type = "Label",
+			Text = "Mute",
+			HTextAlign = "Center",
+			Position = {296,18},
+			Size = { 36, 16 },
+			TextSize = 12,
+		}
+	)
+	--]]
+	return layout, graphics
+end
+
+if Controls then
+transitions = { "", "fade", "left", "right", "top", "bottom" }
+transitionsFriendly = { "None", "Fade", "Left", "Right", "Top", "Bottom" }
+colors = {"red", "orange", "yellow", "green", "blue", "purple", "pink", "aqua"}
+uci = Controls.uci.String
+page = Controls.page.String
+layers = {}
+radioGroups = {}
+parents = {}
+parentChoices = {}
+
+function setStatus(l, t)
+  Controls.status.Value = l
+  Controls.status.String = t
+end
+
+function findTrans(trans)
+  local transType
+  for i, v in ipairs(transitionsFriendly) do
+    if v == trans then transType = transitions[i] break end
+  end
+  return transType
+end
+
+function loadValues()   -- Read all string values.
+  setStatus(0, "")
+  local void = false
+  for i, v in ipairs(Controls.layer) do    -- Check for duplications in layers.
+    Controls["radio group"][i].Color = "white"
+    for q, w in ipairs(Controls.layer) do
+      if i ~= q and v.String == w.String and #v.String > 0 then
+        setStatus(2, "Layer "..i.." and "..q.." are both \""..w.String.."\"")
+        void = true
+        break
+      end
+    end
+    if void then break end
+  end
+  uci = Controls.uci.String
+  page = Controls.page.String
+  layers = {}
+  radioGroups = {}
+  parents = {}
+  if not void then    -- If no config errors are found, load parameters.
+  
+  for i, v in ipairs(Controls.parent) do   -- Evaluate parent options.
+    local parentChoices = {}
+    local parentOK = false
+    table.insert(parentChoices, "")
+    for q, w in ipairs(Controls.layer) do
+      if v.String == w.String then parentOK = true end    -- Check that parent exists.
+      if i ~= q
+      and Controls.layer[i].String ~= Controls.parent[q].String
+      and #w.String > 0
+      and (Controls["radio group"][i].String ~= Controls["radio group"][q].String or #Controls["radio group"][q].String < 1)
+      then
+        table.insert(parentChoices, w.String)
+      end
+    end
+    if not parentOK then v.String = "" end
+    v.Choices = parentChoices
+  end
+
+    for i, v in ipairs(Controls.enable) do
+      if #Controls.layer[i].String > 0 then
+        layers[v] = {}
+        layers[v]["index"] = i
+        layers[v]["name"] = Controls.layer[i].String
+        layers[v]["parent"] = Controls.parent[i].String
+        layers[v]["transIn"] = findTrans(Controls["transition in"][i].String)
+        layers[v]["transOut"] = findTrans(Controls["transition out"][i].String)
+        layers[v]["indicator"] = Controls.visible[i]
+        layers[v]["valid"] = not Controls["logical parent"][i].Boolean
+        if radioGroups[Controls["radio group"][i].String] then    -- Disable reset control if not first radio member
+          Controls["reset on parent"][i].IsDisabled = true
+          Controls["reset on parent"][i].Boolean = Controls["reset on parent"][layers[radioGroups[Controls["radio group"][i].String][1]].index].Boolean
+        elseif #Controls["radio group"][i].String < 1 then    -- Disable reset if not in group.
+          Controls["reset on parent"][i].IsDisabled = true
+          Controls["reset on parent"][i].Boolean = false
+        else
+          Controls["reset on parent"][i].IsDisabled = false
+        end
+        if #Controls["radio group"][i].String > 0 then
+          layers[v]["radio group"] = Controls["radio group"][i].String
+          if not radioGroups[Controls["radio group"][i].String] then radioGroups[Controls["radio group"][i].String] = {} end
+          table.insert(radioGroups[Controls["radio group"][i].String], Controls.enable[i])
+        end
+        if #Controls.parent[i].String > 0 then
+          if not parents[Controls.parent[i].String] then
+            parents[Controls.parent[i].String] = {}
+            parents[Controls.parent[i].String].children = {}
+            for q, w in ipairs(Controls.layer) do
+              if w.String == Controls.parent[i].String then
+                parents[Controls.parent[i].String].parent = Controls.enable[q]
+              end
+            end
+          end
+          table.insert(parents[Controls.parent[i].String].children, Controls.enable[i])
+        end
+      end
+    end
+    
+  local colorIdx = 0    -- This section colors the radio groups.
+  for i, c in pairs(radioGroups) do
+    local color
+    if colorIdx < 8 then
+      colorIdx = colorIdx + 1
+      color = colors[colorIdx]
+    else
+      color = "#"..string.format("%X", math.floor(math.random(50, 200)))..string.format("%X", math.floor(math.random(50, 200)))..string.format("%X", math.floor(math.random(50, 200)))
+    end
+    for y, u in pairs(c) do
+      Controls["radio group"][layers[u].index].Color = color
+    end
+  end
+  
+  checkState()
+  end
+end
+
+function doLayer(state, ctl, noTrans)    -- Perform change on layers.
+  function sendChange(s, c)
+    if layers[c].valid then
+      local status, err = pcall(function() Uci.SetLayerVisibility(uci, page, layers[c].name, s, not noTrans and (s and layers[ctl].transIn or layers[ctl].transOut) or nil) end)
+      layers[c].indicator.Boolean = s
+      if not status then
+        local errName = string.match(err, ":.+: (.*)")
+        print(errName == "uci, page or layer not found" and "Error at layer "..layers[c].index.." while parsing layers. Layer, Page or UCI does not exist." or "Error. "..errName)
+        setStatus(2, errName == "uci, page or layer not found" and "Error at layer "..layers[c].index.." while parsing layers. Layer, Page or UCI does not exist." or "Error. "..errName)
+      end
+    else
+      layers[c].indicator.Boolean = s
+    end
+  end
+  if #layers[ctl].parent < 1 then   -- If there is no parent, do change.
+    sendChange(state, ctl)
+  else
+    state = Controls.visible[layers[parents[layers[ctl].parent]["parent"]].index].Boolean and state
+    sendChange(state, ctl)    -- if control is a child, do change.
+  end
+  local status, err = pcall(function()    -- Kludge to catch max exec. To be fixed.
+    function doChildren(s, c)
+      for parent, control in pairs(parents[layers[c].name].children) do
+        if Controls["reset on parent"][layers[control].index].Boolean and state then
+          for m, n in pairs(radioGroups[layers[control]["radio group"]]) do
+            if m == 1 and #radioGroups[layers[control]["radio group"]] > 1 then n.Boolean = true		-- Disable if only member of group, enable if first member.
+            else n.Boolean = false
+            end
+          end
+        end
+        sendChange(Controls.visible[layers[c].index].Boolean and control.Boolean, control)
+        if parents[layers[control].name] and parents[layers[control].name].parent == control then   -- If control is a parent, change children.
+          doChildren(state, control)
+        end
+      end
+    end
+    if parents[layers[ctl].name] and parents[layers[ctl].name].parent == ctl then   -- If control is a parent, change children.
+      doChildren(state, ctl)
+    end
+  ---[[
+  end)
+  if not status then
+    local errName = string.match(err, ":.+: (.*)")
+    print("Error on child iteration. "..errName)
+    setStatus(2, errName == "Max execution limits exceeded" and "Loop detected. Check the selected parents." or "Error. "..errName)
+  end
+  --]]
+end
+
+function doRadio(ctl)   -- Update members of a radio group.
+  group = layers[ctl]["radio group"]
+  for i, v in pairs(radioGroups) do
+    if i == group then
+      for g, c in pairs(v) do
+        if c == ctl then
+          -- Enable triggered layer
+          doLayer(c.Boolean, c)
+        else
+          -- Disable other radio members
+          c.Boolean = false
+          doLayer(false, c)
+        end
+      end
+    end
+  end
+end
+
+function update(ctl)    -- Check control and call relevant functions. Triggered by enable controls.
+  local idx
+  if layers[ctl] then
+    if layers[ctl]["radio group"] ~= nil then    -- If control is a radio, do radioGroup.
+      doRadio(ctl)
+    else
+      doLayer(ctl.Boolean, ctl)
+    end
+  else   -- Reset control if not configured.
+    ctl.Boolean = false
+  end
+end
+
+function checkState()   -- Evaluate all controls and set states.
+  function sendChange(c)
+    if layers[c].valid then
+      local status, err = pcall(function() Uci.SetLayerVisibility(uci, page, layers[c].name, false, nil) end)
+      layers[c].indicator.Boolean = false
+      if not status then
+        local errName = string.match(err, ":.+: (.*)")
+        print(errName == "uci, page or layer not found" and "Error at layer "..layers[c].index.." while parsing layers. Layer, Page or UCI does not exist." or "Error. "..errName)
+        setStatus(2, errName == "uci, page or layer not found" and "Error at layer "..layers[c].index.." while parsing layers. Layer, Page or UCI does not exist." or "Error. "..errName)
+      end
+    else
+      layers[c].indicator.Boolean = false
+    end
+    for t, y in pairs(layers) do
+    end
+  end
+  for i, v in pairs(layers) do
+    sendChange(i)
+  end
+  for i, v in pairs(radioGroups) do
+    local radioState = false
+    for idx, control in pairs(v) do
+      if idx == 1 and Controls["reset on parent"][layers[control].index].Boolean then control.Boolean = true end
+      if radioState then
+        control.Boolean = false
+      else
+        if control.Boolean == true then
+          radioState = true
+        end
+      end
+    end
+  end
+  for control, values in pairs(layers) do
+    doLayer(control.Boolean, control, true)
+  end
+end
+
+-- Setup Event Handlers
+Controls.page.EventHandler = loadValues
+Controls.uci.EventHandler = loadValues
+Controls.reset.EventHandler = checkState
+for i, v in ipairs(Controls.layer) do
+  Controls.layer[i].EventHandler = loadValues
+  Controls["radio group"][i].EventHandler = function(ctl) Controls.parent[i].String = "" loadValues(ctl) end
+  Controls["reset on parent"][i].EventHandler = loadValues
+  Controls.parent[i].EventHandler = loadValues
+  Controls.enable[i].EventHandler = update
+  Controls["transition in"][i].EventHandler = loadValues
+  Controls["transition out"][i].EventHandler = loadValues
+  Controls["transition in"][i].Choices = transitionsFriendly
+  Controls["transition out"][i].Choices = transitionsFriendly
+  Controls["logical parent"][i].EventHandler = loadValues
+end
+
+-- Perform initial evaluation.
+loadValues()
+end

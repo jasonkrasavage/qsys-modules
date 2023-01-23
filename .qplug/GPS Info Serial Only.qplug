@@ -1,0 +1,638 @@
+﻿PluginInfo = 
+{
+  Name = "GPS Info Serial Only",
+  Version = "2.0",
+  Id = "94eb9839-7d28-4285-c2e3-fe1141eec6e5",
+  Description = "Garmin GPS Info",
+  ShowDebug = false
+}
+
+function GetColor(props)return{167,213,214}end
+function GetProperties()return{}end
+
+function GetControls(props)
+  return
+  {
+    {
+      Name = "Status",
+      ControlType = "Indicator",
+      IndicatorType = "Status",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1,
+    },
+    {
+      Name = "utime",
+      ControlType = "Knob",
+      ControlUnit = "Seconds",
+      Min = 0,
+      Max = 86400,
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "udate",
+      ControlType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "ltime",
+      ControlType = "Knob",
+      ControlUnit = "Seconds",
+      Min = 0,
+      Max = 86400,
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "ldate",
+      ControlType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "lat",
+      ControlType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "lon",
+      ControlType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "latdec",
+      ControlType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "londec",
+      ControlType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "knots",
+      ControlType = "Knob",
+      ControlUnit = "Float",
+      Min = 0,
+      Max = 999.99,
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "kph",
+      ControlType = "Knob",
+      ControlUnit = "Float",
+      Min = 0,
+      Max = 1851.8,
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "mph",
+      ControlType = "Knob",
+      ControlUnit = "Float",
+      Min = 0,
+      Max = 115.22,
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "tcourse",
+      ControlType = "Knob",
+      ControlUnit = "Float",
+      Min = 0,
+      Max = 359.9,
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "mcourse",
+      ControlType = "Knob",
+      ControlUnit = "Float",
+      Min = 0,
+      Max = 359.9,
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "satcnt",
+      ControlType = "Knob",
+      ControlUnit = "Integer",
+      Min = 0,
+      Max = 12,
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "ver",
+      ControlType = "Text",
+      PinStyle = "Output",
+      UserPin = true,
+      Count = 1
+    },
+    {
+      Name = "DST",
+      ControlType = "Indicator",
+      PinStyle = "Output",
+      UserPin = true,
+      IndicatorType = "Led",
+      Count = 1,
+    }
+  }
+end
+
+function GetControlLayout(props)
+  layout = {
+    Status = {
+      Style = "Text",
+      TextFontSize = 12,
+      HTextAlign = "Center",
+      Position = { 93, 0 },
+      Size = { 150, 32 },
+      IsReadOnly = true
+    },
+    utime = {
+      PrettyName = "UTC~Time",
+      Style = "Textbox",
+      TextBoxStyle = "Meter",
+      TextFontSize = 12,
+      Color = { 248, 196, 115 },
+      Position = { 93, 35 },
+      Size = { 150, 16 },
+      IsReadOnly = true
+    },
+    udate = {
+      PrettyName = "UTC~Date",
+      Style = "Textbox",
+      TextBoxStyle = "Meter",
+      TextFontSize = 12,
+      Color = { 248, 196, 115 },
+      Position = { 93, 54 },
+      Size = { 150, 16 },
+      IsReadOnly = true
+    },
+    ltime = {
+      PrettyName = "Local~Time",
+      Style = "Textbox",
+      TextBoxStyle = "Meter",
+      TextFontSize = 12,
+      Color = { 187, 219, 136 },
+      Position = { 93, 73 },
+      Size = { 150, 16 },
+      IsReadOnly = true
+    },
+    ldate = {
+      PrettyName = "Local~Date",
+      Style = "Textbox",
+      TextBoxStyle = "Meter",
+      TextFontSize = 12,
+      Color = { 187, 219, 136 },
+      Position = { 93, 92 },
+      Size = { 150, 16 },
+      IsReadOnly = true
+    },
+    lat = {
+      PrettyName = "Latitude",
+      Style = "Textbox",
+      TextFontSize = 12,
+      Color = { 111, 195, 193 },
+      Position = { 93, 111 },
+      Size = { 150, 16 },
+      IsReadOnly = true
+    },
+    lon = {
+      PrettyName = "Longitude",
+      Style = "Textbox",
+      TextFontSize = 12,
+      Color = { 111, 195, 193 },
+      Position = { 93, 130 },
+      Size = { 150, 16 },
+      IsReadOnly = true
+    },
+    latdec = {
+      PrettyName = "Latitude Float",
+      Style = "Textbox",
+      TextFontSize = 12,
+      Color = { 0, 177, 174 },
+      Position = { 93, 149 },
+      Size = { 150, 16 },
+      IsReadOnly = true
+    },
+    londec = {
+      PrettyName = "Longitude Float",
+      Style = "Textbox",
+      TextFontSize = 12,
+      Color = { 0, 177, 174 },
+      Position = { 93, 168 },
+      Size = { 150, 16 },
+      IsReadOnly = true
+    },
+    knots = {
+      PrettyName = "Speed~Knots",
+      Style = "Textbox",
+      TextBoxStyle = "Meter",
+      TextFontSize = 12,
+      Color = { 188, 122, 172 },
+      Position = { 93, 187 },
+      Size = { 150, 16 },
+      IsReadOnly = true
+    },
+    kph = {
+      PrettyName = "Speed~Kilometers per Hour",
+      Style = "Textbox",
+      TextBoxStyle = "Meter",
+      TextFontSize = 12,
+      Color = { 188, 122, 172 },
+      Position = { 93, 206 },
+      Size = { 150, 16 },
+      IsReadOnly = true
+    },
+    mph = {
+      PrettyName = "Speed~Miles per Hour",
+      Style = "Textbox",
+      TextBoxStyle = "Meter",
+      TextFontSize = 12,
+      Color = { 188, 122, 172 },
+      Position = { 93, 225 },
+      Size = { 150, 16 },
+      IsReadOnly = true
+    },
+    tcourse = {
+      PrettyName = "True Course",
+      Style = "Textbox",
+      TextBoxStyle = "Meter",
+      TextFontSize = 12,
+      Color = { 240, 136, 138 },
+      Position = { 93, 244 },
+      Size = { 150, 16 },
+      IsReadOnly = true
+    },
+    mcourse = {
+      PrettyName = "Magnetic Course",
+      Style = "Textbox",
+      TextBoxStyle = "Meter",
+      TextFontSize = 12,
+      Color = { 240, 136, 138 },
+      Position = { 93, 263 },
+      Size = { 150, 16 },
+      IsReadOnly = true
+    },
+    satcnt = {
+      PrettyName = "Satellite Count",
+      Style = "Textbox",
+      TextBoxStyle = "Meter",
+      TextFontSize = 12,
+      Color = { 254, 248, 134 },
+      Position = { 93, 282 },
+      Size = { 150, 16 },
+      IsReadOnly = true
+    },
+    DST = {
+      PrettyName = "Daylight Savings Time",
+      Style = "Led",
+      Color = { 0, 255, 0 },
+      Position = { 93, 302 },
+      Size = { 16, 16 },
+      IsReadOnly = true
+    },
+    ver = {
+      PrettyName = "Version",
+      Style = "Textbox",
+      Color = { 102, 102, 102 },
+      Position = { 93, 321 },
+      Size = { 150, 16 },
+      IsReadOnly = true
+    }
+  }
+
+  graphics = {
+    {
+      Type = "Label",
+      Text = "Status",
+      HTextAlign = "Right",
+      Position = { 0, 0 },
+      Size = { 90, 32 }
+    },
+    {
+      Type = "Label",
+      Text = "UTC Time",
+      HTextAlign = "Right",
+      Position = { 0, 35 },
+      Size = { 90, 16 }
+    },
+    {
+      Type = "Label",
+      Text = "UTC Date",
+      HTextAlign = "Right",
+      Position = { 0, 54 },
+      Size = { 90, 16 }
+    },
+    {
+      Type = "Label",
+      Text = "Local Time",
+      HTextAlign = "Right",
+      Position = { 0, 73 },
+      Size = { 90, 16 }
+    },
+    {
+      Type = "Label",
+      Text = "Local Date",
+      HTextAlign = "Right",
+      Position = { 0, 92 },
+      Size = { 90, 16 }
+    },
+    {
+      Type = "Label",
+      Text = "Latitude",
+      HTextAlign = "Right",
+      Position = { 0, 111 },
+      Size = { 90, 16 }
+    },
+    {
+      Type = "Label",
+      Text = "Longitude",
+      HTextAlign = "Right",
+      Position = { 0, 130 },
+      Size = { 90, 16 }
+    },
+    {
+      Type = "Label",
+      Text = "Latitude Float",
+      HTextAlign = "Right",
+      Position = { 0, 149 },
+      Size = { 90, 16 }
+    },
+    {
+      Type = "Label",
+      Text = "Longitude Float",
+      HTextAlign = "Right",
+      Position = { 0, 168 },
+      Size = { 90, 16 }
+    },
+    {
+      Type = "Label",
+      Text = "Speed Knots",
+      HTextAlign = "Right",
+      Position = { 0, 187 },
+      Size = { 90, 16 }
+    },
+    {
+      Type = "Label",
+      Text = "Speed KPH",
+      HTextAlign = "Right",
+      Position = { 0, 206 },
+      Size = { 90, 16 }
+    },
+    {
+      Type = "Label",
+      Text = "Speed MPH",
+      HTextAlign = "Right",
+      Position = { 0, 225 },
+      Size = { 90, 16 }
+    },
+    {
+      Type = "Label",
+      Text = "True Course",
+      HTextAlign = "Right",
+      Position = { 0, 244 },
+      Size = { 90, 16 }
+    },
+    {
+      Type = "Label",
+      Text = "Magnetic Course",
+      HTextAlign = "Right",
+      Position = { 0, 263 },
+      Size = { 90, 16 }
+    },
+    {
+      Type = "Label",
+      Text = "Satellite Count",
+      HTextAlign = "Right",
+      Position = { 0, 282 },
+      Size = { 90, 16 }
+    },
+    {
+      Type = "Label",
+      Text = "DST",
+      HTextAlign = "Right",
+      Position = { 0, 302 },
+      Size = { 90, 16 }
+    },
+    {
+      Type = "Label",
+      Text = "GPS Version",
+      HTextAlign = "Right",
+      Position = { 0, 321 },
+      Size = { 90, 16 }
+    },
+    {
+      Type = "Label",
+      Text = string.format("Plugin\nv%s",PluginInfo.Version),
+      FontSize = 9,
+      HTextAlign = "Left",
+      Position = { 0, 0 },
+      Size = { 31, 23 }
+    },
+  }
+  return layout, graphics
+end
+
+function GetPins(props)
+  --return{{Name="GPS Serial Port",Direction="input",Domain="serial"}}
+  return{{Name="input",Direction="input",Domain="serial"}}
+end
+
+if Controls then
+-- 4.2 Garmin Firmware Updates:
+--   18x 5Hz model: https://www8.garmin.com/support/download_details.jsp?id=4065
+--   18x LVC model: https://www8.garmin.com/support/download_details.jsp?id=4055
+
+ConnectTimer = Timer.New()
+sp = SerialPorts[1]
+
+status = Controls.Status
+utime = Controls.utime
+udate = Controls.udate
+ltime = Controls.ltime
+ldate = Controls.ldate
+Latitude = Controls.lat
+Longitude = Controls.lon
+latdec = Controls.latdec
+londec = Controls.londec
+Speedknt = Controls.knots
+Speedkph = Controls.kph
+Speedmph = Controls.mph
+TCourse = Controls.tcourse
+MCourse = Controls.mcourse
+SatCnt = Controls.satcnt
+DST = Controls.DST
+Version = Controls.ver
+FirmwareUpdateFlag = false
+Version.String = "Waiting for version string..."
+
+-- status reporting
+status_state = {
+  OK = 0, COMPROMISED = 1, FAULT = 2, NOTPRESENT = 3, MISSING = 4, INITIALIZING = 5
+}
+
+function status_update( sz, ss )
+  if sz:find("Firmware")~=nil or not FirmwareUpdateFlag then
+    status.Value = ss
+    status.String = sz
+  end
+end
+
+-- return the timezone offset in seconds, as it was on the time given by ts
+-- Eric Feliksik
+local function get_timezone_offset(ts)
+  local utcdate   = os.date("!*t", ts)
+  local localdate = os.date("*t", ts)
+  localdate.isdst = false -- this is the trick
+  return os.difftime(os.time(localdate), os.time(utcdate))
+end
+
+
+function UTCtoLocal(utc)
+  return os.date("*t",os.time(utc)+tz)
+end
+
+function SetClock(loctime)
+  local systime = os.date("*t")
+  local delta = math.abs(os.time(systime)-os.time(loctime))
+  if delta > Properties["Time Drift Maximum (Sec)"].Value then
+    local settime = string.format("date -s \"%i%02i%02i%02i%02i.%02i\"",loctime.year,loctime.month,loctime.day,loctime.hour,loctime.min,loctime.sec)
+    local success = os.execute(settime)
+    print("Time set "..tostring(success and "" or "un").."successfully.")
+    success = os.execute("hwclock -w") -- Copy system clock to hardware clock
+    print("System time copied to hwclock "..tostring(success and "" or "un").."successfully.")
+    tz = GetTZInfo() -- Recheck TZ Settings when setting clock
+    timezonestr.String = tz.country.."/"..tz.city.."\r"..tz.zone.." = UTC "..tz.oshours
+    Log.Message("GPS Info adjusted system clock to "..os.date())
+  end
+end
+
+function TimeParse(txtime)
+  local vnames = {'utc','s','lt','lth','ln','lnh','sp','c','ud','mv','mvd','m'}
+  local index, txTable = 1, {}
+  
+  for data in string.gmatch(txtime,",[^,]+") do
+    txTable[vnames[index]] = (data:match(",(.+)"))
+    index = index + 1
+  end
+  if txTable.s == "A" then -- Valid
+    local uh, um, us = string.match(txTable.utc,"(%d%d)(%d%d)(%d%d)")
+    local ud, umn, uy = string.match(txTable.ud,"(%d%d)(%d%d)(%d%d)")
+    local utctable = {year = "20"..uy, month = umn, day = ud,hour = tonumber(uh),
+      min = tonumber(um), sec = tonumber(us)}
+    utime.Value = uh*3600 + um*60 + us
+    udate.String = os.date("%x",os.time(utctable))
+    local loctime = UTCtoLocal( utctable )
+    ltime.Value = loctime.hour*3600 + loctime.min*60 + loctime.sec
+    ldate.String = os.date("%x",os.time(loctime))
+    local latdeg,latmin = string.match(txTable.lt,"(%d%d)(.+)")
+    local londeg,lonmin = string.match(txTable.ln,"(%d%d)(.+)")
+    Latitude.String = string.format("%i° %02.5f' %s",latdeg,latmin,txTable.lth)
+    Longitude.String = string.format("%i° %02.5f' %s",londeg,lonmin,txTable.lnh)
+    latdec.String = tonumber(txTable.lth == "S" and -1 or 1)*tonumber(txTable.lt)/100
+    londec.String = tonumber(txTable.lnh == "W" and -1 or 1)*tonumber(txTable.ln)/100
+    DST.Boolean = os.date("*t").isdst
+  end
+end
+
+sp.EventHandler = function( port, msg )
+  if msg == SerialPorts.Events.Data then
+    local eoc = sp:Search("\r\n")
+    if eoc then
+      status_update("Connected", status_state.OK )
+      ConnectTimer:Stop()
+      local rxdata = sp:ReadLine(SerialPorts.EOL.Any )
+      if rxdata:find("^$GPRMC") then -- Recommended Minimum Specific GPS/TRANSIT Data
+        TimeParse(rxdata)
+      elseif rxdata:find("^$GPGGA") then -- Global Positioning System Fix Data
+        SatCnt.Value = string.match(rxdata,"[EW],%d,(%d%d)")
+      elseif rxdata:find("^$PGRMT") then -- Sensor Status Information
+        local ver = rxdata:match(",([^,]+)")
+        Version.String=ver
+        FirmwareUpdateFlag = tonumber(ver:match("%. (%d+%.%d+)"))<4.2
+        if FirmwareUpdateFlag then
+          status_update("Garmin Firmware Update Required!!", status_state.COMPROMISED )
+        end
+      elseif rxdata:find("^$GPVTG") then -- Track Made Good and Ground Speed
+        tc, mc, Speedknt.Value, Speedkph.Value = string.match(rxdata,",([%d%.]+),T,([%d%.]+),M,([%d%.]+),N,([%d%.]+),K")
+        TCourse.String, MCourse.String = string.format("%s°",tc),string.format("%s°",mc)
+        Speedmph.Value = Speedkph.Value*.6
+      end
+    end
+  elseif msg == SerialPorts.Events.Connected then
+    sp:Write("$PGRMO,GPVTG,1\r\n")
+    if Model=="18x LVC (1PPS)" then
+      print("Disable Sentences for LVC Model")
+      sp:Write("$PGRMO,GPGSA,0\r\n") -- GPS DOP and Active Satellites
+      sp:Write("$PGRMO,GPGSV,0\r\n") -- GPS Satellites in View
+    end
+  elseif msg == SerialPorts.Events.Reconnect then
+    status_update("Serial Port Reconnect", status_state.INITIALIZING )
+  elseif msg == SerialPorts.Events.Closed then
+    status_update("Serial Port Closed", status_state.FAULT )
+  elseif msg == SerialPorts.Events.Error then
+    status_update("Serial Port Error", status_state.FAULT )
+  elseif msg == SerialPorts.Events.Timeout then
+    status_update("Serial Port Timeout", status_state.FAULT )
+  end
+end
+
+ConnectTimer.EventHandler = function()
+  ConnectTimer:Stop()
+  if Model == "18x 5Hz (5PPS)" then
+    Model = "18x LVC (1PPS)"
+    spOpen()
+  else
+    status_update("No Response", status_state.FAULT )
+  end
+end
+
+function spOpen()
+  local function Open()
+    sp:Open(tonumber(Model=="18x 5Hz (5PPS)"and 19200 or 4800))
+  end
+  if sp.IsOpen then sp:Close()end
+  local res,val=pcall(Open)
+  if res then
+    ConnectTimer:Start(1)
+    status_update("Connecting...", status_state.INITIALIZING )
+  else
+    val=val:match("%d+: (.+)")
+    if val:find("port not assigned")then val="No Serial Port wired to input"end
+    status_update("No Serial Port wired to input",status_state.FAULT)
+  end
+end
+
+if System.IsEmulating then
+  status_update("Plugin only works when running on a Core", status_state.FAULT )
+else
+  tz = get_timezone_offset(ts)
+  Model = "18x 5Hz (5PPS)"
+  spOpen()
+end
+
+end
