@@ -1072,6 +1072,10 @@ function ReportStatus(state,msg)
 sshSock.Connected = function()
   print ("ssh connected")
   ReportStatus("OK")
+  Timer.CallAfter(function()
+		print("requesting all status")
+		sshSock:Write("xStatus\n")
+	end, 1)
 end
 
 --Connect Function
