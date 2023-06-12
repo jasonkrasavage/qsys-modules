@@ -1086,7 +1086,7 @@ end
 
 --Data Receive actions
 sshSock.Data = function()
-	sshData =  sshSock:ReadLine(sshSock.EOL.Custom, "** end")  --
+	sshData =  sshSock:ReadLine(TcpSocket.EOL.Custom, "** end")  --
 	if sshData ~= nil then
 		buffer = sshData
 		line = sshData
