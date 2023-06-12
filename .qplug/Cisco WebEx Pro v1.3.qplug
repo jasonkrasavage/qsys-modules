@@ -1177,7 +1177,7 @@ sshSock.Data = function()
 		elseif string.find(buffer, "*s Audio Microphones Mute: On") then
 			Controls.MicMute.Boolean = true
 		end 
-		if string.find(buffer, "*s Standby State: Off") then  --*r StandbyActivateResult
+    if string.find(buffer, "*s Standby State: Off") or string.find(buffer, "*s Standby State: Halfwake") then  --*r StandbyActivateResult
 			print("Cisco is On")
 			Controls.ActivateStandby.Boolean = false
 			Controls.DeactivateStandby.Boolean = true --PowerStatus
