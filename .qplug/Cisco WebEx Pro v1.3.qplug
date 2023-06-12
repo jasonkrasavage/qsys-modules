@@ -1072,6 +1072,10 @@ function ReportStatus(state,msg)
 sshSock.Connected = function()
   print ("ssh connected")
   ReportStatus("OK")
+  Timer.CallAfter(function()
+		print("requesting all status")
+		sshSock:Write("xStatus\n")
+	end, 1)
 end
 
 --Connect Function
@@ -1086,7 +1090,7 @@ end
 
 --Data Receive actions
 sshSock.Data = function()
-	sshData =  sshSock:ReadLine(sshSock.EOL.Custom, "** end")  --
+	sshData =  sshSock:ReadLine(TcpSocket.EOL.Custom, "** end")  --
 	if sshData ~= nil then
 		buffer = sshData
 		line = sshData
@@ -1173,7 +1177,7 @@ sshSock.Data = function()
 		elseif string.find(buffer, "*s Audio Microphones Mute: On") then
 			Controls.MicMute.Boolean = true
 		end 
-		if string.find(buffer, "*s Standby State: Off") then  --*r StandbyActivateResult
+    if string.find(buffer, "*s Standby State: Off") or string.find(buffer, "*s Standby State: Halfwake") then  --*r StandbyActivateResult
 			print("Cisco is On")
 			Controls.ActivateStandby.Boolean = false
 			Controls.DeactivateStandby.Boolean = true --PowerStatus
